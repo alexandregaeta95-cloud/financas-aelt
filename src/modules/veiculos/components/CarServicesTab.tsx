@@ -333,7 +333,7 @@ export default function CarServicesTab({
                 type="button"
                 onClick={() => setVehicleFilter(v.descricao)}
                 className={`px-2.5 py-1 rounded-lg transition-colors shrink-0 uppercase font-bold ${
-                  vehicleFilter.toUpperCase() === v.descricao.toUpperCase()
+                  String(vehicleFilter || '').toUpperCase() === String(v.descricao || '').toUpperCase()
                     ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30'
                     : 'bg-slate-950 text-slate-400 border border-slate-900 hover:text-slate-200'
                 }`}

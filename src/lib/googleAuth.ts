@@ -827,7 +827,7 @@ export const syncDataToSpreadsheet = async (
 
   sortedTx.forEach(t => {
     if (t.categoria === 'ABASTECIMENTO' && t.km) {
-      const vehicle = (t.veiculo || 'FOX').toUpperCase();
+      const vehicle = String(t.veiculo || 'FOX').toUpperCase();
       const prevKm = kmMapByVehicle[vehicle];
       if (prevKm !== undefined && t.km > prevKm) {
         const distance = t.km - prevKm;
@@ -1252,7 +1252,7 @@ export const syncTransactionsToSpreadsheet = async (
 
   sortedTx.forEach(t => {
     if (t.categoria === 'ABASTECIMENTO' && t.km) {
-      const vehicle = (t.veiculo || 'FOX').toUpperCase();
+      const vehicle = String(t.veiculo || 'FOX').toUpperCase();
       const prevKm = kmMapByVehicle[vehicle];
       if (prevKm !== undefined && t.km > prevKm) {
         const distance = t.km - prevKm;

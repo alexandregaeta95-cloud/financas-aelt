@@ -166,7 +166,7 @@ export default function TransactionsTab({
       const urlCategoria = params.get('categoria');
 
       if (urlTipo) {
-        const parsedTipo = urlTipo.toUpperCase();
+        const parsedTipo = String(urlTipo || '').toUpperCase();
         if (['RECEITA', 'DESPESA', 'TRANSFERENCIA', 'TRANSFERÊNCIA'].includes(parsedTipo)) {
           setTxType(parsedTipo === 'TRANSFERÊNCIA' ? 'TRANSFERENCIA' : parsedTipo);
         }
@@ -182,10 +182,10 @@ export default function TransactionsTab({
         setDesc(urlDesc);
       }
       if (urlCategoria) {
-        setCategory(urlCategoria.toUpperCase());
+        setCategory(String(urlCategoria || '').toUpperCase());
       }
       if (urlBanco && bankAccounts && bankAccounts.length > 0) {
-        const found = bankAccounts.find(b => b.nome.toLowerCase().includes(urlBanco.toLowerCase()));
+        const found = bankAccounts.find(b => b.nome && String(b.nome).toLowerCase().includes(String(urlBanco || '').toLowerCase()));
         if (found) {
           setFormBankId(found.id);
         }
@@ -329,7 +329,7 @@ export default function TransactionsTab({
 
     sortedTx.forEach(t => {
       if (t.categoria === 'ABASTECIMENTO' && t.km) {
-        const vehicle = (t.veiculo || 'CARRO').toUpperCase();
+        const vehicle = String(t.veiculo || 'CARRO').toUpperCase();
         const prevKm = kmMapByVehicle[vehicle];
         if (prevKm !== undefined && t.km > prevKm) {
           const distance = t.km - prevKm;
@@ -434,7 +434,7 @@ export default function TransactionsTab({
       doc.setFontSize(8.5);
       doc.setTextColor(71, 85, 105);
       
-      let filterDetails = `Filtro: "${searchTerm || 'Todos'}" | Categoria: ${selectedFilter.toUpperCase()} | Status: ${statusFilter === 'a_pagar' ? 'A Pagar' : statusFilter === 'pago' ? 'Pago' : statusFilter === 'vencendo_48h' ? 'Vencendo em 48h' : 'Todos'}`;
+      let filterDetails = `Filtro: "${searchTerm || 'Todos'}" | Categoria: ${String(selectedFilter || '').toUpperCase()} | Status: ${statusFilter === 'a_pagar' ? 'A Pagar' : statusFilter === 'pago' ? 'Pago' : statusFilter === 'vencendo_48h' ? 'Vencendo em 48h' : 'Todos'}`;
       if (periodoInicio || periodoFim) {
         filterDetails += ` | Periodo: ${periodoInicio || 'Inicio'} ate ${periodoFim || 'Fim'}`;
       }
@@ -660,9 +660,9 @@ export default function TransactionsTab({
   const handleCalcVehicleChange = (vehName: string) => {
     setCalcVehicle(vehName);
     if (!vehName) return;
-    const vehUpper = vehName.toUpperCase();
+    const vehUpper = String(vehName || '').toUpperCase();
     const prevFuelings = transactions
-      .filter(t => t.categoria === 'ABASTECIMENTO' && t.veiculo && t.veiculo.toUpperCase() === vehUpper && t.km)
+      .filter(t => t.categoria === 'ABASTECIMENTO' && t.veiculo && String(t.veiculo || '').toUpperCase() === vehUpper && t.km)
       .sort((a, b) => (b.km || 0) - (a.km || 0));
     if (prevFuelings.length > 0 && prevFuelings[0].km) {
       setCalcKmAnterior(String(prevFuelings[0].km));
@@ -745,7 +745,7 @@ export default function TransactionsTab({
     }> = [];
 
     sorted.forEach(t => {
-      const veh = (t.veiculo || t.descricaoVeiculo || 'PADRÃO').toUpperCase();
+      const veh = String(t.veiculo || t.descricaoVeiculo || 'PADRÃO').toUpperCase();
       if (t.km) {
         const prevKm = kmMap[veh];
         let dist = t.kmPercorrido || 0;
@@ -790,7 +790,7 @@ export default function TransactionsTab({
 
   const filteredChartData = React.useMemo(() => {
     if (selectedChartVehicle === 'TODOS') return fuelChartPoints;
-    return fuelChartPoints.filter(p => p.veiculo === selectedChartVehicle.toUpperCase());
+    return fuelChartPoints.filter(p => String(p.veiculo || '').toUpperCase() === String(selectedChartVehicle || '').toUpperCase());
   }, [fuelChartPoints, selectedChartVehicle]);
 
   const chartStats = React.useMemo(() => {
@@ -833,13 +833,13 @@ export default function TransactionsTab({
   const allGasStations = React.useMemo(() => {
     const stations = transactions
       .filter(t => t.categoria === 'ABASTECIMENTO' && t.nomePosto)
-      .map(t => t.nomePosto!.toUpperCase().trim());
+      .map(t => String(t.nomePosto || '').toUpperCase().trim());
     return Array.from(new Set(stations)).sort();
   }, [transactions]);
 
   const filteredStations = React.useMemo(() => {
     if (!nomePosto.trim()) return [];
-    const val = nomePosto.toUpperCase();
+    const val = String(nomePosto || '').toUpperCase();
     return allGasStations.filter(station => station.includes(val) && station !== val);
   }, [nomePosto, allGasStations]);
 
@@ -913,12 +913,12 @@ export default function TransactionsTab({
           const data = await res.json();
           if (Array.isArray(data)) {
             const mapped = data.map((item: any) => {
-              const name = (item.name || item.display_name.split(',')[0] || nomePosto).toUpperCase();
+              const name = String(item.name || (item.display_name ? item.display_name.split(',')[0] : '') || nomePosto || '').toUpperCase();
               const addr = item.address;
               const street = addr ? (addr.road || addr.pedestrian || addr.suburb || '') : '';
               const number = addr ? (addr.house_number || '') : '';
               const city = addr ? (addr.city || addr.town || addr.village || '') : '';
-              const state = addr ? (addr.state ? addr.state.substring(0, 2).toUpperCase() : '') : '';
+              const state = addr ? (addr.state ? String(addr.state).substring(0, 2).toUpperCase() : '') : '';
               
               let formattedAddress = '';
               if (street) {
@@ -933,7 +933,7 @@ export default function TransactionsTab({
               if (!formattedAddress && item.display_name) {
                 formattedAddress = item.display_name.split(',').slice(1, 4).join(',').trim();
               }
-              return { name, address: formattedAddress.toUpperCase() };
+              return { name, address: String(formattedAddress || '').toUpperCase() };
             });
             setOnlinePostoSuggestions(mapped);
           }
@@ -1168,11 +1168,11 @@ export default function TransactionsTab({
   const getLiveStats = () => {
     if (!km || isNaN(parseInt(km, 10)) || !veiculo) return { kmPercorrido: 0, mediaKmL: 0 };
     const currentKm = parseInt(km, 10);
-    const vehicleUpper = veiculo.toUpperCase();
+    const vehicleUpper = String(veiculo || '').toUpperCase();
     
     // Find all fueling transactions for this vehicle with km < currentKm
     const prevFuelings = transactions
-      .filter(t => t.categoria === 'ABASTECIMENTO' && t.veiculo && t.veiculo.toUpperCase() === vehicleUpper && t.km && t.km < currentKm);
+      .filter(t => t.categoria === 'ABASTECIMENTO' && t.veiculo && String(t.veiculo || '').toUpperCase() === vehicleUpper && t.km && t.km < currentKm);
       
     if (prevFuelings.length === 0) return { kmPercorrido: 0, mediaKmL: 0 };
     
@@ -1366,7 +1366,7 @@ export default function TransactionsTab({
       return;
     }
 
-    const finalCategory = category === 'NOVA_CATEGORIA' ? newCategoryName.trim().toUpperCase() : category.toUpperCase();
+    const finalCategory = category === 'NOVA_CATEGORIA' ? String(newCategoryName || '').trim().toUpperCase() : String(category || '').toUpperCase();
     if (category === 'NOVA_CATEGORIA' && !newCategoryName.trim()) {
       alertUser("Campo Obrigatório", "Por favor, insira o nome da nova categoria.");
       return;
@@ -1374,9 +1374,9 @@ export default function TransactionsTab({
 
     const isAbastecimento = finalCategory === 'ABASTECIMENTO';
     
-    let finalDesc = desc.trim().toUpperCase();
+    let finalDesc = String(desc || '').trim().toUpperCase();
     if (isAbastecimento) {
-      finalDesc = `ABASTECIMENTO: ${nomePosto ? nomePosto.trim().toUpperCase() : 'POSTO'}`;
+      finalDesc = `ABASTECIMENTO: ${nomePosto ? String(nomePosto).trim().toUpperCase() : 'POSTO'}`;
     } else {
       if (!finalDesc) {
         alertUser("Campo Obrigatório", "Por favor, insira uma descrição para a transação.");
@@ -1384,7 +1384,7 @@ export default function TransactionsTab({
       }
     }
 
-    const finalType = txType === 'NOVO_TIPO' ? newTypeName.trim().toUpperCase() : txType.toUpperCase();
+    const finalType = txType === 'NOVO_TIPO' ? String(newTypeName || '').trim().toUpperCase() : String(txType || '').toUpperCase();
     if (txType === 'NOVO_TIPO' && !newTypeName.trim()) {
       alertUser("Campo Obrigatório", "Por favor, insira o nome do novo tipo.");
       return;
@@ -1927,7 +1927,7 @@ export default function TransactionsTab({
   }).length;
 
   const getCategoryIcon = (cat: string) => {
-    switch (cat.toUpperCase()) {
+    switch (String(cat || '').toUpperCase()) {
       case 'RECEITA': return 'trending_up';
       case 'ABASTECIMENTO': return 'local_gas_station';
       case 'TRABALHO': return 'work';
@@ -1942,7 +1942,7 @@ export default function TransactionsTab({
   };
 
   const getStatusBadge = (stat: string) => {
-    switch (stat.toUpperCase()) {
+    switch (String(stat || '').toUpperCase()) {
       case 'PAGO':
         return <span className="bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 px-2 py-0.5 rounded text-[10px] font-bold">PAGO</span>;
       case 'ATRASADO':
@@ -1954,7 +1954,7 @@ export default function TransactionsTab({
 
   const getVencimentoBadge = (tx: Transaction) => {
     if (tx.tipo === 'CONTAS BANCARIAS' || tx.tipo === 'CARTÃO DE CRÉDITO') return null;
-    if (tx.status.toUpperCase() === 'PAGO') return null;
+    if (String(tx.status || '').toUpperCase() === 'PAGO') return null;
 
     const parts = tx.data.split('/');
     if (parts.length !== 3) return null;
@@ -2047,7 +2047,7 @@ export default function TransactionsTab({
                     required
                     value={newTypeName}
                     onChange={(e) => {
-                      const val = e.target.value.toUpperCase();
+                      const val = String(e.target.value || '').toUpperCase();
                       setNewTypeName(val);
                       setFuelType(val);
                     }}
@@ -2082,7 +2082,7 @@ export default function TransactionsTab({
                 type="text"
                 required
                 value={desc}
-                onChange={(e) => setDesc(e.target.value.toUpperCase())}
+                onChange={(e) => setDesc(String(e.target.value || '').toUpperCase())}
                 className="w-full bg-slate-900/60 border border-slate-800 rounded-xl px-4 py-3 text-sm text-white focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 outline-none"
                 placeholder="Ex: POSTO GUARANI, UBER RECEITA, etc."
               />
@@ -2100,7 +2100,7 @@ export default function TransactionsTab({
                   setCategory(val);
                   if (val !== 'NOVA_CATEGORIA') {
                     setNewCategoryName('');
-                    if (val.toUpperCase() === 'ABASTECIMENTO') {
+                    if (String(val || '').toUpperCase() === 'ABASTECIMENTO') {
                       setFuelType('ETANOL');
                       setTxType('ETANOL');
                     }
@@ -2131,7 +2131,7 @@ export default function TransactionsTab({
                   required
                   value={newCategoryName}
                   onChange={(e) => {
-                    const val = e.target.value.toUpperCase();
+                    const val = String(e.target.value || '').toUpperCase();
                     setNewCategoryName(val);
                     if (val === 'ABASTECIMENTO') {
                       setFuelType('ETANOL');
@@ -2146,7 +2146,7 @@ export default function TransactionsTab({
           </div>
 
           {/* Fuel Specific Fields for Abastecimento category */}
-          {(category === 'NOVA_CATEGORIA' ? newCategoryName.trim().toUpperCase() : category.toUpperCase()) === 'ABASTECIMENTO' && (
+          {(category === 'NOVA_CATEGORIA' ? String(newCategoryName || '').trim().toUpperCase() : String(category || '').toUpperCase()) === 'ABASTECIMENTO' && (
             <div className="bg-slate-900/50 border border-slate-800 p-4 rounded-2xl space-y-4 animate-fade-in">
               <p className="text-[11px] font-bold text-emerald-400 font-mono uppercase tracking-wider">
                 Dados do Combustível &amp; Veículo
@@ -2225,7 +2225,7 @@ export default function TransactionsTab({
                       const matched = registeredVehicles.find(v => v.descricao === val);
                       if (matched) {
                         setMotorista(matched.motorista);
-                        if (matched.descricao.toUpperCase().includes('MOTO')) {
+                        if (String(matched.descricao || '').toUpperCase().includes('MOTO')) {
                           setVeiculo('MOTO');
                         } else {
                           setVeiculo('CARRO');
@@ -2338,7 +2338,7 @@ export default function TransactionsTab({
                     type="text"
                     value={nomePosto}
                     onChange={(e) => {
-                      setNomePosto(e.target.value.toUpperCase());
+                      setNomePosto(String(e.target.value || '').toUpperCase());
                       setShowPostoSuggestions(true);
                     }}
                     onFocus={() => setShowPostoSuggestions(true)}
@@ -2419,7 +2419,7 @@ export default function TransactionsTab({
                       type="text"
                       value={localizacaoPosto}
                       onChange={(e) => {
-                        setLocalizacaoPosto(e.target.value.toUpperCase());
+                        setLocalizacaoPosto(String(e.target.value || '').toUpperCase());
                         if (locationError) setLocationError(null);
                       }}
                       className="w-full bg-slate-900/60 border border-slate-800 rounded-xl pl-3 pr-9 py-2 text-xs text-white focus:border-emerald-500 outline-none transition-all"
@@ -2609,7 +2609,7 @@ export default function TransactionsTab({
             <label className="block text-xs font-semibold text-slate-300">Observações (OBS)</label>
             <textarea
               value={obs}
-              onChange={(e) => setObs(e.target.value.toUpperCase())}
+              onChange={(e) => setObs(String(e.target.value || '').toUpperCase())}
               className="w-full bg-slate-900/60 border border-slate-800 rounded-xl px-4 py-3 text-xs text-white focus:border-emerald-500 outline-none h-20 resize-none"
               placeholder="Ex: Nota fiscal enviada por e-mail ou observações adicionais"
             />
@@ -2999,7 +2999,7 @@ export default function TransactionsTab({
                   </option>
                 ))}
                 {availableChartVehicles.map(vName => {
-                  if (registeredVehicles.some(rv => rv.descricao.toUpperCase() === vName.toUpperCase())) return null;
+                  if (registeredVehicles.some(rv => String(rv.descricao || '').toUpperCase() === String(vName || '').toUpperCase())) return null;
                   return (
                     <option key={vName} value={vName}>
                       {vName}
@@ -3155,7 +3155,7 @@ export default function TransactionsTab({
       {forcedFilter !== 'ABASTECIMENTO' && (() => {
         const warningTransactions = transactions.filter(t => {
           if (t.tipo === 'CONTAS BANCARIAS' || t.tipo === 'CARTÃO DE CRÉDITO') return false;
-          if (t.status.toUpperCase() === 'PAGO') return false;
+          if (String(t.status || '').toUpperCase() === 'PAGO') return false;
           
           const parts = t.data.split('/');
           if (parts.length !== 3) return false;
@@ -3699,13 +3699,13 @@ export default function TransactionsTab({
                       <span className="truncate">{tx.descricao}</span>
                     </h4>
                     <p className="text-[10px] text-slate-400 font-mono mt-1 truncate">
-                      {tx.data} • {tx.categoria} • {tx.tipo}{tx.bancoNome ? ` • 🏦 ${tx.bancoNome.toUpperCase()}` : ''}
+                      {tx.data} • {tx.categoria} • {tx.tipo}{tx.bancoNome ? ` • 🏦 ${String(tx.bancoNome).toUpperCase()}` : ''}
                     </p>
-                    {tx.categoria.toUpperCase() === 'ABASTECIMENTO' && (tx.km || tx.litros || tx.veiculo || tx.descricaoVeiculo || tx.valorPg !== undefined || tx.completouTanque !== undefined || tx.nomePosto || tx.localizacaoPosto || tx.motorista) && (
+                    {String(tx.categoria || '').toUpperCase() === 'ABASTECIMENTO' && (tx.km || tx.litros || tx.veiculo || tx.descricaoVeiculo || tx.valorPg !== undefined || tx.completouTanque !== undefined || tx.nomePosto || tx.localizacaoPosto || tx.motorista) && (
                       <div className="flex flex-wrap gap-x-2 gap-y-1 text-[9px] font-semibold text-emerald-400 font-mono mt-1 uppercase">
                         {tx.veiculo && (
                           <span>
-                            {tx.veiculo.toUpperCase() === 'MOTO' ? '🏍️' : '🚗'} {tx.veiculo}
+                            {String(tx.veiculo || '').toUpperCase() === 'MOTO' ? '🏍️' : '🚗'} {tx.veiculo}
                             {tx.descricaoVeiculo ? ` (${tx.descricaoVeiculo})` : ''}
                           </span>
                         )}
@@ -3722,7 +3722,7 @@ export default function TransactionsTab({
                       </div>
                     )}
 
-                    {(tx.valorPg !== undefined || tx.temJuros || tx.dataPagamento) && tx.status?.toUpperCase() === 'PAGO' && tx.categoria.toUpperCase() !== 'ABASTECIMENTO' && (
+                    {(tx.valorPg !== undefined || tx.temJuros || tx.dataPagamento) && String(tx.status || '').toUpperCase() === 'PAGO' && String(tx.categoria || '').toUpperCase() !== 'ABASTECIMENTO' && (
                       <div className="flex flex-wrap gap-x-3 gap-y-1 text-[9px] font-semibold text-slate-400 font-mono mt-1 uppercase bg-slate-900/40 p-1.5 rounded-lg border border-slate-800/50 w-fit">
                         {tx.dataPagamento && <span>📅 PGTO: {tx.dataPagamento}</span>}
                         {tx.valorPg !== undefined && <span>💰 PAGO: R$ {tx.valorPg.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>}
@@ -3753,7 +3753,7 @@ export default function TransactionsTab({
                   
                   {/* Actions: Edit and Delete */}
                   <div className="flex items-center gap-1 shrink-0">
-                    {tx.status?.toUpperCase() !== 'PAGO' && (
+                    {String(tx.status || '').toUpperCase() !== 'PAGO' && (
                       <button
                         onClick={() => {
                           setBaixaTx(tx);

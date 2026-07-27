@@ -61,7 +61,7 @@ export default function IndicacoesTab({ transactions, onNavigate, showAlert }: I
     const mediaKmLMap: { [txId: number]: number } = {};
 
     fuelTxs.forEach(t => {
-      const vehicle = (t.veiculo || t.descricaoVeiculo || 'PADRÃO').toUpperCase();
+      const vehicle = String(t.veiculo || t.descricaoVeiculo || 'PADRÃO').toUpperCase();
       if (t.km) {
         const prevKm = kmMapByVehicle[vehicle];
         if (prevKm !== undefined && t.km > prevKm) {
@@ -93,7 +93,7 @@ export default function IndicacoesTab({ transactions, onNavigate, showAlert }: I
     fuelTxs.forEach(t => {
       let rawName = t.nomePosto || '';
       if (!rawName) {
-        const descUpper = t.descricao.toUpperCase();
+        const descUpper = String(t.descricao || '').toUpperCase();
         if (descUpper.includes('POSTO')) {
           const match = descUpper.match(/POSTO\s+([A-Z0-9\s\-]+)/);
           if (match && match[1]) {
@@ -106,7 +106,7 @@ export default function IndicacoesTab({ transactions, onNavigate, showAlert }: I
         }
       }
 
-      const name = rawName.trim().toUpperCase() || 'POSTO NÃO ESPECIFICADO';
+      const name = String(rawName || '').trim().toUpperCase() || 'POSTO NÃO ESPECIFICADO';
       if (name === 'POSTO' || name === '') return;
 
       if (!stations[name]) {
@@ -130,7 +130,7 @@ export default function IndicacoesTab({ transactions, onNavigate, showAlert }: I
 
       let liters = t.litros || 0;
       const fType = t.tipo || 'GAS. COMUM';
-      const isEtanol = fType.toUpperCase().includes('ETANOL');
+      const isEtanol = String(fType || '').toUpperCase().includes('ETANOL');
       const fuelCategory = isEtanol ? 'ETANOL' : 'GASOLINA';
 
       if (liters <= 0 && t.valor > 0) {
@@ -183,8 +183,8 @@ export default function IndicacoesTab({ transactions, onNavigate, showAlert }: I
 
       // Fallback realistic values if no KM tracking is registered
       if (avgKmL === 0) {
-        const hasEtanol = st.types.some(t => t.toUpperCase().includes('ETANOL'));
-        const nameUpper = st.name.toUpperCase();
+        const hasEtanol = st.types.some(t => String(t || '').toUpperCase().includes('ETANOL'));
+        const nameUpper = String(st.name || '').toUpperCase();
         if (hasEtanol) {
           avgKmL = nameUpper.includes('SHELL') ? 8.4 : nameUpper.includes('IPIRANGA') ? 8.1 : 7.9;
         } else {
@@ -197,7 +197,7 @@ export default function IndicacoesTab({ transactions, onNavigate, showAlert }: I
         avgPrice,
         avgKmL,
         avgCostPerKm: avgKmL > 0 ? (avgPrice / avgKmL) : 0,
-        primaryFuelGroup: st.types.some(t => t.toUpperCase().includes('ETANOL')) ? 'ETANOL' : 'GASOLINA'
+        primaryFuelGroup: st.types.some(t => String(t || '').toUpperCase().includes('ETANOL')) ? 'ETANOL' : 'GASOLINA'
       };
     });
 

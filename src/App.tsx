@@ -245,7 +245,7 @@ export default function App() {
       if (saved) {
         const parsed = JSON.parse(saved);
         if (Array.isArray(parsed)) {
-          const filtered = parsed.filter(v => v.descricao.toUpperCase() !== 'FOX PRATA');
+          const filtered = parsed.filter(v => String(v.descricao || '').toUpperCase() !== 'FOX PRATA');
           if (filtered.length !== parsed.length) {
             localStorage.setItem('wealthflow_registered_vehicles', JSON.stringify(filtered));
           }
@@ -4545,7 +4545,7 @@ export default function App() {
                 <div className="flex items-start justify-between">
                   <div className="flex items-center gap-2.5">
                     <div className="w-8 h-8 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 flex items-center justify-center font-bold text-xs tracking-wider">
-                      {activeNotification.banco.substring(0, 2).toUpperCase()}
+                      {String(activeNotification.banco || '').substring(0, 2).toUpperCase()}
                     </div>
                     <div>
                       <div className="flex items-center gap-1.5">
