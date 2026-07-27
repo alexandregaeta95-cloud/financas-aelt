@@ -1417,69 +1417,41 @@ export const parseTransactionRows = (rows: any[], defaultSheetKey?: string): any
 
   for (let i = headerRowIndex + 1; i < rows.length; i++) {
     const row = rows[i];
-    if (!row || row.length === 0) continue;
+    if (!row || !Array.isArray(row) || row.length === 0) continue;
     
-    const descValue = row[idxDesc];
-    if (descValue === undefined || String(descValue).trim() === '') continue;
+    // Ignorar linhas completamente vazias
+    const isRowEmpty = !row.some((cell: any) => cell !== null && cell !== undefined && String(cell).trim() !== '');
+    if (isRowEmpty) continue;
 
     const valor = parseBrazilianOrRawNumber(row[idxValor]);
-    const valorPgVal = row[idxValorPg] !== undefined ? parseBrazilianOrRawNumber(row[idxValorPg]) : undefined;
+    const valorPgVal = row[idxValorPg] !== undefined && row[idxValorPg] !== null && String(row[idxValorPg]).trim() !== ''
+      ? parseBrazilianOrRawNumber(row[idxValorPg]) 
+      : undefined;
 
-    let parsedId = parseInt(row[idxId]);
-    if (isNaN(parsedId) || parsedId <= 0) {
-      const dataStr = String(row[idxData] || '');
-      const descStr = String(row[idxDesc] || '');
-      const tipoStr = String(row[idxTipo] || 'DESPESA');
-      const hashStr = `${dataStr}_${descStr}_${valor}_${tipoStr}`;
-      let hash = 0;
-      for (let charIdx = 0; charIdx < hashStr.length; charIdx++) {
-        hash = (hash << 5) - hash + hashStr.charCodeAt(charIdx);
-        hash = hash & hash;
-      }
-      parsedId = 100000000 + Math.abs(hash % 900000000);
-    }
-
-    let salt = 0;
-    while (seenIds.has(parsedId)) {
-      salt++;
-      const dataStr = String(row[idxData] || '');
-      const descStr = String(row[idxDesc] || '');
-      const tipoStr = String(row[idxTipo] || 'DESPESA');
-      const hashStr = `${dataStr}_${descStr}_${valor}_${tipoStr}_${salt}`;
-      let hash = 0;
-      for (let charIdx = 0; charIdx < hashStr.length; charIdx++) {
-        hash = (hash << 5) - hash + hashStr.charCodeAt(charIdx);
-        hash = hash & hash;
-      }
-      parsedId = 100000000 + Math.abs(hash % 900000000);
-    }
-    seenIds.add(parsedId);
-
-    const km = row[idxKm] !== undefined && String(row[idxKm]).trim() !== '' 
+    const km = row[idxKm] !== undefined && row[idxKm] !== null && String(row[idxKm]).trim() !== '' 
       ? parseBrazilianOrRawNumber(row[idxKm]) 
       : undefined;
-    const litros = row[idxLitros] !== undefined && String(row[idxLitros]).trim() !== '' 
+    const litros = row[idxLitros] !== undefined && row[idxLitros] !== null && String(row[idxLitros]).trim() !== '' 
       ? parseBrazilianOrRawNumber(row[idxLitros]) 
       : undefined;
-    const precoLitro = row[idxPrecoLitro] !== undefined && String(row[idxPrecoLitro]).trim() !== '' 
+    const precoLitro = row[idxPrecoLitro] !== undefined && row[idxPrecoLitro] !== null && String(row[idxPrecoLitro]).trim() !== '' 
       ? parseBrazilianOrRawNumber(row[idxPrecoLitro]) 
       : undefined;
-    
-    const completouStr = String(row[idxCompletou] || '').toUpperCase();
-    const completouTanque = completouStr === 'SIM' || completouStr === 'TRUE' || completouStr === 'S' || completouStr === '1';
 
+    const rawPosto = row[idxNomePosto] !== undefined && row[idxNomePosto] !== null ? String(row[idxNomePosto]).trim() : '';
+    const rawVeiculo = row[idxVeiculo] !== undefined && row[idxVeiculo] !== null ? String(row[idxVeiculo]).trim() : '';
+    const rawDesc = row[idxDesc] !== undefined && row[idxDesc] !== null ? String(row[idxDesc]).trim() : '';
     const rawCat = String(row[idxCat] || (isReceitasSheet ? 'RECEITA' : 'OUTROS')).trim().toUpperCase();
     const normalizedCat = rawCat.normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^A-Z0-9]/g, "");
-
     const rawTipo = String(row[idxTipo] || '').trim().toUpperCase();
-    const rawDesc = String(row[idxDesc] || '').trim().toUpperCase();
 
     // Categorização inteligente
     let category = 'OUTROS';
     const isFuelType = ['ETANOL', 'GAS. COMUM', 'GAS. ADITIVADA', 'DIESEL', 'GAS COMUM', 'GAS ADITIVADA', 'GASOLINA', 'ALCOOL', 'ETANOL ADITIVADA'].includes(rawTipo);
-    const hasFuelKeywords = rawDesc.includes('POSTO') || rawDesc.includes('ABASTECE') || rawDesc.includes('COMBUS') || rawDesc.includes('IPIRANGA') || rawDesc.includes('SHELL') || rawDesc.includes('BR ') || rawDesc.includes('GASPRIME') || rawDesc.includes('TAURIS');
+    const descUpper = rawDesc.toUpperCase();
+    const hasFuelKeywords = descUpper.includes('POSTO') || descUpper.includes('ABASTECE') || descUpper.includes('COMBUS') || descUpper.includes('IPIRANGA') || descUpper.includes('SHELL') || descUpper.includes('BR ') || descUpper.includes('GASPRIME') || descUpper.includes('TAURIS');
 
-    if (isAbastecimentosSheet || normalizedCat.includes('ABASTECIMENTO') || normalizedCat.includes('COMBUSTIVEL') || isFuelType || (hasFuelKeywords && (normalizedCat === '' || normalizedCat === 'OUTROS' || normalizedCat === 'DESPESA'))) {
+    if (isAbastecimentosSheet || normalizedCat.includes('ABASTECIMENTO') || normalizedCat.includes('COMBUSTIVEL') || isFuelType || (hasFuelKeywords && (normalizedCat === '' || normalizedCat === 'OUTROS' || normalizedCat === 'DESPESA')) || !!rawPosto || (km !== undefined && km > 0) || (litros !== undefined && litros > 0)) {
       category = 'ABASTECIMENTO';
     } else if (normalizedCat.includes('RECEITA') || normalizedCat.includes('ENTRADA')) {
       category = rawCat && rawCat !== 'ENTRADA' ? rawCat : 'RECEITA';
@@ -1501,6 +1473,50 @@ export const parseTransactionRows = (rows: any[], defaultSheetKey?: string): any
       category = rawCat || (isReceitasSheet ? 'RECEITA' : 'OUTROS');
     }
 
+    let finalDesc = rawDesc;
+    if (!finalDesc) {
+      if (rawPosto) {
+        finalDesc = `ABASTECIMENTO: ${rawPosto.toUpperCase()}`;
+      } else if (rawVeiculo) {
+        finalDesc = `ABASTECIMENTO (${rawVeiculo.toUpperCase()})`;
+      } else if (category === 'ABASTECIMENTO') {
+        finalDesc = 'ABASTECIMENTO';
+      } else {
+        finalDesc = 'LANÇAMENTO';
+      }
+    }
+
+    let parsedId = parseInt(row[idxId]);
+    if (isNaN(parsedId) || parsedId <= 0) {
+      const dataStr = String(row[idxData] || '');
+      const tipoStr = String(row[idxTipo] || 'DESPESA');
+      const hashStr = `${dataStr}_${finalDesc}_${valor}_${tipoStr}`;
+      let hash = 0;
+      for (let charIdx = 0; charIdx < hashStr.length; charIdx++) {
+        hash = (hash << 5) - hash + hashStr.charCodeAt(charIdx);
+        hash = hash & hash;
+      }
+      parsedId = 100000000 + Math.abs(hash % 900000000);
+    }
+
+    let salt = 0;
+    while (seenIds.has(parsedId)) {
+      salt++;
+      const dataStr = String(row[idxData] || '');
+      const tipoStr = String(row[idxTipo] || 'DESPESA');
+      const hashStr = `${dataStr}_${finalDesc}_${valor}_${tipoStr}_${salt}`;
+      let hash = 0;
+      for (let charIdx = 0; charIdx < hashStr.length; charIdx++) {
+        hash = (hash << 5) - hash + hashStr.charCodeAt(charIdx);
+        hash = hash & hash;
+      }
+      parsedId = 100000000 + Math.abs(hash % 900000000);
+    }
+    seenIds.add(parsedId);
+    
+    const completouStr = String(row[idxCompletou] || '').toUpperCase();
+    const completouTanque = completouStr === 'SIM' || completouStr === 'TRUE' || completouStr === 'S' || completouStr === '1';
+
     let finalTipo = rawTipo;
     if (
       isReceitasSheet || 
@@ -1519,10 +1535,15 @@ export const parseTransactionRows = (rows: any[], defaultSheetKey?: string): any
       finalTipo = rawTipo || (isDespesasSheet ? 'DESPESA' : 'DESPESA');
     }
 
+    let dataStr = String(row[idxData] || '').trim();
+    if (!dataStr || dataStr === 'undefined' || dataStr === 'null') {
+      dataStr = new Date().toLocaleDateString('pt-BR');
+    }
+
     const tx = {
       id: parsedId,
-      data: row[idxData] || new Date().toLocaleDateString('pt-BR'),
-      descricao: String(row[idxDesc] || '').toUpperCase(),
+      data: dataStr,
+      descricao: finalDesc.toUpperCase(),
       categoria: category,
       valor,
       tipo: finalTipo,
@@ -1531,13 +1552,13 @@ export const parseTransactionRows = (rows: any[], defaultSheetKey?: string): any
       km: km !== undefined && isNaN(km) ? undefined : km,
       litros: litros !== undefined && isNaN(litros) ? undefined : litros,
       precoLitro: precoLitro !== undefined && isNaN(precoLitro) ? undefined : precoLitro,
-      veiculo: row[idxVeiculo] ? String(row[idxVeiculo]).toUpperCase() : undefined,
-      descricaoVeiculo: row[idxDescricaoVeiculo] ? String(row[idxDescricaoVeiculo]) : undefined,
+      veiculo: rawVeiculo ? rawVeiculo.toUpperCase() : undefined,
+      descricaoVeiculo: row[idxDescricaoVeiculo] ? String(row[idxDescricaoVeiculo]).trim() : undefined,
       completouTanque,
-      nomePosto: row[idxNomePosto] ? String(row[idxNomePosto]).toUpperCase() : undefined,
-      localizacaoPosto: row[idxLocalPosto] ? String(row[idxLocalPosto]).toUpperCase() : undefined,
-      motorista: row[idxMotorista] ? String(row[idxMotorista]).toUpperCase() : undefined,
-      obs: row[idxObs] ? String(row[idxObs]) : undefined
+      nomePosto: rawPosto ? rawPosto.toUpperCase() : undefined,
+      localizacaoPosto: row[idxLocalPosto] ? String(row[idxLocalPosto]).trim().toUpperCase() : undefined,
+      motorista: row[idxMotorista] ? String(row[idxMotorista]).trim().toUpperCase() : undefined,
+      obs: row[idxObs] ? String(row[idxObs]).trim() : undefined
     };
 
     transactions.push(tx);
@@ -1572,6 +1593,19 @@ export function normalizeTransactionObject(item: any): any {
   // Se já for uma linha de array da planilha, ignora
   if (Array.isArray(item)) return item;
 
+  // Filtragem para ignorar objetos/linhas totalmente vazias
+  const values = Object.values(item);
+  const hasContent = values.some(v => v !== null && v !== undefined && String(v).trim() !== '');
+  if (!hasContent) return null;
+
+  // Mapeamento flexível de Nome do Posto
+  const rawPosto = item['Nome Posto'] ?? item.nomePosto ?? item.POSTO ?? item.posto ?? item.Posto ?? item['Nome do Posto'] ?? '';
+  const nomePosto = String(rawPosto || '').trim().toUpperCase() || undefined;
+
+  // Mapeamento flexível de Veículo
+  const rawVeiculo = item['Veículo'] ?? item.Veiculo ?? item.veiculo ?? item.VEICULO ?? '';
+  const veiculo = String(rawVeiculo || '').trim().toUpperCase() || undefined;
+
   // Mapeamento flexível de ID
   const rawId = item.id ?? item.ID ?? item.Id ?? item['Id'] ?? item['idNum'];
   let parsedId = Number(rawId);
@@ -1583,9 +1617,31 @@ export function normalizeTransactionObject(item: any): any {
   const rawValor = item['Valor (R$)'] ?? item['Valor (R$) '] ?? item['Valor'] ?? item.Valor ?? item.valor ?? item.VALOR ?? item.valorPg ?? item['Valor Pago (R$)'] ?? item['Valor Pago'] ?? 0;
   const valor = parseNumericValue(rawValor);
 
+  // Mapeamento flexível de Categoria
+  const rawCat = item.Categoria ?? item.categoria ?? item.CATEGORIA ?? '';
+  let category = String(rawCat || '').trim().toUpperCase();
+  if (!category || category === 'UNDEFINED' || category === 'NULL') {
+    if (nomePosto || item.KM || item.km || item.Litros || item.litros || item.PrecoLitro || item.precoLitro) {
+      category = 'ABASTECIMENTO';
+    } else {
+      category = 'OUTROS';
+    }
+  }
+
   // Mapeamento flexível de Descrição
   const rawDesc = item['Descrição'] ?? item.Descricao ?? item.descricao ?? item['DESCRIÇÃO'] ?? item['DESCRICAO'] ?? item['Descrição/Estabelecimento'] ?? item.descricaoServico ?? item.titulo ?? '';
-  const descricao = String(rawDesc).trim();
+  let descricao = String(rawDesc || '').trim();
+  if (!descricao || descricao === 'LANÇAMENTO') {
+    if (nomePosto) {
+      descricao = `ABASTECIMENTO: ${nomePosto}`;
+    } else if (veiculo) {
+      descricao = `ABASTECIMENTO (${veiculo})`;
+    } else if (category === 'ABASTECIMENTO') {
+      descricao = 'ABASTECIMENTO';
+    } else {
+      descricao = 'LANÇAMENTO';
+    }
+  }
 
   // Mapeamento flexível de Data
   let dataStr = item.Data ?? item.data ?? item.DATA ?? item['Data / Data Alvo'] ?? item['dataPagamento'] ?? '';
@@ -1595,16 +1651,12 @@ export function normalizeTransactionObject(item: any): any {
     const d = ('0' + dataStr.getDate()).slice(-2);
     dataStr = `${d}/${m}/${y}`;
   } else {
-    dataStr = String(dataStr).trim();
+    dataStr = String(dataStr || '').trim();
   }
-
-  // Mapeamento flexível de Categoria
-  const rawCat = item.Categoria ?? item.categoria ?? item.CATEGORIA ?? '';
-  const category = String(rawCat).trim().toUpperCase() || 'OUTROS';
 
   // Mapeamento flexível de Tipo
   let rawTipo = String(item.Tipo ?? item.tipo ?? item.TIPO ?? item['Tipo Registro'] ?? '').trim().toUpperCase();
-  if (!rawTipo) {
+  if (!rawTipo || rawTipo === 'UNDEFINED' || rawTipo === 'NULL') {
     if (category.includes('RECEITA') || category === 'ENTRADA') {
       rawTipo = 'RECEITA';
     } else {
@@ -1613,7 +1665,10 @@ export function normalizeTransactionObject(item: any): any {
   }
 
   // Mapeamento flexível de Status
-  const status = String(item.Status ?? item.status ?? item.STATUS ?? 'PAGO').trim().toUpperCase();
+  let status = String(item.Status ?? item.status ?? item.STATUS ?? 'PAGO').trim().toUpperCase();
+  if (!status || status === 'UNDEFINED' || status === 'NULL') {
+    status = 'PAGO';
+  }
 
   // Mapeamento flexível de Observação
   const obs = String(item['Observação'] ?? item['Observações'] ?? item.Observacao ?? item.obs ?? item.OBS ?? item.observacoes ?? '').trim();
@@ -1622,23 +1677,40 @@ export function normalizeTransactionObject(item: any): any {
   const km = parseNumericValue(item.KM ?? item.Km ?? item.km ?? item['Quilometragem (KM)']);
   const litros = parseNumericValue(item.Litros ?? item.litros ?? item.LITROS);
   const precoLitro = parseNumericValue(item['Preço/L'] ?? item['Preco/L'] ?? item.precoLitro ?? item.PrecoLitro);
-  const valorPgVal = item.valorPg !== undefined ? parseNumericValue(item.valorPg) : (status === 'PAGO' ? valor : undefined);
+  const valorPgVal = item.valorPg !== undefined && item.valorPg !== null ? parseNumericValue(item.valorPg) : (status === 'PAGO' ? valor : undefined);
+
+  const rawLocalPostoVal = item['Localização do Posto'] ?? item.localizacaoPosto ?? item.LOCALIZACAO_POSTO;
+  const localizacaoPosto = rawLocalPostoVal ? String(rawLocalPostoVal).trim().toUpperCase() : undefined;
+
+  const rawMotoristaVal = item.Motorista ?? item.motorista;
+  const motorista = rawMotoristaVal ? String(rawMotoristaVal).trim().toUpperCase() : undefined;
+
+  const rawDescVeiculoVal = item['Descrição do Veículo'] ?? item.descricaoVeiculo;
+  const descricaoVeiculo = rawDescVeiculoVal ? String(rawDescVeiculoVal).trim() : undefined;
+
+  const completouRaw = String(item['Completou o Tanque'] ?? item.completouTanque ?? item.completou ?? '').toUpperCase();
+  const completouTanque = completouRaw === 'SIM' || completouRaw === 'TRUE' || completouRaw === 'S' || completouRaw === '1';
 
   return {
     ...item,
     id: parsedId,
     data: dataStr || new Date().toLocaleDateString('pt-BR'),
-    descricao: descricao || 'LANÇAMENTO',
+    descricao: (descricao || 'ABASTECIMENTO').toUpperCase(),
     categoria: category,
-    valor,
-    tipo: rawTipo,
+    valor: isNaN(valor) ? 0 : valor,
+    tipo: rawTipo || 'DESPESA',
     status: status || 'PAGO',
-    obs,
+    obs: obs || '',
     valorPg: valorPgVal,
-    km: km > 0 ? km : item.km,
-    litros: litros > 0 ? litros : item.litros,
-    precoLitro: precoLitro > 0 ? precoLitro : item.precoLitro,
-    veiculo: (item['Veículo'] ?? item.Veiculo ?? item.veiculo) ? String(item['Veículo'] ?? item.Veiculo ?? item.veiculo).toUpperCase() : item.veiculo,
+    km: km > 0 ? km : (typeof item.km === 'number' && !isNaN(item.km) ? item.km : undefined),
+    litros: litros > 0 ? litros : (typeof item.litros === 'number' && !isNaN(item.litros) ? item.litros : undefined),
+    precoLitro: precoLitro > 0 ? precoLitro : (typeof item.precoLitro === 'number' && !isNaN(item.precoLitro) ? item.precoLitro : undefined),
+    veiculo: veiculo || (item.veiculo ? String(item.veiculo).toUpperCase() : undefined),
+    descricaoVeiculo,
+    completouTanque,
+    nomePosto,
+    localizacaoPosto,
+    motorista,
   };
 }
 

@@ -8,6 +8,7 @@ import { initialInfractions, nonAppealedInfractions } from './data/infractions';
 // Tab imports
 import Dashboard from './components/Dashboard';
 import TransactionsTab from './components/TransactionsTab';
+import ErrorBoundary from './components/ErrorBoundary';
 import AnalysisTab from './components/AnalysisTab';
 import RiskZonesTab from './components/RiskZonesTab';
 import ProfileTab from './components/ProfileTab';
@@ -86,6 +87,7 @@ function cleanDuplicateTransactions(txs: any[]): Transaction[] {
     
     // Normalize properties (e.g. 'Valor (R$)', 'Valor', 'valor', 'Descrição', etc.)
     const t = normalizeTransactionObject(rawItem) || rawItem;
+    if (!t || typeof t !== 'object') return;
 
     let idNum = Number(t.id);
     if (isNaN(idNum) || idNum <= 0) {
@@ -98,7 +100,22 @@ function cleanDuplicateTransactions(txs: any[]): Transaction[] {
       return; // Skip duplicate ID
     }
     seenIds.add(idNum);
-    uniqueTxs.push(t);
+
+    // Sanitize string and numeric fields to ensure non-null types
+    t.data = String(t.data || new Date().toLocaleDateString('pt-BR'));
+    t.descricao = String(t.descricao || 'LANÇAMENTO');
+    t.categoria = String(t.categoria || 'OUTROS').toUpperCase();
+    t.tipo = String(t.tipo || 'DESPESA').toUpperCase();
+    t.status = String(t.status || 'PAGO').toUpperCase();
+    t.valor = typeof t.valor === 'number' && !isNaN(t.valor) ? t.valor : (parseFloat(String(t.valor || 0).replace(',', '.')) || 0);
+
+    if (t.veiculo) t.veiculo = String(t.veiculo).toUpperCase();
+    if (t.descricaoVeiculo) t.descricaoVeiculo = String(t.descricaoVeiculo).toUpperCase();
+    if (t.nomePosto) t.nomePosto = String(t.nomePosto).toUpperCase();
+    if (t.localizacaoPosto) t.localizacaoPosto = String(t.localizacaoPosto).toUpperCase();
+    if (t.motorista) t.motorista = String(t.motorista).toUpperCase();
+
+    uniqueTxs.push(t as Transaction);
   });
 
   return uniqueTxs;
@@ -4026,40 +4043,42 @@ export default function App() {
         );
       case 'abastecimentos':
         return (
-          <TransactionsTab 
-            transactions={transactions}
-            infractions={infractions}
-            onAddTransaction={handleAddTransaction}
-            onEditTransaction={handleEditTransaction}
-            onDeleteTransaction={handleDeleteTransaction}
-            onImportTransactions={handleImportTransactions}
-            onWipeTransactions={handleWipeTransactions}
-            onReindexTransactions={handleReindexTransactions}
-            showAddForm={showAddTxForm}
-            setShowAddForm={setShowAddTxForm}
-            googleUser={googleUser}
-            googleToken={googleToken}
-            isSyncing={isSyncing}
-            isImporting={isImporting}
-            spreadsheetUrl={spreadsheetUrl}
-            syncError={syncError}
-            lastSyncedTime={lastSyncedTime}
-            autoSync={autoSync}
-            onGoogleLogin={handleGoogleLogin}
-            onGoogleLogout={handleGoogleLogout}
-            onToggleAutoSync={handleToggleAutoSync}
-            onTriggerSync={triggerSync}
-            onTriggerImport={triggerImport}
-            showAlert={showAlert}
-            showConfirm={showConfirm}
-            registeredVehicles={registeredVehicles}
-            setRegisteredVehicles={setRegisteredVehicles}
-            bankAccounts={bankAccountsState}
-            onUpdateBankAccounts={setBankAccountsState}
-            customCategories={customCategories}
-            onTriggerBankIntegration={triggerBankIntegration}
-            forcedFilter="ABASTECIMENTO"
-          />
+          <ErrorBoundary moduleName="Abastecimento">
+            <TransactionsTab 
+              transactions={transactions}
+              infractions={infractions}
+              onAddTransaction={handleAddTransaction}
+              onEditTransaction={handleEditTransaction}
+              onDeleteTransaction={handleDeleteTransaction}
+              onImportTransactions={handleImportTransactions}
+              onWipeTransactions={handleWipeTransactions}
+              onReindexTransactions={handleReindexTransactions}
+              showAddForm={showAddTxForm}
+              setShowAddForm={setShowAddTxForm}
+              googleUser={googleUser}
+              googleToken={googleToken}
+              isSyncing={isSyncing}
+              isImporting={isImporting}
+              spreadsheetUrl={spreadsheetUrl}
+              syncError={syncError}
+              lastSyncedTime={lastSyncedTime}
+              autoSync={autoSync}
+              onGoogleLogin={handleGoogleLogin}
+              onGoogleLogout={handleGoogleLogout}
+              onToggleAutoSync={handleToggleAutoSync}
+              onTriggerSync={triggerSync}
+              onTriggerImport={triggerImport}
+              showAlert={showAlert}
+              showConfirm={showConfirm}
+              registeredVehicles={registeredVehicles}
+              setRegisteredVehicles={setRegisteredVehicles}
+              bankAccounts={bankAccountsState}
+              onUpdateBankAccounts={setBankAccountsState}
+              customCategories={customCategories}
+              onTriggerBankIntegration={triggerBankIntegration}
+              forcedFilter="ABASTECIMENTO"
+            />
+          </ErrorBoundary>
         );
       case 'financas':
         return (

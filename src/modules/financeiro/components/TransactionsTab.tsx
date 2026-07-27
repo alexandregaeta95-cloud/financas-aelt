@@ -32,7 +32,7 @@ const itemVariants = {
     opacity: 1, 
     y: 0, 
     transition: { 
-      type: 'spring', 
+      type: 'spring' as const, 
       stiffness: 260, 
       damping: 20 
     } 
@@ -353,29 +353,33 @@ export default function TransactionsTab({
       const isAbastecimento = t.categoria === 'ABASTECIMENTO';
       const media = mediaMapByTxId[t.id];
       const kmPerc = kmPercorridoByTxId[t.id];
-      const valorPgVal = t.valorPg !== undefined ? t.valorPg : (t.status === 'PAGO' ? t.valor : 0);
+      const valorNum = typeof t.valor === 'number' && !isNaN(t.valor) ? t.valor : 0;
+      const valorPgVal = typeof t.valorPg === 'number' && !isNaN(t.valorPg) ? t.valorPg : (t.status === 'PAGO' ? valorNum : 0);
+      const descStr = String(t.descricao || 'LANÇAMENTO');
+      const catStr = String(t.categoria || 'OUTROS');
+      const statusStr = String(t.status || 'PAGO');
 
       return [
         t.id,
-        t.data,
-        `"${t.descricao.replace(/"/g, '""')}"`,
-        t.categoria,
-        t.valor.toFixed(2).replace('.', ','),
+        t.data || '',
+        `"${descStr.replace(/"/g, '""')}"`,
+        catStr,
+        valorNum.toFixed(2).replace('.', ','),
         isAbastecimento ? (t.tipo || 'DESPESA') : (t.tipo === 'RECEITA' ? 'Receita' : 'Despesa'),
-        t.status,
+        statusStr,
         valorPgVal.toFixed(2).replace('.', ','),
-        isAbastecimento && t.km ? String(t.km) : '',
-        isAbastecimento && t.litros ? t.litros.toFixed(2).replace('.', ',') : '',
-        isAbastecimento && t.precoLitro ? t.precoLitro.toFixed(2).replace('.', ',') : '',
-        isAbastecimento ? `"${(t.veiculo || 'CARRO').replace(/"/g, '""')}"` : '',
+        isAbastecimento && typeof t.km === 'number' && !isNaN(t.km) ? String(t.km) : '',
+        isAbastecimento && typeof t.litros === 'number' && !isNaN(t.litros) ? t.litros.toFixed(2).replace('.', ',') : '',
+        isAbastecimento && typeof t.precoLitro === 'number' && !isNaN(t.precoLitro) ? t.precoLitro.toFixed(2).replace('.', ',') : '',
+        isAbastecimento ? `"${String(t.veiculo || 'CARRO').replace(/"/g, '""')}"` : '',
         isAbastecimento ? (t.completouTanque ? 'Sim' : 'Não') : '',
         isAbastecimento && kmPerc !== undefined ? String(kmPerc) : '',
         isAbastecimento && media !== undefined ? media.toFixed(2).replace('.', ',') : '',
-        isAbastecimento && t.nomePosto ? `"${t.nomePosto.replace(/"/g, '""')}"` : '',
-        isAbastecimento && t.localizacaoPosto ? `"${t.localizacaoPosto.replace(/"/g, '""')}"` : '',
-        isAbastecimento && t.motorista ? `"${t.motorista.replace(/"/g, '""')}"` : '',
-        t.obs ? `"${t.obs.replace(/"/g, '""')}"` : '',
-        isAbastecimento && t.descricaoVeiculo ? `"${t.descricaoVeiculo.replace(/"/g, '""')}"` : ''
+        isAbastecimento && t.nomePosto ? `"${String(t.nomePosto).replace(/"/g, '""')}"` : '',
+        isAbastecimento && t.localizacaoPosto ? `"${String(t.localizacaoPosto).replace(/"/g, '""')}"` : '',
+        isAbastecimento && t.motorista ? `"${String(t.motorista).replace(/"/g, '""')}"` : '',
+        t.obs ? `"${String(t.obs).replace(/"/g, '""')}"` : '',
+        isAbastecimento && t.descricaoVeiculo ? `"${String(t.descricaoVeiculo).replace(/"/g, '""')}"` : ''
       ];
     });
     
@@ -1953,9 +1957,11 @@ export default function TransactionsTab({
   };
 
   const getVencimentoBadge = (tx: Transaction) => {
+    if (!tx) return null;
     if (tx.tipo === 'CONTAS BANCARIAS' || tx.tipo === 'CARTÃO DE CRÉDITO') return null;
     if (String(tx.status || '').toUpperCase() === 'PAGO') return null;
 
+    if (!tx.data || typeof tx.data !== 'string') return null;
     const parts = tx.data.split('/');
     if (parts.length !== 3) return null;
     const day = parseInt(parts[0], 10);
@@ -2009,7 +2015,7 @@ export default function TransactionsTab({
 
         <form onSubmit={handleFormSubmit} className="space-y-6">
           {/* Transaction Type Combobox */}
-          {(category === 'NOVA_CATEGORIA' ? newCategoryName.trim().toUpperCase() : category.toUpperCase()) !== 'ABASTECIMENTO' && (
+          {(category === 'NOVA_CATEGORIA' ? String(newCategoryName || '').trim().toUpperCase() : String(category || '').toUpperCase()) !== 'ABASTECIMENTO' && (
             <div className="space-y-1.5">
               <label className="block text-xs font-semibold text-slate-300">Tipo de Transação</label>
               <div className="relative">
@@ -2075,7 +2081,7 @@ export default function TransactionsTab({
           </div>
 
           {/* Description field */}
-          {(category === 'NOVA_CATEGORIA' ? newCategoryName.trim().toUpperCase() : category.toUpperCase()) !== 'ABASTECIMENTO' && (
+          {(category === 'NOVA_CATEGORIA' ? String(newCategoryName || '').trim().toUpperCase() : String(category || '').toUpperCase()) !== 'ABASTECIMENTO' && (
             <div className="space-y-1.5 animate-fade-in">
               <label className="block text-xs font-semibold text-slate-300">Descrição / Estabelecimento</label>
               <input
@@ -3017,7 +3023,7 @@ export default function TransactionsTab({
                 <div className="bg-slate-950/60 p-2.5 rounded-xl border border-slate-800/80">
                   <p className="text-[10px] text-slate-400 font-mono uppercase tracking-wider">Média Geral</p>
                   <p className="text-sm sm:text-base font-extrabold text-emerald-400 font-mono mt-0.5">
-                    {chartStats.avg.toFixed(2).replace('.', ',')} KM/L
+                    {(chartStats.avg || 0).toFixed(2).replace('.', ',')} KM/L
                   </p>
                 </div>
 
@@ -3025,7 +3031,7 @@ export default function TransactionsTab({
                   <p className="text-[10px] text-slate-400 font-mono uppercase tracking-wider">Último Consumo</p>
                   <div className="flex items-center justify-center gap-1.5 mt-0.5 font-mono">
                     <span className="text-sm sm:text-base font-extrabold text-white">
-                      {chartStats.last.toFixed(2).replace('.', ',')} KM/L
+                      {(chartStats.last || 0).toFixed(2).replace('.', ',')} KM/L
                     </span>
                     {chartStats.trend !== 0 && (
                       <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${
@@ -3033,7 +3039,7 @@ export default function TransactionsTab({
                           ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30'
                           : 'bg-rose-500/20 text-rose-400 border border-rose-500/30'
                       }`}>
-                        {chartStats.trend > 0 ? `+${chartStats.trend.toFixed(2).replace('.', ',')}` : chartStats.trend.toFixed(2).replace('.', ',')}
+                        {chartStats.trend > 0 ? `+${(chartStats.trend || 0).toFixed(2).replace('.', ',')}` : (chartStats.trend || 0).toFixed(2).replace('.', ',')}
                       </span>
                     )}
                   </div>
@@ -3042,7 +3048,7 @@ export default function TransactionsTab({
                 <div className="bg-slate-950/60 p-2.5 rounded-xl border border-slate-800/80">
                   <p className="text-[10px] text-slate-400 font-mono uppercase tracking-wider">Melhor Média</p>
                   <p className="text-sm sm:text-base font-extrabold text-sky-400 font-mono mt-0.5">
-                    {chartStats.max.toFixed(2).replace('.', ',')} KM/L
+                    {(chartStats.max || 0).toFixed(2).replace('.', ',')} KM/L
                   </p>
                 </div>
 
@@ -3092,12 +3098,12 @@ export default function TransactionsTab({
                               </p>
                               <div className="text-slate-300 space-y-1 pt-1">
                                 <p className="text-emerald-400 font-bold text-sm">
-                                  ⚡ {data.mediaKmL.toFixed(2).replace('.', ',')} KM/L
+                                  ⚡ {(data.mediaKmL || 0).toFixed(2).replace('.', ',')} KM/L
                                 </p>
-                                <p className="text-slate-300">🛣️ Percurso: <span className="text-white font-bold">{data.kmPercorrido?.toLocaleString('pt-BR')} KM</span></p>
-                                <p className="text-slate-300">⛽ Abastecido: <span className="text-white font-bold">{data.litros?.toLocaleString('pt-BR')} L</span></p>
-                                <p className="text-slate-300">📍 Odômetro: <span className="text-white font-bold">{data.km?.toLocaleString('pt-BR')} KM</span></p>
-                                {data.valor > 0 && <p className="text-slate-300">💰 Total: <span className="text-amber-400 font-bold">R$ {data.valor.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span></p>}
+                                <p className="text-slate-300">🛣️ Percurso: <span className="text-white font-bold">{(data.kmPercorrido || 0).toLocaleString('pt-BR')} KM</span></p>
+                                <p className="text-slate-300">⛽ Abastecido: <span className="text-white font-bold">{(data.litros || 0).toLocaleString('pt-BR')} L</span></p>
+                                <p className="text-slate-300">📍 Odômetro: <span className="text-white font-bold">{(data.km || 0).toLocaleString('pt-BR')} KM</span></p>
+                                {(data.valor || 0) > 0 && <p className="text-slate-300">💰 Total: <span className="text-amber-400 font-bold">R$ {(data.valor || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span></p>}
                                 {data.posto && <p className="text-slate-400 text-[10px] pt-0.5">🏪 {data.posto}</p>}
                               </div>
                             </div>
@@ -3111,7 +3117,7 @@ export default function TransactionsTab({
                       stroke="#10b981" 
                       strokeDasharray="4 4" 
                       label={{ 
-                        value: `Média: ${chartStats.avg.toFixed(2).replace('.', ',')} KM/L`, 
+                        value: `Média: ${(chartStats.avg || 0).toFixed(2).replace('.', ',')} KM/L`, 
                         fill: '#34d399', 
                         fontSize: 10, 
                         position: 'insideTopRight' 
@@ -3154,6 +3160,7 @@ export default function TransactionsTab({
       {/* Alertas de Vencimento de Lançamentos (Vence Hoje / Vence Amanhã) */}
       {forcedFilter !== 'ABASTECIMENTO' && (() => {
         const warningTransactions = transactions.filter(t => {
+          if (!t || !t.data || typeof t.data !== 'string') return false;
           if (t.tipo === 'CONTAS BANCARIAS' || t.tipo === 'CARTÃO DE CRÉDITO') return false;
           if (String(t.status || '').toUpperCase() === 'PAGO') return false;
           
@@ -3194,7 +3201,7 @@ export default function TransactionsTab({
             
             <div className="space-y-2">
               {warningTransactions.map(tx => {
-                const parts = tx.data.split('/');
+                const parts = (tx.data || '').split('/');
                 const day = parseInt(parts[0], 10);
                 const month = parseInt(parts[1], 10) - 1;
                 const year = parseInt(parts[2], 10);
@@ -3709,13 +3716,13 @@ export default function TransactionsTab({
                             {tx.descricaoVeiculo ? ` (${tx.descricaoVeiculo})` : ''}
                           </span>
                         )}
-                        {tx.km && <span>📍 {tx.km.toLocaleString('pt-BR')} KM</span>}
-                        {tx.litros && <span>⛽ {tx.litros.toLocaleString('pt-BR')} L</span>}
-                        {tx.precoLitro && <span>💸 R$ {tx.precoLitro.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}/L</span>}
-                        {tx.valorPg !== undefined && <span>💰 PG: R$ {tx.valorPg.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>}
+                        {typeof tx.km === 'number' && !isNaN(tx.km) && <span>📍 {tx.km.toLocaleString('pt-BR')} KM</span>}
+                        {typeof tx.litros === 'number' && !isNaN(tx.litros) && <span>⛽ {tx.litros.toLocaleString('pt-BR')} L</span>}
+                        {typeof tx.precoLitro === 'number' && !isNaN(tx.precoLitro) && <span>💸 R$ {tx.precoLitro.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}/L</span>}
+                        {typeof tx.valorPg === 'number' && !isNaN(tx.valorPg) && <span>💰 PG: R$ {tx.valorPg.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>}
                         {tx.completouTanque !== undefined && <span>🔋 TANQUE CHEIO: {tx.completouTanque ? 'SIM' : 'NÃO'}</span>}
-                        {tx.kmPercorrido !== undefined && <span>🛣️ +{tx.kmPercorrido.toLocaleString('pt-BR')} KM</span>}
-                        {tx.mediaKmL !== undefined && <span>📈 {tx.mediaKmL.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} KM/L</span>}
+                        {typeof tx.kmPercorrido === 'number' && !isNaN(tx.kmPercorrido) && <span>🛣️ +{tx.kmPercorrido.toLocaleString('pt-BR')} KM</span>}
+                        {typeof tx.mediaKmL === 'number' && !isNaN(tx.mediaKmL) && <span>📈 {tx.mediaKmL.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} KM/L</span>}
                         {tx.nomePosto && <span>🏪 {tx.nomePosto}</span>}
                         {tx.localizacaoPosto && <span>🗺️ {tx.localizacaoPosto}</span>}
                         {tx.motorista && <span>👤 {tx.motorista}</span>}
@@ -3725,8 +3732,8 @@ export default function TransactionsTab({
                     {(tx.valorPg !== undefined || tx.temJuros || tx.dataPagamento) && String(tx.status || '').toUpperCase() === 'PAGO' && String(tx.categoria || '').toUpperCase() !== 'ABASTECIMENTO' && (
                       <div className="flex flex-wrap gap-x-3 gap-y-1 text-[9px] font-semibold text-slate-400 font-mono mt-1 uppercase bg-slate-900/40 p-1.5 rounded-lg border border-slate-800/50 w-fit">
                         {tx.dataPagamento && <span>📅 PGTO: {tx.dataPagamento}</span>}
-                        {tx.valorPg !== undefined && <span>💰 PAGO: R$ {tx.valorPg.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>}
-                        {tx.temJuros && tx.valorJuros !== undefined && tx.valorJuros > 0 && (
+                        {typeof tx.valorPg === 'number' && !isNaN(tx.valorPg) && <span>💰 PAGO: R$ {tx.valorPg.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>}
+                        {tx.temJuros && typeof tx.valorJuros === 'number' && !isNaN(tx.valorJuros) && tx.valorJuros > 0 && (
                           <span className="text-amber-400 font-bold flex items-center gap-0.5">⚠️ JUROS: R$ {tx.valorJuros.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
                         )}
                       </div>
@@ -3990,7 +3997,7 @@ export default function TransactionsTab({
                       return;
                     }
 
-                    const parts = baixaDataPg.split('-');
+                    const parts = (baixaDataPg || '').split('-');
                     const formattedDate = parts.length === 3 ? `${parts[2]}/${parts[1]}/${parts[0]}` : new Date().toLocaleDateString('pt-BR');
 
                     const hasJuros = !isNaN(parsedJuros) && parsedJuros > 0;
