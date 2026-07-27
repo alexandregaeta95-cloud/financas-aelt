@@ -2031,20 +2031,43 @@ export const parseAnaliseRows = (rows: any[]): { [key: string]: number } => {
   return result;
 };
 
+export function normalizeVehicleObject(v: any): any | null {
+  if (!v || typeof v !== 'object') return null;
+  const desc = String(v.descricao || v.modelo || v.nome || (v.marca ? `${v.marca} ${v.modelo || ''}` : '') || '').trim();
+  const placa = String(v.placa || '').trim().toUpperCase();
+  const motorista = String(v.motorista || '').trim().toUpperCase();
+  const id = v.id ? String(v.id) : String(Date.now() + Math.random());
+  if (!desc && !placa) return null;
+  return {
+    ...v,
+    id,
+    descricao: desc.toUpperCase(),
+    placa,
+    motorista,
+    mesFinalPlaca: v.mesFinalPlaca ? String(v.mesFinalPlaca).trim() : undefined,
+    marca: v.marca ? String(v.marca).trim() : undefined,
+    modelo: v.modelo ? String(v.modelo).trim() : undefined,
+    kmAtual: typeof v.kmAtual === 'number' ? v.kmAtual : (parseNumericValue(v.kmAtual) || undefined)
+  };
+}
+
 export const parsePerfilRows = (rows: any[]): { vehicles: any[] } => {
   const vehicles: any[] = [];
-  if (!rows || rows.length <= 1) return { vehicles };
+  if (!rows || !Array.isArray(rows) || rows.length <= 1) return { vehicles };
   for (let i = 1; i < rows.length; i++) {
     const r = rows[i];
-    if (!r || r.length === 0) continue;
-    const type = String(r[1] || '').toUpperCase();
-    if (type === 'VEICULO_REGISTRADO') {
+    if (!r || !Array.isArray(r) || r.length === 0) continue;
+    const type = String(r[1] || '').trim().toUpperCase();
+    if (type === 'VEICULO_REGISTRADO' || type === 'VEICULO' || type === 'VEÍCULO') {
+      const descVal = String(r[2] || r[3] || '').trim();
+      const placaVal = String(r[3] || '').trim().toUpperCase();
+      if (!descVal && !placaVal) continue;
       vehicles.push({
-        id: parseInt(r[0]) || Date.now() + Math.random(),
-        descricao: String(r[2] || ''),
-        placa: String(r[3] || ''),
-        motorista: String(r[4] || ''),
-        mesFinalPlaca: String(r[5] || '')
+        id: r[0] ? String(r[0]) : String(Date.now() + Math.random()),
+        descricao: (descVal || 'VEÍCULO').toUpperCase(),
+        placa: placaVal,
+        motorista: String(r[4] || '').trim().toUpperCase(),
+        mesFinalPlaca: String(r[5] || '').trim()
       });
     }
   }
@@ -2163,7 +2186,7 @@ export const fetchAllDataFromSpreadsheet = async (
           appointments: Array.isArray(res.appointments || res.data?.appointments) ? (res.appointments || res.data?.appointments) : emptyResult.appointments,
           prescriptions: Array.isArray(res.prescriptions || res.data?.prescriptions) ? (res.prescriptions || res.data?.prescriptions) : emptyResult.prescriptions,
           compromissos: Array.isArray(res.compromissos || res.data?.compromissos) ? (res.compromissos || res.data?.compromissos) : emptyResult.compromissos,
-          registeredVehicles: Array.isArray(res.registeredVehicles || res.data?.registeredVehicles) ? (res.registeredVehicles || res.data?.registeredVehicles) : emptyResult.registeredVehicles,
+          registeredVehicles: Array.isArray(res.registeredVehicles || res.data?.registeredVehicles) ? (res.registeredVehicles || res.data?.registeredVehicles).map(normalizeVehicleObject).filter(Boolean) : emptyResult.registeredVehicles,
           performedServices: Array.isArray(res.performedServices || res.data?.performedServices) ? (res.performedServices || res.data?.performedServices) : emptyResult.performedServices,
           scheduledServices: Array.isArray(res.scheduledServices || res.data?.scheduledServices) ? (res.scheduledServices || res.data?.scheduledServices) : emptyResult.scheduledServices,
           bankAccounts: Array.isArray(res.bankAccounts || res.data?.bankAccounts) ? (res.bankAccounts || res.data?.bankAccounts) : emptyResult.bankAccounts,

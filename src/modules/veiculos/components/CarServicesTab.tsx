@@ -327,20 +327,23 @@ export default function CarServicesTab({
             >
               Todos
             </button>
-            {safeRegisteredVehicles.map((v) => (
-              <button
-                key={v.id || v.descricao}
-                type="button"
-                onClick={() => setVehicleFilter(v.descricao)}
-                className={`px-2.5 py-1 rounded-lg transition-colors shrink-0 uppercase font-bold ${
-                  String(vehicleFilter || '').toUpperCase() === String(v.descricao || '').toUpperCase()
-                    ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30'
-                    : 'bg-slate-950 text-slate-400 border border-slate-900 hover:text-slate-200'
-                }`}
-              >
-                {v.descricao}
-              </button>
-            ))}
+            {safeRegisteredVehicles.filter(Boolean).map((v) => {
+              const vDesc = v.descricao || v.modelo || v.placa || 'VEÍCULO';
+              return (
+                <button
+                  key={v.id || vDesc}
+                  type="button"
+                  onClick={() => setVehicleFilter(vDesc)}
+                  className={`px-2.5 py-1 rounded-lg transition-colors shrink-0 uppercase font-bold ${
+                    String(vehicleFilter || '').toUpperCase() === String(vDesc).toUpperCase()
+                      ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30'
+                      : 'bg-slate-950 text-slate-400 border border-slate-900 hover:text-slate-200'
+                  }`}
+                >
+                  {vDesc}
+                </button>
+              );
+            })}
           </div>
         )}
       </div>
@@ -523,11 +526,14 @@ export default function CarServicesTab({
                       onChange={(e) => setPerfVehicle(e.target.value)}
                       className="w-full bg-slate-950 border border-slate-800 rounded-xl p-2.5 text-xs text-white outline-none focus:border-emerald-500 font-mono uppercase"
                     >
-                      {safeRegisteredVehicles.map((v) => (
-                        <option key={v.id || v.descricao} value={v.descricao}>
-                          {v.descricao}
-                        </option>
-                      ))}
+                      {safeRegisteredVehicles.filter(Boolean).map((v) => {
+                        const val = v.descricao || v.modelo || v.placa || 'VEÍCULO';
+                        return (
+                          <option key={v.id || val} value={val}>
+                            {val}
+                          </option>
+                        );
+                      })}
                     </select>
                   ) : (
                     <input
@@ -641,11 +647,14 @@ export default function CarServicesTab({
                       onChange={(e) => setSchedVehicle(e.target.value)}
                       className="w-full bg-slate-950 border border-slate-800 rounded-xl p-2.5 text-xs text-white outline-none focus:border-amber-500 font-mono uppercase"
                     >
-                      {safeRegisteredVehicles.map((v) => (
-                        <option key={v.id || v.descricao} value={v.descricao}>
-                          {v.descricao}
-                        </option>
-                      ))}
+                      {safeRegisteredVehicles.filter(Boolean).map((v) => {
+                        const val = v.descricao || v.modelo || v.placa || 'VEÍCULO';
+                        return (
+                          <option key={v.id || val} value={val}>
+                            {val}
+                          </option>
+                        );
+                      })}
                     </select>
                   ) : (
                     <input

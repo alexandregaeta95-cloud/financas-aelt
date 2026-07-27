@@ -48,11 +48,14 @@ export const ProfileVehicles: React.FC<ProfileVehiclesProps> = ({
             className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-white outline-none focus:border-amber-500 font-mono text-xs"
           >
             <option value="">Selecione um veículo...</option>
-            {registeredVehicles.map(v => (
-              <option key={v.id} value={v.id}>
-                {v.marca} {v.modelo} ({v.placa})
-              </option>
-            ))}
+            {(registeredVehicles || []).filter(Boolean).map(v => {
+              const label = v.descricao || `${v.marca || ''} ${v.modelo || ''}`.trim() || 'Veículo';
+              return (
+                <option key={v.id || label} value={v.id}>
+                  {label} {v.placa ? `(${v.placa})` : ''}
+                </option>
+              );
+            })}
           </select>
         </div>
 

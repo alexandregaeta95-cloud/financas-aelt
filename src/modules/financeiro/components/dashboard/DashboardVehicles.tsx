@@ -52,8 +52,8 @@ export const DashboardVehicles: React.FC<DashboardVehiclesProps> = React.memo(({
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {safeVehicles.map((vehicle, index) => {
             if (!vehicle) return null;
-            const nextIpva = getNextIpvaDueDate(vehicle.placa);
-            const hasAlert = ipvaAlerts.some(a => a.vehicleId === vehicle.id);
+            const nextIpva = vehicle.placa ? getNextIpvaDueDate(vehicle.placa) : null;
+            const hasAlert = ipvaAlerts.some(a => a && a.vehicleId === vehicle.id);
 
             return (
               <div
@@ -63,7 +63,7 @@ export const DashboardVehicles: React.FC<DashboardVehiclesProps> = React.memo(({
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
                     <Car className="w-4 h-4 text-amber-400" />
-                    <span className="text-xs font-bold text-white">{vehicle.modelo || vehicle.descricao || 'Veículo'}</span>
+                    <span className="text-xs font-bold text-white">{vehicle.descricao || vehicle.modelo || vehicle.placa || 'Veículo'}</span>
                   </div>
                   {vehicle.placa && (
                     <span className="text-[10px] font-mono bg-slate-900 border border-slate-800 px-2 py-0.5 rounded-md text-slate-300">

@@ -1666,18 +1666,31 @@ export default function TransactionsTab({
       .filter(t => t.tipo !== 'CONTAS BANCARIAS' && t.tipo !== 'CARTÃO DE CRÉDITO') // Hide non-ledger configuration rows
       .filter(t => {
         // Search Box Filtering
-        const term = searchTerm.toLowerCase();
+        if (!t) return false;
+        const term = (searchTerm || '').toLowerCase();
         if (!term) return true;
         const desc = (t.descricao || '').toLowerCase();
         const cat = (t.categoria || '').toLowerCase();
         const valRaw = t.valor !== undefined && t.valor !== null ? t.valor : 0;
         const valStr = valRaw.toString();
         const valBRL = valRaw.toFixed(2).replace('.', ',');
+        const posto = (t.nomePosto || t.localizacaoPosto || '').toLowerCase();
+        const veic = (t.veiculo || t.descricaoVeiculo || '').toLowerCase();
+        const tipo = (t.tipo || '').toLowerCase();
+        const mot = (t.motorista || '').toLowerCase();
+        const obs = (t.obs || '').toLowerCase();
+        const fp = (t.formaPagamento || '').toLowerCase();
         return (
           desc.includes(term) ||
           cat.includes(term) ||
           valStr.includes(term) ||
-          valBRL.includes(term)
+          valBRL.includes(term) ||
+          posto.includes(term) ||
+          veic.includes(term) ||
+          tipo.includes(term) ||
+          mot.includes(term) ||
+          obs.includes(term) ||
+          fp.includes(term)
         );
       })
       .filter(t => {
@@ -1826,17 +1839,31 @@ export default function TransactionsTab({
     })
     .filter(t => {
       // Search Box Filtering
-      const term = searchTerm.toLowerCase();
+      if (!t) return false;
+      const term = (searchTerm || '').toLowerCase();
+      if (!term) return true;
       const desc = (t.descricao || '').toLowerCase();
       const cat = (t.categoria || '').toLowerCase();
       const valRaw = t.valor !== undefined && t.valor !== null ? t.valor : 0;
       const valStr = valRaw.toString();
       const valBRL = valRaw.toFixed(2).replace('.', ',');
+      const posto = (t.nomePosto || t.localizacaoPosto || '').toLowerCase();
+      const veic = (t.veiculo || t.descricaoVeiculo || '').toLowerCase();
+      const tipo = (t.tipo || '').toLowerCase();
+      const mot = (t.motorista || '').toLowerCase();
+      const obs = (t.obs || '').toLowerCase();
+      const fp = (t.formaPagamento || '').toLowerCase();
       return (
         desc.includes(term) ||
         cat.includes(term) ||
         valStr.includes(term) ||
-        valBRL.includes(term)
+        valBRL.includes(term) ||
+        posto.includes(term) ||
+        veic.includes(term) ||
+        tipo.includes(term) ||
+        mot.includes(term) ||
+        obs.includes(term) ||
+        fp.includes(term)
       );
     })
     .filter(t => {
@@ -1883,17 +1910,31 @@ export default function TransactionsTab({
       return true;
     })
     .filter(t => {
-      const term = searchTerm.toLowerCase();
+      if (!t) return false;
+      const term = (searchTerm || '').toLowerCase();
+      if (!term) return true;
       const desc = (t.descricao || '').toLowerCase();
       const cat = (t.categoria || '').toLowerCase();
       const valRaw = t.valor !== undefined && t.valor !== null ? t.valor : 0;
       const valStr = valRaw.toString();
       const valBRL = valRaw.toFixed(2).replace('.', ',');
+      const posto = (t.nomePosto || t.localizacaoPosto || '').toLowerCase();
+      const veic = (t.veiculo || t.descricaoVeiculo || '').toLowerCase();
+      const tipo = (t.tipo || '').toLowerCase();
+      const mot = (t.motorista || '').toLowerCase();
+      const obs = (t.obs || '').toLowerCase();
+      const fp = (t.formaPagamento || '').toLowerCase();
       return (
         desc.includes(term) ||
         cat.includes(term) ||
         valStr.includes(term) ||
-        valBRL.includes(term)
+        valBRL.includes(term) ||
+        posto.includes(term) ||
+        veic.includes(term) ||
+        tipo.includes(term) ||
+        mot.includes(term) ||
+        obs.includes(term) ||
+        fp.includes(term)
       );
     })
     .filter(t => {
@@ -2228,10 +2269,10 @@ export default function TransactionsTab({
                         return;
                       }
                       setDescricaoVeiculo(val);
-                      const matched = registeredVehicles.find(v => v.descricao === val);
+                      const matched = (registeredVehicles || []).find(v => v && (v.descricao === val || v.modelo === val));
                       if (matched) {
-                        setMotorista(matched.motorista);
-                        if (String(matched.descricao || '').toUpperCase().includes('MOTO')) {
+                        if (matched.motorista) setMotorista(matched.motorista);
+                        if (String(matched.descricao || matched.modelo || '').toUpperCase().includes('MOTO')) {
                           setVeiculo('MOTO');
                         } else {
                           setVeiculo('CARRO');
@@ -2241,12 +2282,15 @@ export default function TransactionsTab({
                     className="w-full bg-slate-900/60 border border-slate-800 rounded-xl px-3 py-2 text-xs text-white focus:border-emerald-500 outline-none appearance-none cursor-pointer font-sans"
                   >
                     <option value="" className="bg-slate-900 text-slate-400 font-sans">-- SELECIONE UM VEÍCULO --</option>
-                    {registeredVehicles.map(v => (
-                      <option key={v.id} value={v.descricao} className="bg-slate-900 text-white font-sans">
-                        {v.descricao} {v.placa ? `(${v.placa})` : ''}
-                      </option>
-                    ))}
-                    {descricaoVeiculo && !registeredVehicles.some(v => v.descricao === descricaoVeiculo) && (
+                    {(registeredVehicles || []).filter(Boolean).map(v => {
+                      const vDesc = v.descricao || v.modelo || v.placa || '';
+                      return (
+                        <option key={v.id || vDesc} value={vDesc} className="bg-slate-900 text-white font-sans">
+                          {vDesc} {v.placa ? `(${v.placa})` : ''}
+                        </option>
+                      );
+                    })}
+                    {descricaoVeiculo && !(registeredVehicles || []).some(v => v && (v.descricao === descricaoVeiculo || v.modelo === descricaoVeiculo)) && (
                       <option value={descricaoVeiculo} className="bg-slate-900 text-white font-sans">
                         {descricaoVeiculo}
                       </option>
@@ -2468,12 +2512,12 @@ export default function TransactionsTab({
                     className="w-full bg-slate-900/60 border border-slate-800 rounded-xl px-3 py-2 text-xs text-white focus:border-emerald-500 outline-none appearance-none cursor-pointer font-sans"
                   >
                     <option value="" className="bg-slate-900 text-slate-400 font-sans">-- SELECIONE O MOTORISTA --</option>
-                    {Array.from(new Set(registeredVehicles.map(v => v.motorista))).filter(Boolean).map(driver => (
-                      <option key={driver} value={driver} className="bg-slate-900 text-white font-sans">
-                        {driver}
+                    {Array.from(new Set((registeredVehicles || []).map(v => v?.motorista))).filter(Boolean).map(driver => (
+                      <option key={String(driver)} value={String(driver)} className="bg-slate-900 text-white font-sans">
+                        {String(driver)}
                       </option>
                     ))}
-                    {motorista && !registeredVehicles.some(v => v.motorista === motorista) && (
+                    {motorista && !(registeredVehicles || []).some(v => v && v.motorista === motorista) && (
                       <option value={motorista} className="bg-slate-900 text-white font-sans">
                         {motorista}
                       </option>
@@ -2842,11 +2886,14 @@ export default function TransactionsTab({
                     className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 h-10 text-xs text-white focus:border-emerald-500 outline-none cursor-pointer"
                   >
                     <option value="">-- SELECIONAR --</option>
-                    {registeredVehicles.map(v => (
-                      <option key={v.id} value={v.descricao}>
-                        {v.descricao} {v.motorista ? `(${v.motorista})` : ''}
-                      </option>
-                    ))}
+                    {(registeredVehicles || []).filter(Boolean).map(v => {
+                      const vDesc = v.descricao || v.modelo || v.placa || '';
+                      return (
+                        <option key={v.id || vDesc} value={vDesc}>
+                          {vDesc} {v.motorista ? `(${v.motorista})` : ''}
+                        </option>
+                      );
+                    })}
                     <option value="CARRO">CARRO (Geral)</option>
                     <option value="MOTO">MOTO (Geral)</option>
                   </select>
@@ -2999,13 +3046,16 @@ export default function TransactionsTab({
                 className="bg-slate-950 border border-slate-800 rounded-xl px-3 h-8 text-xs text-white focus:border-emerald-500 outline-none cursor-pointer font-mono"
               >
                 <option value="TODOS">TODOS OS VEÍCULOS</option>
-                {registeredVehicles.map(v => (
-                  <option key={v.id} value={v.descricao}>
-                    {v.descricao}
-                  </option>
-                ))}
+                {(registeredVehicles || []).filter(Boolean).map(v => {
+                  const vDesc = v.descricao || v.modelo || v.placa || '';
+                  return (
+                    <option key={v.id || vDesc} value={vDesc}>
+                      {vDesc}
+                    </option>
+                  );
+                })}
                 {availableChartVehicles.map(vName => {
-                  if (registeredVehicles.some(rv => String(rv.descricao || '').toUpperCase() === String(vName || '').toUpperCase())) return null;
+                  if ((registeredVehicles || []).some(rv => rv && String(rv.descricao || rv.modelo || '').toUpperCase() === String(vName || '').toUpperCase())) return null;
                   return (
                     <option key={vName} value={vName}>
                       {vName}

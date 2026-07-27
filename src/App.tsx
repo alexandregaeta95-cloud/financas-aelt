@@ -262,7 +262,7 @@ export default function App() {
       if (saved) {
         const parsed = JSON.parse(saved);
         if (Array.isArray(parsed)) {
-          const filtered = parsed.filter(v => String(v.descricao || '').toUpperCase() !== 'FOX PRATA');
+          const filtered = parsed.filter(v => v && typeof v === 'object' && String(v.descricao || v.modelo || v.placa || '').toUpperCase() !== 'FOX PRATA');
           if (filtered.length !== parsed.length) {
             localStorage.setItem('wealthflow_registered_vehicles', JSON.stringify(filtered));
           }
@@ -296,7 +296,7 @@ export default function App() {
       if (saved) {
         const parsed = JSON.parse(saved);
         if (Array.isArray(parsed)) {
-          const filtered = parsed.filter(s => s.veiculoDescricao?.toUpperCase() !== 'FOX PRATA');
+          const filtered = parsed.filter(s => s && typeof s === 'object' && String(s.veiculoDescricao || (s as any)['Veículo'] || '').toUpperCase() !== 'FOX PRATA');
           if (filtered.length !== parsed.length) {
             localStorage.setItem('wealthflow_car_services_performed', JSON.stringify(filtered));
           }
@@ -338,7 +338,7 @@ export default function App() {
       if (saved) {
         const parsed = JSON.parse(saved);
         if (Array.isArray(parsed)) {
-          const filtered = parsed.filter(s => s.veiculoDescricao?.toUpperCase() !== 'FOX PRATA');
+          const filtered = parsed.filter(s => s && typeof s === 'object' && String(s.veiculoDescricao || (s as any)['Veículo'] || '').toUpperCase() !== 'FOX PRATA');
           if (filtered.length !== parsed.length) {
             localStorage.setItem('wealthflow_car_services_scheduled', JSON.stringify(filtered));
           }
