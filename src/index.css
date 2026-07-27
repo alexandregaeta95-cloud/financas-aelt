@@ -1,0 +1,321 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&family=Space+Grotesk:wght@400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200&display=block');
+@import "tailwindcss";
+@import "leaflet/dist/leaflet.css";
+
+html, body, #root {
+  height: 100dvh;
+  width: 100%;
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+  background-color: #020617; /* bg-slate-950 */
+}
+
+@media (min-width: 768px) {
+  html, body, #root {
+    height: 100%;
+    overflow: auto;
+  }
+}
+
+@theme {
+  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-display: "Space Grotesk", sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, monospace;
+}
+
+/* Custom scrollbar utility */
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+.custom-scrollbar::-webkit-scrollbar {
+  width: 5px;
+  height: 5px;
+}
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: rgba(149, 211, 186, 0.2);
+  border-radius: 9999px;
+}
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: rgba(149, 211, 186, 0.4);
+}
+
+/* Material Symbols alignment & layout safe-guard fix */
+.material-symbols-outlined {
+  font-family: 'Material Symbols Outlined';
+  font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+  display: inline-block;
+  vertical-align: middle;
+  line-height: 1;
+  /* Safe-guard against raw ligature text overflow during load or font failure */
+  max-width: 1.5em;
+  max-height: 1.5em;
+  overflow: hidden;
+  white-space: nowrap;
+}
+
+.material-symbols-fill {
+  font-variation-settings: 'FILL' 1, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+}
+
+/* Fade animations */
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.animate-fade-in {
+  animation: fadeIn 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+/* Premium layout helper */
+.glass-panel {
+  background: rgba(11, 19, 38, 0.6);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+/* Global uppercase text-transform for inputs and textareas */
+input[type="text"], input:not([type]), textarea {
+  text-transform: uppercase;
+}
+input[type="text"]::placeholder, input:not([type])::placeholder, textarea::placeholder {
+  text-transform: none;
+}
+
+/* Custom styling for date and time fields to trigger picker natively on click anywhere */
+.clickable-date-input, .clickable-time-input {
+  position: relative;
+}
+
+.clickable-date-input::-webkit-calendar-picker-indicator,
+.clickable-time-input::-webkit-calendar-picker-indicator {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  padding: 0;
+  cursor: pointer;
+  opacity: 0;
+}
+
+/* Custom pulsing animation for critical and warning alerts */
+@keyframes criticalPulse {
+  0%, 100% {
+    box-shadow: 0 0 4px rgba(244, 63, 94, 0.1), inset 0 0 0px rgba(244, 63, 94, 0);
+    border-color: rgba(244, 63, 94, 0.4);
+  }
+  50% {
+    box-shadow: 0 0 16px rgba(244, 63, 94, 0.35), inset 0 0 4px rgba(244, 63, 94, 0.1);
+    border-color: rgba(244, 63, 94, 0.95);
+  }
+}
+
+@keyframes warningPulse {
+  0%, 100% {
+    box-shadow: 0 0 4px rgba(249, 115, 22, 0.1), inset 0 0 0px rgba(249, 115, 22, 0);
+    border-color: rgba(249, 115, 22, 0.3);
+  }
+  50% {
+    box-shadow: 0 0 14px rgba(249, 115, 22, 0.3), inset 0 0 4px rgba(249, 115, 22, 0.1);
+    border-color: rgba(249, 115, 22, 0.85);
+  }
+}
+
+.animate-critical-pulse {
+  animation: criticalPulse 2s infinite ease-in-out;
+}
+
+.animate-warning-pulse {
+  animation: warningPulse 2.2s infinite ease-in-out;
+}
+
+/* ==========================================================================
+   THEME MANAGEMENT SYSTEM (LIGHT THEME & HIGH-CONTRAST OVERRIDES)
+   ========================================================================== */
+
+/* 1. LIGHT THEME OVERRIDES */
+html.theme-light, 
+html.theme-light body, 
+html.theme-light #root {
+  background-color: #f1f5f9 !important; /* slate-100 */
+  color: #0f172a !important; /* slate-900 */
+}
+
+html.theme-light .bg-slate-950,
+html.theme-light .bg-black {
+  background-color: #e2e8f0 !important; /* slate-200 */
+}
+
+html.theme-light .bg-slate-900,
+html.theme-light .glass-panel,
+html.theme-light .bg-slate-900\/40,
+html.theme-light .bg-slate-900\/60,
+html.theme-light .bg-slate-950\/40,
+html.theme-light .bg-slate-950\/70,
+html.theme-light .bg-slate-950\/60,
+html.theme-light .bg-slate-900\/80,
+html.theme-light .bg-slate-950\/80 {
+  background-color: #ffffff !important; /* White container */
+}
+
+html.theme-light .bg-slate-900\/20,
+html.theme-light .bg-slate-950\/20,
+html.theme-light .bg-slate-950\/10 {
+  background-color: #f8fafc !important; /* slate-50 */
+}
+
+/* Light theme text color overrides for excellent WCAG AA contrast */
+html.theme-light .text-white,
+html.theme-light .text-slate-100,
+html.theme-light .text-slate-50 {
+  color: #0f172a !important; /* Slate-900 */
+}
+
+html.theme-light .text-slate-200,
+html.theme-light .text-slate-300 {
+  color: #1e293b !important; /* Slate-800 */
+}
+
+html.theme-light .text-slate-400 {
+  color: #475569 !important; /* Slate-600 */
+}
+
+html.theme-light .text-slate-500 {
+  color: #64748b !important; /* Slate-500 */
+}
+
+/* Specific component fixes for light theme */
+html.theme-light input,
+html.theme-light select,
+html.theme-light textarea {
+  background-color: #ffffff !important;
+  color: #0f172a !important;
+  border-color: #cbd5e1 !important; /* slate-300 */
+}
+
+html.theme-light input::placeholder,
+html.theme-light textarea::placeholder {
+  color: #94a3b8 !important; /* slate-400 placeholder */
+}
+
+html.theme-light .border-slate-800,
+html.theme-light .border-slate-800\/80,
+html.theme-light .border-slate-800\/50,
+html.theme-light .border-slate-700,
+html.theme-light .border-slate-700\/80,
+html.theme-light .border-slate-700\/50,
+html.theme-light .border-slate-900 {
+  border-color: #e2e8f0 !important; /* slate-200 */
+}
+
+/* Scrollbar adaptation */
+html.theme-light .custom-scrollbar::-webkit-scrollbar-thumb {
+  background: rgba(148, 163, 184, 0.4) !important; /* slate-400 */
+}
+
+html.theme-light .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: rgba(148, 163, 184, 0.6) !important;
+}
+
+/* Hover fixes for list items in light mode */
+html.theme-light .hover\:bg-slate-800:hover,
+html.theme-light .hover\:bg-slate-900:hover,
+html.theme-light .hover\:bg-slate-900\/40:hover,
+html.theme-light .hover\:bg-slate-950\/40:hover {
+  background-color: #f1f5f9 !important; /* slate-100 */
+}
+
+
+/* 2. HIGH-CONTRAST THEME OVERRIDES */
+html.theme-high-contrast,
+html.theme-high-contrast body,
+html.theme-high-contrast #root {
+  background-color: #000000 !important; /* Pure Black */
+  color: #ffffff !important; /* Pure White */
+}
+
+html.theme-high-contrast .bg-slate-950,
+html.theme-high-contrast .bg-black {
+  background-color: #000000 !important;
+}
+
+html.theme-high-contrast .bg-slate-900,
+html.theme-high-contrast .glass-panel,
+html.theme-high-contrast .bg-slate-900\/40,
+html.theme-high-contrast .bg-slate-900\/60,
+html.theme-high-contrast .bg-slate-950\/40,
+html.theme-high-contrast .bg-slate-950\/70,
+html.theme-high-contrast .bg-slate-950\/60,
+html.theme-high-contrast .bg-slate-900\/80,
+html.theme-high-contrast .bg-slate-950\/80 {
+  background-color: #0a0a0a !important; /* Pitch Black containers */
+  border-width: 1.5px !important;
+  border-color: #ffffff !important; /* White solid borders */
+}
+
+html.theme-high-contrast .bg-slate-900\/20,
+html.theme-high-contrast .bg-slate-950\/20,
+html.theme-high-contrast .bg-slate-950\/10 {
+  background-color: #000000 !important;
+}
+
+/* High Contrast text overrides */
+html.theme-high-contrast .text-white,
+html.theme-high-contrast .text-slate-100,
+html.theme-high-contrast .text-slate-200,
+html.theme-high-contrast .text-slate-300,
+html.theme-high-contrast .text-slate-400 {
+  color: #ffffff !important; /* Pure White */
+}
+
+html.theme-high-contrast .text-slate-500 {
+  color: #e5e5e5 !important; /* Light Gray for sub-labels */
+}
+
+/* High Contrast borders */
+html.theme-high-contrast .border-slate-800,
+html.theme-high-contrast .border-slate-800\/80,
+html.theme-high-contrast .border-slate-800\/50,
+html.theme-high-contrast .border-slate-700,
+html.theme-high-contrast .border-slate-700\/80,
+html.theme-high-contrast .border-slate-700\/50,
+html.theme-high-contrast .border-slate-900 {
+  border-color: #ffffff !important; /* Pure White solid borders */
+  border-width: 1.5px !important;
+}
+
+/* Inputs in High Contrast */
+html.theme-high-contrast input,
+html.theme-high-contrast select,
+html.theme-high-contrast textarea {
+  background-color: #000000 !important;
+  color: #ffffff !important;
+  border-color: #ffffff !important;
+  border-width: 1.5px !important;
+}
+
+html.theme-high-contrast input::placeholder,
+html.theme-high-contrast textarea::placeholder {
+  color: #cccccc !important;
+}
+
+/* Scrollbars in High Contrast */
+html.theme-high-contrast .custom-scrollbar::-webkit-scrollbar-thumb {
+  background: #ffffff !important;
+  border: 1px solid #000000;
+}
+
+
