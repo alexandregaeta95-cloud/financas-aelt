@@ -1,0 +1,11 @@
+{
+  "appId": "com.gaeta.financeiro",
+  "appName": "Controle Financeiro Gaeta",
+  "webDir": "dist",
+  "bundledWebRuntime": false,
+  "plugins": {
+    "PixNotification": {
+      "autoStart": true
+    }
+  }
+}
