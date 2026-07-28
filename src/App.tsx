@@ -5149,12 +5149,12 @@ export default function App() {
             >
               {/* Top Warning/Info Glow Icon */}
               <div className={`w-12 h-12 rounded-full flex items-center justify-center mb-4 ${
-                dialog.title.includes('⚠️') || dialog.title.toUpperCase().includes('ATENÇÃO') || dialog.title.toUpperCase().includes('REMOVER') || dialog.title.toUpperCase().includes('ERRO')
+                (dialog.title || '').includes('⚠️') || String(dialog.title || '').toUpperCase().includes('ATENÇÃO') || String(dialog.title || '').toUpperCase().includes('REMOVER') || String(dialog.title || '').toUpperCase().includes('ERRO')
                   ? 'bg-rose-500/10 text-rose-400 border border-rose-500/20' 
                   : 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20'
               }`}>
                 <span className="material-symbols-outlined text-2xl font-bold">
-                  {dialog.title.includes('⚠️') || dialog.title.toUpperCase().includes('ATENÇÃO') || dialog.title.toUpperCase().includes('REMOVER') || dialog.title.toUpperCase().includes('ERRO')
+                  {(dialog.title || '').includes('⚠️') || String(dialog.title || '').toUpperCase().includes('ATENÇÃO') || String(dialog.title || '').toUpperCase().includes('REMOVER') || String(dialog.title || '').toUpperCase().includes('ERRO')
                     ? 'warning' 
                     : 'info'
                   }

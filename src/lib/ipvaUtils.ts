@@ -123,9 +123,9 @@ export function getVehicleIpvaMonth(v: RegisteredVehicle): IpvaMonthInfo | null 
   // Check custom date first
   try {
     const savedCustom = localStorage.getItem('wealthflow_custom_ipva_dates');
-    if (savedCustom && v.placa) {
+    if (savedCustom && v && v.placa) {
       const parsed = JSON.parse(savedCustom);
-      const customDateStr = parsed[v.placa.toUpperCase().trim()];
+      const customDateStr = parsed[(v.placa || '').toUpperCase().trim()];
       if (customDateStr) {
         const customDate = new Date(customDateStr);
         if (!isNaN(customDate.getTime())) {
@@ -198,9 +198,9 @@ export function getVehicleNextIpvaDueDate(v: RegisteredVehicle, today: Date = ne
   // Check if there is a custom IPVA due date in localStorage
   try {
     const savedCustom = localStorage.getItem('wealthflow_custom_ipva_dates');
-    if (savedCustom && v.placa) {
+    if (savedCustom && v && v.placa) {
       const parsed = JSON.parse(savedCustom);
-      const customDateStr = parsed[v.placa.toUpperCase().trim()];
+      const customDateStr = parsed[(v.placa || '').toUpperCase().trim()];
       if (customDateStr) {
         const customDate = new Date(customDateStr);
         if (!isNaN(customDate.getTime())) {

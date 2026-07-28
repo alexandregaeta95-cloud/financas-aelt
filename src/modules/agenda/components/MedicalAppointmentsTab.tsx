@@ -634,8 +634,8 @@ export default function MedicalAppointmentsTab({
     if (!appointmentSearch) return true;
     const s = appointmentSearch.toLowerCase();
     return (
-      appt.medico.toLowerCase().includes(s) ||
-      appt.especialidade.toLowerCase().includes(s)
+      (appt.medico || '').toLowerCase().includes(s) ||
+      (appt.especialidade || '').toLowerCase().includes(s)
     );
   });
 
@@ -647,10 +647,10 @@ export default function MedicalAppointmentsTab({
     if (!prescSearch) return true;
     const s = prescSearch.toLowerCase();
     return (
-      presc.medico.toLowerCase().includes(s) ||
-      presc.especialidade.toLowerCase().includes(s) ||
-      presc.medicamentos.toLowerCase().includes(s) ||
-      (presc.instrucoes && presc.instrucoes.toLowerCase().includes(s))
+      (presc.medico || '').toLowerCase().includes(s) ||
+      (presc.especialidade || '').toLowerCase().includes(s) ||
+      (presc.medicamentos || '').toLowerCase().includes(s) ||
+      (presc.instrucoes && (presc.instrucoes || '').toLowerCase().includes(s))
     );
   });
 

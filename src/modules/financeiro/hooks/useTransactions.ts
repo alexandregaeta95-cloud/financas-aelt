@@ -61,10 +61,13 @@ export function useTransactions(options: UseTransactionsOptions = { autoLoad: tr
         // Busca por termo
         if (searchTerm) {
           const lower = searchTerm.toLowerCase();
-          const matchDesc = t.descricao?.toLowerCase().includes(lower);
-          const matchCat = t.categoria?.toLowerCase().includes(lower);
-          const matchBanco = t.bancoNome?.toLowerCase().includes(lower);
-          if (!matchDesc && !matchCat && !matchBanco) return false;
+          const matchDesc = (t.descricao || '').toLowerCase().includes(lower);
+          const matchCat = (t.categoria || '').toLowerCase().includes(lower);
+          const matchBanco = (t.bancoNome || '').toLowerCase().includes(lower);
+          const matchPosto = (t.nomePosto || t.localizacaoPosto || '').toLowerCase().includes(lower);
+          const matchMotorista = (t.motorista || '').toLowerCase().includes(lower);
+          const matchVeiculo = (t.veiculo || t.descricaoVeiculo || '').toLowerCase().includes(lower);
+          if (!matchDesc && !matchCat && !matchBanco && !matchPosto && !matchMotorista && !matchVeiculo) return false;
         }
         // Filtro por categoria
         if (categoryFilter !== 'TODAS' && t.categoria !== categoryFilter) {

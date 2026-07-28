@@ -910,11 +910,11 @@ export const syncDataToSpreadsheet = async (
       isAbast ? (t.completouTanque ? 'Sim' : 'Não') : '',
       isAbast && kmPerc !== undefined ? String(kmPerc) : '',
       isAbast && media !== undefined ? (isNaN(numMedia) ? '0,00' : numMedia.toFixed(2).replace('.', ',')) : '',
-      isAbast && t.nomePosto ? t.nomePosto : '',
-      isAbast && t.localizacaoPosto ? t.localizacaoPosto : '',
-      isAbast && t.motorista ? t.motorista : '',
+      t.nomePosto || '',
+      t.localizacaoPosto || '',
+      t.motorista || '',
       t.obs || '',
-      t.descricaoVeiculo || ''
+      t.descricaoVeiculo || (isAbast && t.veiculo ? t.veiculo : '')
     ];
   };
 
@@ -1269,7 +1269,7 @@ export const syncTransactionsToSpreadsheet = async (
     "ID", "Data", "Descrição", "Categoria", "Valor (R$)", "Tipo", "Status",
     "Valor_PG", "KM", "Litros", "Preço por Litro", "Veículo",
     "Completou o Tanque", "KM Percorrido", "Média (Km/L)",
-    "Nome Posto", "Localização do Posto", "Motorista", "OBS"
+    "Nome Posto", "Localização do Posto", "Motorista", "OBS", "Descrição do Veículo"
   ];
 
   const rows = transactions.map(t => {
@@ -1294,10 +1294,11 @@ export const syncTransactionsToSpreadsheet = async (
       isAbastecimento ? (t.completouTanque ? 'Sim' : 'Não') : '',
       isAbastecimento && kmPerc !== undefined ? String(kmPerc) : '',
       isAbastecimento && media !== undefined ? media.toFixed(2).replace('.', ',') : '',
-      isAbastecimento && t.nomePosto ? t.nomePosto : '',
-      isAbastecimento && t.localizacaoPosto ? t.localizacaoPosto : '',
-      isAbastecimento && t.motorista ? t.motorista : '',
-      t.obs || ''
+      t.nomePosto || '',
+      t.localizacaoPosto || '',
+      t.motorista || '',
+      t.obs || '',
+      t.descricaoVeiculo || (isAbastecimento && t.veiculo ? t.veiculo : '')
     ];
   });
 

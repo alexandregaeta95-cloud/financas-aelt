@@ -317,7 +317,7 @@ export default function RiskZonesTab({
 
           // Check duplicate
           const exists = riskZones.some(z => 
-            z.nomeLocal.toUpperCase() === nomeLocal.toUpperCase() || 
+            (z.nomeLocal || '').toUpperCase() === (nomeLocal || '').toUpperCase() || 
             (Math.abs(z.latitude - latitude) < 0.0001 && Math.abs(z.longitude - longitude) < 0.0001)
           );
 
@@ -1168,7 +1168,7 @@ export default function RiskZonesTab({
   // Searching and Filtering
   const filteredZones = riskZones.filter(z => {
     const query = searchTerm.toLowerCase();
-    const matchesSearch = z.nomeLocal.toLowerCase().includes(query) || z.localizacao.includes(query);
+    const matchesSearch = (z.nomeLocal || '').toLowerCase().includes(query) || (z.localizacao || '').includes(query);
     const matchesLevel = filterLevel === 'todos' || z.nivelRisco === filterLevel;
     const matchesActive = !hideInactive || z.ativo;
     return matchesSearch && matchesLevel && matchesActive;
@@ -1234,8 +1234,8 @@ export default function RiskZonesTab({
 
     // Filter zones to show on heatmap (only high risk zones or historically visited ones)
     const zonesToShow = Array.from(new Set([
-      ...riskZones.filter(z => z.nivelRisco === 'ALTO').map(z => z.nomeLocal.toUpperCase()),
-      ...passageHistory.map(h => h.zoneName.toUpperCase())
+      ...riskZones.filter(z => z.nivelRisco === 'ALTO').map(z => (z.nomeLocal || '').toUpperCase()),
+      ...passageHistory.map(h => (h.zoneName || '').toUpperCase())
     ])).slice(0, 10); // show top 10 for absolute clarity
 
     if (zonesToShow.length === 0) {
@@ -1247,7 +1247,7 @@ export default function RiskZonesTab({
     zonesToShow.forEach(zone => {
       TIME_BLOCKS.forEach((block, blockIdx) => {
         const count = passageHistory.filter(h => {
-          return h.zoneName.toUpperCase() === zone && getBlockIndex(h.hour) === blockIdx;
+          return (h.zoneName || '').toUpperCase() === zone && getBlockIndex(h.hour) === blockIdx;
         }).length;
         gridData.push({ zone, block, blockIdx, count });
       });
@@ -1972,7 +1972,7 @@ export default function RiskZonesTab({
                   if (passageHistory.length === 0) return "NENHUMA";
                   const counts: Record<string, number> = {};
                   passageHistory.forEach(h => {
-                    const name = h.zoneName.toUpperCase();
+                    const name = (h.zoneName || '').toUpperCase();
                     counts[name] = (counts[name] || 0) + 1;
                   });
                   return Object.keys(counts).reduce((a, b) => counts[a] > counts[b] ? a : b);
@@ -2041,7 +2041,7 @@ export default function RiskZonesTab({
               >
                 {riskZones.map(z => (
                   <option key={z.id} value={z.id}>
-                    {z.nomeLocal.toUpperCase()} ({z.nivelRisco})
+                    {(z.nomeLocal || '').toUpperCase()} ({z.nivelRisco})
                   </option>
                 ))}
               </select>

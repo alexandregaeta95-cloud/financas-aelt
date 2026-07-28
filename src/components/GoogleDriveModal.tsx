@@ -26,7 +26,7 @@ const APPS_SCRIPT_CODE = `function doPost(e) {
 
     if (action === 'syncData') {
       var txHeaders = [
-        'id', 'data', 'descricao', 'valor', 'tipo', 'categoria', 'status', 'bancoId', 'cartaoId', 'formaPagamento', 'obs', 'comprovanteUrl', 'km', 'litros', 'precoLitro', 'veiculo'
+        'id', 'data', 'descricao', 'valor', 'tipo', 'categoria', 'status', 'bancoId', 'cartaoId', 'formaPagamento', 'obs', 'comprovanteUrl', 'km', 'litros', 'precoLitro', 'veiculo', 'nomePosto', 'localizacaoPosto', 'motorista', 'descricaoVeiculo'
       ];
 
       if (data.transactions && Array.isArray(data.transactions)) {
@@ -188,6 +188,10 @@ function writeArrayToSheet(ss, sheetName, items, headers) {
         if (h === 'observacoes' && (item['Observações'] || item['Observacao'] || item['Observação'])) val = item['Observações'] || item['Observacao'] || item['Observação'];
         if (h === 'veiculoId' && (item['Veículo'] || item['veiculoDescricao'])) val = item['Veículo'] || item['veiculoDescricao'];
         if (h === 'valorEstimado' && (item['Valor Estimado (R$)'] || item['Valor Estimado'])) val = item['Valor Estimado (R$)'] || item['Valor Estimado'];
+        if (h === 'nomePosto' && (item['Nome Posto'] || item['POSTO'] || item['nomePosto'])) val = item['Nome Posto'] || item['POSTO'] || item['nomePosto'];
+        if (h === 'localizacaoPosto' && (item['Localização do Posto'] || item['LOCALIZACAO_POSTO'] || item['localizacaoPosto'])) val = item['Localização do Posto'] || item['LOCALIZACAO_POSTO'] || item['localizacaoPosto'];
+        if (h === 'motorista' && (item['Motorista'] || item['motorista'])) val = item['Motorista'] || item['motorista'];
+        if (h === 'descricaoVeiculo' && (item['Descrição do Veículo'] || item['descricaoVeiculo'])) val = item['Descrição do Veículo'] || item['descricaoVeiculo'];
       }
       return val !== undefined && val !== null ? val : '';
     });
