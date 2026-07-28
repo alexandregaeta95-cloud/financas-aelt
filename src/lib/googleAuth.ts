@@ -1128,9 +1128,9 @@ export const syncDataToSpreadsheet = async (
     },
     body: JSON.stringify({
       ranges: [
-        `'${receitasSheetTitle}'!A1:T2000`, 
-        `'${despesasSheetTitle}'!A1:T2000`,
-        `'${abastecimentosSheetTitle}'!A1:T2000`,
+        `'${receitasSheetTitle}'!A1:Z2000`, 
+        `'${despesasSheetTitle}'!A1:Z2000`,
+        `'${abastecimentosSheetTitle}'!A1:Z2000`,
         `'${oficinaSheetTitle}'!A1:N2000`,
         `'${agendaSheetTitle}'!A1:J2000`,
         `'${zonaRiscoSheetTitle}'!A1:O2000`,
@@ -1386,24 +1386,29 @@ export const parseTransactionRows = (rows: any[], defaultSheetKey?: string): any
     return defaultIdx;
   };
 
-  const idxId = getColIndex(["ID", "CODIGO", "CÓDIGO", "IDENTIFICADOR"], 0);
-  const idxData = getColIndex(["Data", "DATE", "DATA", "DIAS"], 1);
-  const idxDesc = getColIndex(["Descrição", "DESCRICAO", "DESCRIPTION", "DESCRIÇÃO", "DESC", "DESCR", "NOME"], 2);
-  const idxCat = getColIndex(["Categoria", "CATEGORIA", "CATEGORY", "CAT", "GRUPO", "CLASSIFICACAO", "CLASSIFICAÇÃO"], 3);
-  const idxValor = getColIndex(["Valor", "Valor (R$)", "VALOR", "VALUE", "PRECO", "PREÇO", "MONTANTE"], 4);
-  const idxTipo = getColIndex(["Tipo", "TIPO", "TYPE", "COMBUSTIVEL", "COMBUSTÍVEL"], 5);
-  const idxStatus = getColIndex(["Status", "STATUS", "SITUACAO", "SITUAÇÃO"], 6);
-  const idxValorPg = getColIndex(["Valor_PG", "VALOR_PG", "Valor Pago", "VALOR_PAGO"], 7);
-  const idxKm = getColIndex(["KM"], 8);
-  const idxLitros = getColIndex(["Litros", "LITROS", "LITERS"], 9);
-  const idxPrecoLitro = getColIndex(["Preço por Litro", "Preco por Litro", "PRECO_LITRO", "PREÇO POR LITRO"], 10);
-  const idxVeiculo = getColIndex(["Veículo", "Veiculo", "VEHICLE", "VEÍCULO"], 11);
-  const idxCompletou = getColIndex(["Completou o Tanque", "Completou", "COMPLETOU_TANQUE", "COMPLETOU O TANQUE"], 12);
-  const idxObs = getColIndex(["OBS", "OBSERVAÇÕES", "OBSERVACOES", "NOTE"], 18);
-  const idxNomePosto = getColIndex(["Nome Posto", "POSTO", "GAS_STATION", "NOME POSTO"], 15);
-  const idxLocalPosto = getColIndex(["Localização do Posto", "LOCALIZACAO_POSTO", "LOCALIZAÇÃO DO POSTO"], 16);
-  const idxMotorista = getColIndex(["Motorista", "DRIVER"], 17);
-  const idxDescricaoVeiculo = getColIndex(["Descrição do Veículo", "Descricao do Veiculo", "DESCRIÇÃO DO VEÍCULO", "DESCRICAO_VEICULO", "DESCRIÇÃO VEÍCULO", "DESCRICAO VEICULO"], 19);
+  const idxId = getColIndex(["id", "ID", "CODIGO", "CÓDIGO", "IDENTIFICADOR"], 0);
+  const idxData = getColIndex(["data", "Data", "DATE", "DIAS"], 1);
+  const idxDesc = getColIndex(["descricao", "Descrição", "DESCRICAO", "DESCRIPTION", "DESCRIÇÃO", "DESC", "DESCR", "NOME"], 2);
+  const idxValor = getColIndex(["valor", "Valor", "Valor (R$)", "VALOR", "VALUE", "PRECO", "PREÇO", "MONTANTE"], 3);
+  const idxTipo = getColIndex(["tipo", "Tipo", "TIPO", "TYPE", "COMBUSTIVEL", "COMBUSTÍVEL"], 4);
+  const idxCat = getColIndex(["categoria", "Categoria", "CATEGORIA", "CATEGORY", "CAT", "GRUPO", "CLASSIFICACAO", "CLASSIFICAÇÃO"], 5);
+  const idxStatus = getColIndex(["status", "Status", "STATUS", "SITUACAO", "SITUAÇÃO"], 6);
+  const idxBancoId = getColIndex(["bancoid", "bancoId", "BANCOID", "BANCO_ID", "BANCO"], 7);
+  const idxFormaPagamento = getColIndex(["formaPagamento", "FORMAPAGAMENTO", "FORMA_PAGAMENTO", "FORMA DE PAGAMENTO"], 8);
+  const idxObs = getColIndex(["obs", "OBS", "OBSERVAÇÕES", "OBSERVACOES", "NOTE"], 9);
+  const idxComprovanteUrl = getColIndex(["comprovanteUrl", "COMPROVANTEURL", "COMPROVANTE_URL", "COMPROVANTE"], 10);
+  const idxKm = getColIndex(["km", "KM"], 11);
+  const idxLitros = getColIndex(["litros", "Litros", "LITROS", "LITERS"], 12);
+  const idxPrecoLitro = getColIndex(["precoLitro", "Preço por Litro", "Preco por Litro", "PRECO_LITRO", "PREÇO POR LITRO"], 13);
+  const idxVeiculo = getColIndex(["veiculo", "Veículo", "Veiculo", "VEHICLE", "VEÍCULO"], 14);
+  const idxValorPg = getColIndex(["Valor_PG", "VALOR_PG", "Valor Pago", "VALOR_PAGO"], 15);
+  const idxCompletou = getColIndex(["Completou_o_Tanque", "Completou o Tanque", "Completou", "COMPLETOU_TANQUE", "COMPLETOU O TANQUE"], 16);
+  const idxKmPercorrido = getColIndex(["KM_Percorrido", "KM Percorrido", "KM_PERCORRIDO"], 17);
+  const idxMediaKmL = getColIndex(["Media_(Km/L)", "Media (Km/L)", "Média (Km/L)", "MEDIA_KML"], 18);
+  const idxNomePosto = getColIndex(["Nome_Posto", "Nome Posto", "POSTO", "GAS_STATION", "NOME POSTO"], 19);
+  const idxLocalPosto = getColIndex(["Localizacao_do_Posto", "Localização do Posto", "LOCALIZACAO_POSTO", "LOCALIZAÇÃO DO POSTO"], 20);
+  const idxMotorista = getColIndex(["Motorista", "MOTORISTA", "DRIVER"], 21);
+  const idxDescricaoVeiculo = getColIndex(["Descrição do Veículo", "Descricao do Veiculo", "DESCRIÇÃO DO VEÍCULO", "DESCRICAO_VEICULO", "DESCRIÇÃO VEÍCULO", "DESCRICAO VEICULO"], 14);
 
   const parseBrazilianOrRawNumber = (valStr: string): number => {
     let clean = String(valStr || '').trim().toUpperCase().replace(/\s/g, '').replace('R$', '');
@@ -1551,6 +1556,9 @@ export const parseTransactionRows = (rows: any[], defaultSheetKey?: string): any
       valor,
       tipo: finalTipo,
       status: String(row[idxStatus] || 'PENDENTE').toUpperCase(),
+      bancoId: row[idxBancoId] ? String(row[idxBancoId]).trim() : undefined,
+      formaPagamento: row[idxFormaPagamento] ? String(row[idxFormaPagamento]).trim() : undefined,
+      comprovanteUrl: row[idxComprovanteUrl] ? String(row[idxComprovanteUrl]).trim() : undefined,
       valorPg: valorPgVal !== undefined && isNaN(valorPgVal) ? undefined : valorPgVal,
       km: km !== undefined && isNaN(km) ? undefined : km,
       litros: litros !== undefined && isNaN(litros) ? undefined : litros,

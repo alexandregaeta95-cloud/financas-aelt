@@ -1665,23 +1665,23 @@ export default function TransactionsTab({
   // Memoized totals for each filter pill based on other active filters (search, status, period)
   const pillTotals = React.useMemo(() => {
     const list = transactions
-      .filter(t => t.tipo !== 'CONTAS BANCARIAS' && t.tipo !== 'CARTÃO DE CRÉDITO') // Hide non-ledger configuration rows
+      .filter(t => t && t.tipo !== 'CONTAS BANCARIAS' && t.tipo !== 'CARTÃO DE CRÉDITO') // Hide non-ledger configuration rows
       .filter(t => {
         // Search Box Filtering
         if (!t) return false;
-        const term = (searchTerm || '').toLowerCase();
+        const term = (searchTerm ?? '').toString().toLowerCase();
         if (!term) return true;
-        const desc = (t.descricao || '').toLowerCase();
-        const cat = (t.categoria || '').toLowerCase();
+        const desc = (t.descricao ?? '').toString().toLowerCase();
+        const cat = (t.categoria ?? '').toString().toLowerCase();
         const valRaw = t.valor !== undefined && t.valor !== null ? t.valor : 0;
         const valStr = valRaw.toString();
         const valBRL = valRaw.toFixed(2).replace('.', ',');
-        const posto = (t.nomePosto || t.localizacaoPosto || '').toLowerCase();
-        const veic = (t.veiculo || t.descricaoVeiculo || '').toLowerCase();
-        const tipo = (t.tipo || '').toLowerCase();
-        const mot = (t.motorista || '').toLowerCase();
-        const obs = (t.obs || '').toLowerCase();
-        const fp = (t.formaPagamento || '').toLowerCase();
+        const posto = (t.nomePosto ?? t.localizacaoPosto ?? '').toString().toLowerCase();
+        const veic = (t.veiculo ?? t.descricaoVeiculo ?? '').toString().toLowerCase();
+        const tipo = (t.tipo ?? '').toString().toLowerCase();
+        const mot = (t.motorista ?? '').toString().toLowerCase();
+        const obs = (t.obs ?? '').toString().toLowerCase();
+        const fp = (t.formaPagamento ?? '').toString().toLowerCase();
         return (
           desc.includes(term) ||
           cat.includes(term) ||
@@ -1721,8 +1721,8 @@ export default function TransactionsTab({
           return t.status === 'PAGO' || t.status === 'REALIZADO';
         }
         if (statusFilter === 'vencendo_48h') {
-          const isNotPaid = t.status?.toUpperCase() !== 'PAGO' && t.status?.toUpperCase() !== 'REALIZADO';
-          const isAPagarType = t.tipo?.toUpperCase() !== 'RECEITA';
+          const isNotPaid = (t.status ?? '').toString().toUpperCase() !== 'PAGO' && (t.status ?? '').toString().toUpperCase() !== 'REALIZADO';
+          const isAPagarType = (t.tipo ?? '').toString().toUpperCase() !== 'RECEITA';
           if (!isNotPaid || !isAPagarType) return false;
           
           const todayObj = new Date();
@@ -1805,27 +1805,27 @@ export default function TransactionsTab({
 
   // Apply filters, searches, and period selection
   const rawFilteredTransactions = transactions
-    .filter(t => t.tipo !== 'CONTAS BANCARIAS' && t.tipo !== 'CARTÃO DE CRÉDITO') // Hide non-ledger configuration rows
+    .filter(t => t && t.tipo !== 'CONTAS BANCARIAS' && t.tipo !== 'CARTÃO DE CRÉDITO') // Hide non-ledger configuration rows
     .filter(t => {
       // Pill Filtering
-      if (selectedFilter === 'receita') return t.tipo === 'RECEITA';
-      if (selectedFilter === 'despesa') return t.tipo === 'DESPESA' || t.tipo === 'PAGO' || ['ETANOL', 'GAS. COMUM', 'ETANOL ADITIVADA', 'GAS, ADITIVADA'].includes(t.tipo);
-      if (selectedFilter === 'abastecimento') return t.categoria === 'ABASTECIMENTO';
-      if (selectedFilter === 'casa') return t.categoria === 'CASA';
-      if (selectedFilter === 'consumo') return t.categoria === 'CONSUMO' || t.categoria === 'CUMSUMO';
+      if (selectedFilter === 'receita') return (t.tipo ?? '').toString().toUpperCase() === 'RECEITA';
+      if (selectedFilter === 'despesa') return (t.tipo ?? '').toString().toUpperCase() === 'DESPESA' || (t.tipo ?? '').toString().toUpperCase() === 'PAGO' || ['ETANOL', 'GAS. COMUM', 'ETANOL ADITIVADA', 'GAS, ADITIVADA'].includes((t.tipo ?? '').toString().toUpperCase());
+      if (selectedFilter === 'abastecimento') return (t.categoria ?? '').toString().toUpperCase() === 'ABASTECIMENTO';
+      if (selectedFilter === 'casa') return (t.categoria ?? '').toString().toUpperCase() === 'CASA';
+      if (selectedFilter === 'consumo') return (t.categoria ?? '').toString().toUpperCase() === 'CONSUMO' || (t.categoria ?? '').toString().toUpperCase() === 'CUMSUMO';
       return true;
     })
     .filter(t => {
       // Status Quick Filtering
       if (statusFilter === 'a_pagar') {
-        return t.status === 'PENDENTE' || t.status === 'ATRASADO';
+        return (t.status ?? '').toString().toUpperCase() === 'PENDENTE' || (t.status ?? '').toString().toUpperCase() === 'ATRASADO';
       }
       if (statusFilter === 'pago') {
-        return t.status === 'PAGO' || t.status === 'REALIZADO';
+        return (t.status ?? '').toString().toUpperCase() === 'PAGO' || (t.status ?? '').toString().toUpperCase() === 'REALIZADO';
       }
       if (statusFilter === 'vencendo_48h') {
-        const isNotPaid = t.status?.toUpperCase() !== 'PAGO' && t.status?.toUpperCase() !== 'REALIZADO';
-        const isAPagarType = t.tipo?.toUpperCase() !== 'RECEITA';
+        const isNotPaid = (t.status ?? '').toString().toUpperCase() !== 'PAGO' && (t.status ?? '').toString().toUpperCase() !== 'REALIZADO';
+        const isAPagarType = (t.tipo ?? '').toString().toUpperCase() !== 'RECEITA';
         if (!isNotPaid || !isAPagarType) return false;
         
         const todayObj = new Date();
@@ -1842,19 +1842,19 @@ export default function TransactionsTab({
     .filter(t => {
       // Search Box Filtering
       if (!t) return false;
-      const term = (searchTerm || '').toLowerCase();
+      const term = (searchTerm ?? '').toString().toLowerCase();
       if (!term) return true;
-      const desc = (t.descricao || '').toLowerCase();
-      const cat = (t.categoria || '').toLowerCase();
+      const desc = (t.descricao ?? '').toString().toLowerCase();
+      const cat = (t.categoria ?? '').toString().toLowerCase();
       const valRaw = t.valor !== undefined && t.valor !== null ? t.valor : 0;
       const valStr = valRaw.toString();
       const valBRL = valRaw.toFixed(2).replace('.', ',');
-      const posto = (t.nomePosto || t.localizacaoPosto || '').toLowerCase();
-      const veic = (t.veiculo || t.descricaoVeiculo || '').toLowerCase();
-      const tipo = (t.tipo || '').toLowerCase();
-      const mot = (t.motorista || '').toLowerCase();
-      const obs = (t.obs || '').toLowerCase();
-      const fp = (t.formaPagamento || '').toLowerCase();
+      const posto = (t.nomePosto ?? t.localizacaoPosto ?? '').toString().toLowerCase();
+      const veic = (t.veiculo ?? t.descricaoVeiculo ?? '').toString().toLowerCase();
+      const tipo = (t.tipo ?? '').toString().toLowerCase();
+      const mot = (t.motorista ?? '').toString().toLowerCase();
+      const obs = (t.obs ?? '').toString().toLowerCase();
+      const fp = (t.formaPagamento ?? '').toString().toLowerCase();
       return (
         desc.includes(term) ||
         cat.includes(term) ||
@@ -1902,30 +1902,30 @@ export default function TransactionsTab({
 
   // Compute counts for status quick filter buttons (scoped to other active filters)
   const baseFilteredForStatusCounts = transactions
-    .filter(t => t.tipo !== 'CONTAS BANCARIAS' && t.tipo !== 'CARTÃO DE CRÉDITO')
+    .filter(t => t && t.tipo !== 'CONTAS BANCARIAS' && t.tipo !== 'CARTÃO DE CRÉDITO')
     .filter(t => {
-      if (selectedFilter === 'receita') return t.tipo === 'RECEITA';
-      if (selectedFilter === 'despesa') return t.tipo === 'DESPESA' || t.tipo === 'PAGO' || ['ETANOL', 'GAS. COMUM', 'ETANOL ADITIVADA', 'GAS, ADITIVADA'].includes(t.tipo);
-      if (selectedFilter === 'abastecimento') return t.categoria === 'ABASTECIMENTO';
-      if (selectedFilter === 'casa') return t.categoria === 'CASA';
-      if (selectedFilter === 'consumo') return t.categoria === 'CONSUMO' || t.categoria === 'CUMSUMO';
+      if (selectedFilter === 'receita') return (t.tipo ?? '').toString().toUpperCase() === 'RECEITA';
+      if (selectedFilter === 'despesa') return (t.tipo ?? '').toString().toUpperCase() === 'DESPESA' || (t.tipo ?? '').toString().toUpperCase() === 'PAGO' || ['ETANOL', 'GAS. COMUM', 'ETANOL ADITIVADA', 'GAS, ADITIVADA'].includes((t.tipo ?? '').toString().toUpperCase());
+      if (selectedFilter === 'abastecimento') return (t.categoria ?? '').toString().toUpperCase() === 'ABASTECIMENTO';
+      if (selectedFilter === 'casa') return (t.categoria ?? '').toString().toUpperCase() === 'CASA';
+      if (selectedFilter === 'consumo') return (t.categoria ?? '').toString().toUpperCase() === 'CONSUMO' || (t.categoria ?? '').toString().toUpperCase() === 'CUMSUMO';
       return true;
     })
     .filter(t => {
       if (!t) return false;
-      const term = (searchTerm || '').toLowerCase();
+      const term = (searchTerm ?? '').toString().toLowerCase();
       if (!term) return true;
-      const desc = (t.descricao || '').toLowerCase();
-      const cat = (t.categoria || '').toLowerCase();
+      const desc = (t.descricao ?? '').toString().toLowerCase();
+      const cat = (t.categoria ?? '').toString().toLowerCase();
       const valRaw = t.valor !== undefined && t.valor !== null ? t.valor : 0;
       const valStr = valRaw.toString();
       const valBRL = valRaw.toFixed(2).replace('.', ',');
-      const posto = (t.nomePosto || t.localizacaoPosto || '').toLowerCase();
-      const veic = (t.veiculo || t.descricaoVeiculo || '').toLowerCase();
-      const tipo = (t.tipo || '').toLowerCase();
-      const mot = (t.motorista || '').toLowerCase();
-      const obs = (t.obs || '').toLowerCase();
-      const fp = (t.formaPagamento || '').toLowerCase();
+      const posto = (t.nomePosto ?? t.localizacaoPosto ?? '').toString().toLowerCase();
+      const veic = (t.veiculo ?? t.descricaoVeiculo ?? '').toString().toLowerCase();
+      const tipo = (t.tipo ?? '').toString().toLowerCase();
+      const mot = (t.motorista ?? '').toString().toLowerCase();
+      const obs = (t.obs ?? '').toString().toLowerCase();
+      const fp = (t.formaPagamento ?? '').toString().toLowerCase();
       return (
         desc.includes(term) ||
         cat.includes(term) ||
@@ -1956,11 +1956,11 @@ export default function TransactionsTab({
     });
 
   const countTodos = baseFilteredForStatusCounts.length;
-  const countAPagar = baseFilteredForStatusCounts.filter(t => t.status === 'PENDENTE' || t.status === 'ATRASADO').length;
-  const countPago = baseFilteredForStatusCounts.filter(t => t.status === 'PAGO' || t.status === 'REALIZADO').length;
+  const countAPagar = baseFilteredForStatusCounts.filter(t => (t.status ?? '').toString().toUpperCase() === 'PENDENTE' || (t.status ?? '').toString().toUpperCase() === 'ATRASADO').length;
+  const countPago = baseFilteredForStatusCounts.filter(t => (t.status ?? '').toString().toUpperCase() === 'PAGO' || (t.status ?? '').toString().toUpperCase() === 'REALIZADO').length;
   const countVencendo48h = baseFilteredForStatusCounts.filter(t => {
-    const isNotPaid = t.status?.toUpperCase() !== 'PAGO' && t.status?.toUpperCase() !== 'REALIZADO';
-    const isAPagarType = t.tipo?.toUpperCase() !== 'RECEITA';
+    const isNotPaid = (t.status ?? '').toString().toUpperCase() !== 'PAGO' && (t.status ?? '').toString().toUpperCase() !== 'REALIZADO';
+    const isAPagarType = (t.tipo ?? '').toString().toUpperCase() !== 'RECEITA';
     if (!isNotPaid || !isAPagarType) return false;
 
     const todayObj = new Date();

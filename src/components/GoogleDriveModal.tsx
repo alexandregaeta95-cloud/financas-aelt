@@ -33,19 +33,22 @@ const APPS_SCRIPT_CODE = `function doPost(e) {
         writeArrayToSheet(ss, 'Lançamentos', data.transactions, txHeaders);
 
         var receitas = data.transactions.filter(function(t) {
-          var tipo = String(t.tipo || '').toUpperCase();
-          var cat = String(t.categoria || '').toUpperCase();
+          if (!t) return false;
+          var tipo = (t.tipo ?? '').toString().toUpperCase();
+          var cat = (t.categoria ?? '').toString().toUpperCase();
           return tipo === 'RECEITA' || tipo === 'RECEBIDO' || cat === 'RECEITA' || cat === 'RECEITAS' || cat === 'ENTRADA';
         });
 
         var abastecimentos = data.transactions.filter(function(t) {
-          var cat = String(t.categoria || '').toUpperCase();
+          if (!t) return false;
+          var cat = (t.categoria ?? '').toString().toUpperCase();
           return cat === 'ABASTECIMENTO' || cat === 'COMBUSTIVEL';
         });
 
         var despesas = data.transactions.filter(function(t) {
-          var tipo = String(t.tipo || '').toUpperCase();
-          var cat = String(t.categoria || '').toUpperCase();
+          if (!t) return false;
+          var tipo = (t.tipo ?? '').toString().toUpperCase();
+          var cat = (t.categoria ?? '').toString().toUpperCase();
           var isRec = tipo === 'RECEITA' || tipo === 'RECEBIDO' || cat === 'RECEITA' || cat === 'RECEITAS' || cat === 'ENTRADA';
           var isAbast = cat === 'ABASTECIMENTO' || cat === 'COMBUSTIVEL';
           return !isRec && !isAbast;
