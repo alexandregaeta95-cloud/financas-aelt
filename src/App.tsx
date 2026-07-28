@@ -270,7 +270,15 @@ export default function App() {
       if (saved) {
         const parsed = JSON.parse(saved);
         if (Array.isArray(parsed)) {
-          const filtered = parsed.filter(v => v && typeof v === 'object' && String(v.descricao || v.modelo || v.placa || '').toUpperCase() !== 'FOX PRATA');
+          const filtered = parsed.filter(v => {
+            if (!v || typeof v !== 'object') return false;
+            try {
+              const desc = String(v.descricao || v.modelo || v.nome || v.placa || '').toUpperCase();
+              return desc !== 'FOX PRATA';
+            } catch {
+              return false;
+            }
+          });
           if (filtered.length !== parsed.length) {
             localStorage.setItem('wealthflow_registered_vehicles', JSON.stringify(filtered));
           }
@@ -290,7 +298,7 @@ export default function App() {
       const saved = localStorage.getItem('wealthflow_compromissos');
       if (saved) {
         const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed)) return parsed;
+        if (Array.isArray(parsed)) return parsed.filter(c => c && typeof c === 'object');
       }
     } catch (e) {
       console.error("Failed to parse compromissos state:", e);
@@ -304,7 +312,15 @@ export default function App() {
       if (saved) {
         const parsed = JSON.parse(saved);
         if (Array.isArray(parsed)) {
-          const filtered = parsed.filter(s => s && typeof s === 'object' && String(s.veiculoDescricao || (s as any)['Veículo'] || '').toUpperCase() !== 'FOX PRATA');
+          const filtered = parsed.filter(s => {
+            if (!s || typeof s !== 'object') return false;
+            try {
+              const veh = String(s.veiculoDescricao || (s as any)['Veículo'] || '').toUpperCase();
+              return veh !== 'FOX PRATA';
+            } catch {
+              return false;
+            }
+          });
           if (filtered.length !== parsed.length) {
             localStorage.setItem('wealthflow_car_services_performed', JSON.stringify(filtered));
           }
@@ -346,7 +362,15 @@ export default function App() {
       if (saved) {
         const parsed = JSON.parse(saved);
         if (Array.isArray(parsed)) {
-          const filtered = parsed.filter(s => s && typeof s === 'object' && String(s.veiculoDescricao || (s as any)['Veículo'] || '').toUpperCase() !== 'FOX PRATA');
+          const filtered = parsed.filter(s => {
+            if (!s || typeof s !== 'object') return false;
+            try {
+              const veh = String(s.veiculoDescricao || (s as any)['Veículo'] || '').toUpperCase();
+              return veh !== 'FOX PRATA';
+            } catch {
+              return false;
+            }
+          });
           if (filtered.length !== parsed.length) {
             localStorage.setItem('wealthflow_car_services_scheduled', JSON.stringify(filtered));
           }

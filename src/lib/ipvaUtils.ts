@@ -83,10 +83,11 @@ export function getDaysUntilIpva(placa: string | undefined, today: Date = new Da
 
 // Vehicle specific calculation functions
 export function getVehicleIpvaMonth(v: RegisteredVehicle): IpvaMonthInfo | null {
+  if (!v || typeof v !== 'object') return null;
   // Check custom recurrent day first, but compute it without calling getVehicleNextIpvaDueDate to avoid recursion
   try {
     const savedRecurrent = localStorage.getItem('wealthflow_vehicle_ipva_recurrent_days');
-    if (savedRecurrent) {
+    if (savedRecurrent && v.id) {
       const parsed = JSON.parse(savedRecurrent);
       const customDay = parsed[v.id];
       if (customDay !== undefined && customDay !== null) {
@@ -156,17 +157,18 @@ export function getVehicleIpvaMonth(v: RegisteredVehicle): IpvaMonthInfo | null 
     };
   }
   
-  if (!v.placa) return null;
+  if (!v || typeof v !== 'object' || !v.placa) return null;
   const digit = getPlacaFinalDigit(v.placa);
   if (digit === null) return null;
   return getIpvaDueMonth(digit);
 }
 
 export function getVehicleNextIpvaDueDate(v: RegisteredVehicle, today: Date = new Date()): Date | null {
+  if (!v || typeof v !== 'object') return null;
   // Check custom recurrent day first
   try {
     const savedRecurrent = localStorage.getItem('wealthflow_vehicle_ipva_recurrent_days');
-    if (savedRecurrent) {
+    if (savedRecurrent && v.id) {
       const parsed = JSON.parse(savedRecurrent);
       const customDay = parsed[v.id];
       if (customDay !== undefined && customDay !== null) {
@@ -280,8 +282,9 @@ export function checkIpvaAlerts(vehicles: RegisteredVehicle[], today: Date = new
       if (!t) return false;
       const descUpper = (t.descricao || '').toUpperCase();
       const isIpva = descUpper.includes('IPVA');
-      const vDescUpper = (v.descricao || '').toUpperCase();
-      const matchesVehicle = descUpper.includes(v.placa?.toUpperCase() || '___') || (vDescUpper && descUpper.includes(vDescUpper));
+      const vDescUpper = String(v.descricao || v.modelo || '').toUpperCase();
+      const vPlacaUpper = String(v.placa || '').toUpperCase();
+      const matchesVehicle = (vPlacaUpper && descUpper.includes(vPlacaUpper)) || (vDescUpper && descUpper.includes(vDescUpper));
       const isPaid = (t.status || '').toUpperCase() === 'PAGO';
       
       let matchesYear = false;

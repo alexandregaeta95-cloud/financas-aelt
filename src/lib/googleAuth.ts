@@ -1093,15 +1093,17 @@ export const syncDataToSpreadsheet = async (
     c.gasto !== undefined ? c.gasto.toFixed(2).replace('.', ',') : '0,00',
     c.limite !== undefined && c.gasto !== undefined ? (c.limite - c.gasto).toFixed(2).replace('.', ',') : '0,00'
   ]);
-  const vehRowsFormatted = registeredVehicles.map(v => [
-    String(v.id),
-    "VEICULO_REGISTRADO",
-    v.descricao || '',
-    v.placa || '',
-    v.motorista || '',
-    v.mesFinalPlaca || '',
-    ''
-  ]);
+  const vehRowsFormatted = (registeredVehicles || [])
+    .filter(v => v && typeof v === 'object')
+    .map(v => [
+      String(v.id || ''),
+      "VEICULO_REGISTRADO",
+      String(v.descricao || v.modelo || ''),
+      String(v.placa || ''),
+      String(v.motorista || ''),
+      v.mesFinalPlaca !== undefined && v.mesFinalPlaca !== null ? String(v.mesFinalPlaca) : '',
+      ''
+    ]);
   const perfilRows = [...bankRowsFormatted, ...cardRowsFormatted, ...vehRowsFormatted];
 
   // 9. ListaMercado
