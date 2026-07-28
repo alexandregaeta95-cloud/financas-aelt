@@ -26,7 +26,7 @@ const APPS_SCRIPT_CODE = `function doPost(e) {
 
     if (action === 'syncData') {
       var txHeaders = [
-        'id', 'data', 'descricao', 'valor', 'tipo', 'categoria', 'status', 'bancoId', 'cartaoId', 'formaPagamento', 'obs', 'comprovanteUrl', 'km', 'litros', 'precoLitro', 'veiculo', 'nomePosto', 'localizacaoPosto', 'motorista', 'descricaoVeiculo'
+        'id', 'data', 'descricao', 'valor', 'tipo', 'categoria', 'status', 'bancoid', 'formaPagamento', 'obs', 'comprovanteUrl', 'km', 'litros', 'precoLitro', 'veiculo', 'Valor_PG', 'Completou_o_Tanque', 'KM_Percorrido', 'Media_(Km/L)', 'Nome_Posto', 'Localizacao_do_Posto', 'Motorista'
       ];
 
       if (data.transactions && Array.isArray(data.transactions)) {

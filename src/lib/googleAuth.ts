@@ -841,10 +841,8 @@ export const syncDataToSpreadsheet = async (
   });
 
   const txHeaders = [
-    "ID", "Data", "Descrição", "Categoria", "Valor (R$)", "Tipo", "Status",
-    "Valor_PG", "KM", "Litros", "Preço por Litro", "Veículo",
-    "Completou o Tanque", "KM Percorrido", "Média (Km/L)",
-    "Nome Posto", "Localização do Posto", "Motorista", "OBS", "Descrição do Veículo"
+    "id", "data", "descricao", "valor", "tipo", "categoria", "status", "bancoid", "formaPagamento", "obs", "comprovanteUrl", "km", "litros", "precoLitro", "veiculo",
+    "Valor_PG", "Completou_o_Tanque", "KM_Percorrido", "Media_(Km/L)", "Nome_Posto", "Localizacao_do_Posto", "Motorista"
   ];
 
   const isReceitaTx = (t: any) => {
@@ -896,25 +894,27 @@ export const syncDataToSpreadsheet = async (
 
     return [
       t.id,
-      t.data,
-      t.descricao,
-      t.categoria,
+      t.data || '',
+      t.descricao || '',
       safeValor.toFixed(2).replace('.', ','),
       isAbast ? (t.tipo || 'DESPESA') : (isRec ? 'RECEITA' : (t.tipo || 'DESPESA')),
-      t.status,
-      safeValorPg.toFixed(2).replace('.', ','),
+      t.categoria || '',
+      t.status || 'PAGO',
+      t.bancoId || '',
+      t.formaPagamento || '',
+      t.obs || '',
+      t.comprovanteUrl || '',
       isAbast && t.km ? String(t.km) : '',
       isAbast && t.litros ? (isNaN(numLitros) ? '0,00' : numLitros.toFixed(2).replace('.', ',')) : '',
       isAbast && t.precoLitro ? (isNaN(numPrecoLitro) ? '0,000' : numPrecoLitro.toFixed(3).replace('.', ',')) : '',
-      isAbast ? (t.veiculo || 'FOX') : '',
+      isAbast ? (t.veiculo || 'CARRO') : (t.descricaoVeiculo || ''),
+      safeValorPg.toFixed(2).replace('.', ','),
       isAbast ? (t.completouTanque ? 'Sim' : 'Não') : '',
       isAbast && kmPerc !== undefined ? String(kmPerc) : '',
       isAbast && media !== undefined ? (isNaN(numMedia) ? '0,00' : numMedia.toFixed(2).replace('.', ',')) : '',
       t.nomePosto || '',
       t.localizacaoPosto || '',
-      t.motorista || '',
-      t.obs || '',
-      t.descricaoVeiculo || (isAbast && t.veiculo ? t.veiculo : '')
+      t.motorista || ''
     ];
   };
 

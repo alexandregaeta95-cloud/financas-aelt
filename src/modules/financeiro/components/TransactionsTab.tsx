@@ -345,10 +345,8 @@ export default function TransactionsTab({
     });
 
     const headers = [
-      "ID", "Data", "Descricao", "Categoria", "Valor (RS)", "Tipo", "Status",
-      "Valor_PG", "KM", "Litros", "Preco por Litro", "Veiculo",
-      "Completou o Tanque", "KM Percorrido", "Media (Km/L)",
-      "Nome Posto", "Localizacao do Posto", "Motorista", "OBS", "Descricao do Veiculo"
+      "id", "data", "descricao", "valor", "tipo", "categoria", "status", "bancoid", "formaPagamento", "obs", "comprovanteUrl", "km", "litros", "precoLitro", "veiculo",
+      "Valor_PG", "Completou_o_Tanque", "KM_Percorrido", "Media_(Km/L)", "Nome_Posto", "Localizacao_do_Posto", "Motorista"
     ];
 
     const rows = transactions.map(t => {
@@ -365,23 +363,25 @@ export default function TransactionsTab({
         t.id,
         t.data || '',
         `"${descStr.replace(/"/g, '""')}"`,
-        catStr,
         valorNum.toFixed(2).replace('.', ','),
         isAbastecimento ? (t.tipo || 'DESPESA') : (t.tipo === 'RECEITA' ? 'Receita' : 'Despesa'),
+        catStr,
         statusStr,
-        valorPgVal.toFixed(2).replace('.', ','),
+        t.bancoId || '',
+        t.formaPagamento || '',
+        t.obs ? `"${String(t.obs).replace(/"/g, '""')}"` : '',
+        t.comprovanteUrl || '',
         isAbastecimento && typeof t.km === 'number' && !isNaN(t.km) ? String(t.km) : '',
         isAbastecimento && typeof t.litros === 'number' && !isNaN(t.litros) ? t.litros.toFixed(2).replace('.', ',') : '',
         isAbastecimento && typeof t.precoLitro === 'number' && !isNaN(t.precoLitro) ? t.precoLitro.toFixed(2).replace('.', ',') : '',
-        isAbastecimento ? `"${String(t.veiculo || 'CARRO').replace(/"/g, '""')}"` : '',
+        isAbastecimento ? `"${String(t.veiculo || 'CARRO').replace(/"/g, '""')}"` : (t.descricaoVeiculo ? `"${String(t.descricaoVeiculo).replace(/"/g, '""')}"` : ''),
+        valorPgVal.toFixed(2).replace('.', ','),
         isAbastecimento ? (t.completouTanque ? 'Sim' : 'Não') : '',
         isAbastecimento && kmPerc !== undefined ? String(kmPerc) : '',
         isAbastecimento && media !== undefined ? media.toFixed(2).replace('.', ',') : '',
         isAbastecimento && t.nomePosto ? `"${String(t.nomePosto).replace(/"/g, '""')}"` : '',
         isAbastecimento && t.localizacaoPosto ? `"${String(t.localizacaoPosto).replace(/"/g, '""')}"` : '',
-        isAbastecimento && t.motorista ? `"${String(t.motorista).replace(/"/g, '""')}"` : '',
-        t.obs ? `"${String(t.obs).replace(/"/g, '""')}"` : '',
-        isAbastecimento && t.descricaoVeiculo ? `"${String(t.descricaoVeiculo).replace(/"/g, '""')}"` : ''
+        isAbastecimento && t.motorista ? `"${String(t.motorista).replace(/"/g, '""')}"` : ''
       ];
     });
     
