@@ -1662,39 +1662,61 @@ export default function TransactionsTab({
     handleCancel();
   };
 
+  // Defensive search filter helper to prevent render crashes on undefined/null properties
+  const safeMatchSearch = React.useCallback((t: any, searchInput: string): boolean => {
+    if (!t) return false;
+    const termo = (searchInput ?? '').toString().trim().toUpperCase();
+    if (!termo) return true;
+
+    // 1. Check known primary properties safely
+    const desc = (t.descricao ?? '').toString().toUpperCase();
+    const cat = (t.categoria ?? '').toString().toUpperCase();
+    const valRaw = typeof t.valor === 'number' && !isNaN(t.valor) ? t.valor : 0;
+    const valStr = valRaw.toString();
+    const valBRL = valRaw.toFixed(2).replace('.', ',');
+    const posto = (t.nomePosto ?? t.localizacaoPosto ?? '').toString().toUpperCase();
+    const veic = (t.veiculo ?? t.descricaoVeiculo ?? '').toString().toUpperCase();
+    const tipo = (t.tipo ?? '').toString().toUpperCase();
+    const mot = (t.motorista ?? '').toString().toUpperCase();
+    const obs = (t.obs ?? '').toString().toUpperCase();
+    const fp = (t.formaPagamento ?? '').toString().toUpperCase();
+
+    if (
+      desc.includes(termo) ||
+      cat.includes(termo) ||
+      valStr.includes(termo) ||
+      valBRL.includes(termo) ||
+      posto.includes(termo) ||
+      veic.includes(termo) ||
+      tipo.includes(termo) ||
+      mot.includes(termo) ||
+      obs.includes(termo) ||
+      fp.includes(termo)
+    ) {
+      return true;
+    }
+
+    // 2. Scan all object keys defensively (ignoring null or undefined)
+    return Object.keys(t).some(key => {
+      const val = t[key];
+      if (val === null || val === undefined) return false;
+      if (typeof val === 'string') {
+        return val.toUpperCase().includes(termo);
+      }
+      if (typeof val === 'number') {
+        const numStr = val.toString();
+        const brlStr = isNaN(val) ? '' : val.toFixed(2).replace('.', ',');
+        return numStr.includes(termo) || brlStr.includes(termo);
+      }
+      return String(val).toUpperCase().includes(termo);
+    });
+  }, []);
+
   // Memoized totals for each filter pill based on other active filters (search, status, period)
   const pillTotals = React.useMemo(() => {
     const list = transactions
       .filter(t => t && t.tipo !== 'CONTAS BANCARIAS' && t.tipo !== 'CARTÃO DE CRÉDITO') // Hide non-ledger configuration rows
-      .filter(t => {
-        // Search Box Filtering
-        if (!t) return false;
-        const term = (searchTerm ?? '').toString().toLowerCase();
-        if (!term) return true;
-        const desc = (t.descricao ?? '').toString().toLowerCase();
-        const cat = (t.categoria ?? '').toString().toLowerCase();
-        const valRaw = t.valor !== undefined && t.valor !== null ? t.valor : 0;
-        const valStr = valRaw.toString();
-        const valBRL = valRaw.toFixed(2).replace('.', ',');
-        const posto = (t.nomePosto ?? t.localizacaoPosto ?? '').toString().toLowerCase();
-        const veic = (t.veiculo ?? t.descricaoVeiculo ?? '').toString().toLowerCase();
-        const tipo = (t.tipo ?? '').toString().toLowerCase();
-        const mot = (t.motorista ?? '').toString().toLowerCase();
-        const obs = (t.obs ?? '').toString().toLowerCase();
-        const fp = (t.formaPagamento ?? '').toString().toLowerCase();
-        return (
-          desc.includes(term) ||
-          cat.includes(term) ||
-          valStr.includes(term) ||
-          valBRL.includes(term) ||
-          posto.includes(term) ||
-          veic.includes(term) ||
-          tipo.includes(term) ||
-          mot.includes(term) ||
-          obs.includes(term) ||
-          fp.includes(term)
-        );
-      })
+      .filter(t => safeMatchSearch(t, searchTerm))
       .filter(t => {
         // Period Filtering
         if (!periodoInicio && !periodoFim) return true;
@@ -1839,35 +1861,7 @@ export default function TransactionsTab({
       }
       return true;
     })
-    .filter(t => {
-      // Search Box Filtering
-      if (!t) return false;
-      const term = (searchTerm ?? '').toString().toLowerCase();
-      if (!term) return true;
-      const desc = (t.descricao ?? '').toString().toLowerCase();
-      const cat = (t.categoria ?? '').toString().toLowerCase();
-      const valRaw = t.valor !== undefined && t.valor !== null ? t.valor : 0;
-      const valStr = valRaw.toString();
-      const valBRL = valRaw.toFixed(2).replace('.', ',');
-      const posto = (t.nomePosto ?? t.localizacaoPosto ?? '').toString().toLowerCase();
-      const veic = (t.veiculo ?? t.descricaoVeiculo ?? '').toString().toLowerCase();
-      const tipo = (t.tipo ?? '').toString().toLowerCase();
-      const mot = (t.motorista ?? '').toString().toLowerCase();
-      const obs = (t.obs ?? '').toString().toLowerCase();
-      const fp = (t.formaPagamento ?? '').toString().toLowerCase();
-      return (
-        desc.includes(term) ||
-        cat.includes(term) ||
-        valStr.includes(term) ||
-        valBRL.includes(term) ||
-        posto.includes(term) ||
-        veic.includes(term) ||
-        tipo.includes(term) ||
-        mot.includes(term) ||
-        obs.includes(term) ||
-        fp.includes(term)
-      );
-    })
+    .filter(t => safeMatchSearch(t, searchTerm))
     .filter(t => {
       // Period Filtering
       if (!periodoInicio && !periodoFim) return true;
@@ -1911,34 +1905,7 @@ export default function TransactionsTab({
       if (selectedFilter === 'consumo') return (t.categoria ?? '').toString().toUpperCase() === 'CONSUMO' || (t.categoria ?? '').toString().toUpperCase() === 'CUMSUMO';
       return true;
     })
-    .filter(t => {
-      if (!t) return false;
-      const term = (searchTerm ?? '').toString().toLowerCase();
-      if (!term) return true;
-      const desc = (t.descricao ?? '').toString().toLowerCase();
-      const cat = (t.categoria ?? '').toString().toLowerCase();
-      const valRaw = t.valor !== undefined && t.valor !== null ? t.valor : 0;
-      const valStr = valRaw.toString();
-      const valBRL = valRaw.toFixed(2).replace('.', ',');
-      const posto = (t.nomePosto ?? t.localizacaoPosto ?? '').toString().toLowerCase();
-      const veic = (t.veiculo ?? t.descricaoVeiculo ?? '').toString().toLowerCase();
-      const tipo = (t.tipo ?? '').toString().toLowerCase();
-      const mot = (t.motorista ?? '').toString().toLowerCase();
-      const obs = (t.obs ?? '').toString().toLowerCase();
-      const fp = (t.formaPagamento ?? '').toString().toLowerCase();
-      return (
-        desc.includes(term) ||
-        cat.includes(term) ||
-        valStr.includes(term) ||
-        valBRL.includes(term) ||
-        posto.includes(term) ||
-        veic.includes(term) ||
-        tipo.includes(term) ||
-        mot.includes(term) ||
-        obs.includes(term) ||
-        fp.includes(term)
-      );
-    })
+    .filter(t => safeMatchSearch(t, searchTerm))
     .filter(t => {
       if (!periodoInicio && !periodoFim) return true;
       const txDateObj = parseTxDate(t.data);

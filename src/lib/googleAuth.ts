@@ -288,6 +288,8 @@ const googleApiFetch = async (
   }
 
   try {
+    const authHeader = tokenStr ? (tokenStr.startsWith('Bearer ') ? tokenStr : `Bearer ${tokenStr}`) : '';
+
     const res = await fetch('/api/google-proxy', {
       method: 'POST',
       headers: {
@@ -298,11 +300,25 @@ const googleApiFetch = async (
         method: options.method || 'GET',
         headers: {
           ...options.headers,
-          'Authorization': `Bearer ${accessToken}`,
+          'Authorization': authHeader,
         },
         body: options.body,
       }),
     });
+
+    if (res.status === 401) {
+      cachedAccessToken = null;
+      try {
+        sessionStorage.removeItem('wealthflow_google_access_token');
+        localStorage.removeItem('wealthflow_google_access_token');
+      } catch (e) {}
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('google_auth_error', {
+          detail: { message: "Sua sessão do Google Drive expirou ou as credenciais são inválidas (Erro 401). Por favor, reautentique com o Google para renovar o acesso." }
+        }));
+      }
+      throw new Error("Sessão expirada. Por favor, reautentique com o Google em vez de utilizar o cache.");
+    }
 
     if (!res.ok) {
       // If the proxy API itself failed with e.g. 500
@@ -330,6 +346,20 @@ const googleApiFetch = async (
 
     const json = await res.json();
 
+    if (json.status === 401) {
+      cachedAccessToken = null;
+      try {
+        sessionStorage.removeItem('wealthflow_google_access_token');
+        localStorage.removeItem('wealthflow_google_access_token');
+      } catch (e) {}
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('google_auth_error', {
+          detail: { message: "Sua sessão do Google Drive expirou ou as credenciais são inválidas (Erro 401). Por favor, reautentique com o Google para renovar o acesso." }
+        }));
+      }
+      throw new Error("Sessão expirada. Por favor, reautentique com o Google em vez de utilizar o cache.");
+    }
+
     // Construct a mock Response object that matches the standard fetch Response API
     const mockResponse = new Response(json.data, {
       status: json.status,
@@ -341,7 +371,13 @@ const googleApiFetch = async (
       cachedAccessToken = null;
       try {
         sessionStorage.removeItem('wealthflow_google_access_token');
+        localStorage.removeItem('wealthflow_google_access_token');
       } catch (e) {}
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('google_auth_error', {
+          detail: { message: "Sua sessão do Google Drive expirou ou as credenciais são inválidas (Erro 401). Por favor, reautentique com o Google para renovar o acesso." }
+        }));
+      }
       throw new Error("Sessão expirada. Por favor, desconecte e conecte sua conta do Google Drive novamente para renovar o acesso.");
     }
 

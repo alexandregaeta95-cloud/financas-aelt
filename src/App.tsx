@@ -1106,6 +1106,29 @@ export default function App() {
   };
 
   useEffect(() => {
+    const handleGoogleAuthError = (e: Event) => {
+      const customEv = e as CustomEvent;
+      const detailMsg = customEv.detail?.message || "Sua sessão do Google Drive expirou ou as credenciais são inválidas (Erro 401). Por favor, reautentique com o Google nas Configurações do aplicativo.";
+      setGoogleUser(null);
+      setGoogleToken(null);
+      setSpreadsheetUrl('');
+      setLastSyncedTime('');
+      try {
+        localStorage.removeItem('wealthflow_spreadsheet_url');
+        localStorage.removeItem('wealthflow_last_synced_time');
+        localStorage.removeItem('wealthflow_google_access_token');
+        sessionStorage.removeItem('wealthflow_google_access_token');
+      } catch (err) {}
+      showAlert("Reautenticação Necessária ⚠️", detailMsg);
+    };
+
+    window.addEventListener('google_auth_error', handleGoogleAuthError);
+    return () => {
+      window.removeEventListener('google_auth_error', handleGoogleAuthError);
+    };
+  }, []);
+
+  useEffect(() => {
     loadDataFromSheets();
   }, [googleToken]);
 
@@ -2708,6 +2731,7 @@ export default function App() {
         localStorage.removeItem('wealthflow_spreadsheet_url');
         localStorage.removeItem('wealthflow_last_synced_time');
         setSyncError(null);
+        showAlert("Reautenticação Necessária ⚠️", "Sua sessão do Google Drive expirou ou as credenciais são inválidas (Erro 401). Por favor, reautentique com o Google nas Configurações para continuar sincronizando.");
         authService.logout().catch(() => {});
       } else {
         console.error("Google Sync Error: ", err);
