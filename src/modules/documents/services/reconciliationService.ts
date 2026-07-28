@@ -30,8 +30,9 @@ export class ReconciliationService {
 
       // Check for partial match (same description or close date with different value)
       const matchDivergente = transacoesExistentes.find((t) => {
-        const descSimilar = t.descricao.toLowerCase().includes(item.descricao.toLowerCase()) ||
-          item.descricao.toLowerCase().includes(t.descricao.toLowerCase());
+        const tDesc = (t.descricao || '').toLowerCase();
+        const itemDesc = (item.descricao || '').toLowerCase();
+        const descSimilar = tDesc.includes(itemDesc) || itemDesc.includes(tDesc);
         const mesmaData = t.data === dataItem;
         return descSimilar && mesmaData;
       });

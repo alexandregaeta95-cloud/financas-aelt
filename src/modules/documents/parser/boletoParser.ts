@@ -2,7 +2,7 @@ import { BoletoData, ExtractionResult } from '../types';
 
 export class BoletoParser {
   public static parse(rawText: string): ExtractionResult<BoletoData> {
-    const textUpper = rawText.toUpperCase();
+    const textUpper = (rawText || '').toUpperCase();
 
     // Extract Linha Digitável (47 or 48 digits)
     let linhaDigitavel = '';

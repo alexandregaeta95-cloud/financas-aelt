@@ -123,7 +123,7 @@ export class PixNotificationService {
 
   static validarNotificacao(notif: PixNotification): boolean {
     if (!notif || !notif.texto) return false;
-    const texto = notif.texto.toLowerCase();
+    const texto = (notif.texto || '').toLowerCase();
     const titulo = (notif.titulo || '').toLowerCase();
     return (
       texto.includes('pix') ||

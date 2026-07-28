@@ -130,7 +130,7 @@ export const GroceryListTab: React.FC<GroceryListTabProps> = ({
   const filteredItems = useMemo(() => {
     return safeGroceryItems.filter(item => {
       if (!item) return false;
-      const q = searchQuery.toLowerCase().trim();
+      const q = (searchQuery || '').toLowerCase().trim();
       const matchesSearch = !q ||
         (item.nome || '').toLowerCase().includes(q) ||
         (item.observacao || '').toLowerCase().includes(q);

@@ -338,7 +338,7 @@ export default function RiskZonesTab({
             dataRegistro: item.dataRegistro || new Date().toLocaleDateString('pt-BR'),
             dataHora: item.dataHora || `${new Date().toLocaleDateString('pt-BR')} ${new Date().toLocaleTimeString('pt-BR')}`,
             status: levelVal === 'ALTO' ? '⚠️ EM ÁREA DE RISCO!' : '✅ Seguro',
-            nomeLocal: nomeLocal.toUpperCase(),
+            nomeLocal: String(nomeLocal || '').toUpperCase(),
             raioMetros: isNaN(radiusVal) ? 300 : radiusVal,
             nivelRisco: levelVal as any,
             statusGeral: levelVal === 'ALTO' ? 'DISPARAR' : 'VAZIO',
@@ -949,7 +949,7 @@ export default function RiskZonesTab({
         if (enableVoiceAlert && typeof window !== 'undefined' && 'speechSynthesis' in window) {
           try {
             window.speechSynthesis.cancel(); // cancel current speech queue to keep it immediate
-            const msg = new SpeechSynthesisUtterance(`Atenção! Você está entrando no perímetro de risco: ${zoneName.toLowerCase()}.`);
+            const msg = new SpeechSynthesisUtterance(`Atenção! Você está entrando no perímetro de risco: ${String(zoneName || '').toLowerCase()}.`);
             msg.lang = 'pt-BR';
             msg.volume = 1.0;
             msg.rate = 1.0;
@@ -1039,11 +1039,11 @@ export default function RiskZonesTab({
               }
 
               if (formattedAddress) {
-                setName(formattedAddress.toUpperCase());
+                setName(String(formattedAddress || '').toUpperCase());
               }
             } else if (data && data.display_name) {
               const shortName = data.display_name.split(',').slice(0, 3).join(',').trim();
-              setName(shortName.toUpperCase());
+              setName(String(shortName || '').toUpperCase());
             }
           }
         } catch (error) {
@@ -1088,7 +1088,7 @@ export default function RiskZonesTab({
       dataRegistro: new Date().toLocaleDateString('pt-BR'),
       dataHora: `${new Date().toLocaleDateString('pt-BR')} ${new Date().toLocaleTimeString('pt-BR')}`,
       status: level === 'ALTO' ? '⚠️ EM ÁREA DE RISCO!' : '✅ Seguro',
-      nomeLocal: name.toUpperCase(),
+      nomeLocal: String(name || '').toUpperCase(),
       raioMetros: radius,
       nivelRisco: level,
       statusGeral: level === 'ALTO' ? 'DISPARAR' : 'VAZIO',
@@ -1128,7 +1128,7 @@ export default function RiskZonesTab({
       latitude: editLat,
       longitude: editLng,
       status: editLevel === 'ALTO' ? '⚠️ EM ÁREA DE RISCO!' : '✅ Seguro',
-      nomeLocal: editName.toUpperCase(),
+      nomeLocal: String(editName || '').toUpperCase(),
       raioMetros: editRadius,
       nivelRisco: editLevel,
       statusGeral: editLevel === 'ALTO' ? 'DISPARAR' : 'VAZIO'
@@ -1157,7 +1157,7 @@ export default function RiskZonesTab({
       );
     } else {
       const typed = window.prompt(`Tem certeza que deseja excluir permanentemente o perímetro "${nameLocal}"?\n\nPara confirmar, digite exatamente o nome do perímetro:`);
-      if (typed !== null && typed.trim().toLowerCase() === nameLocal.trim().toLowerCase()) {
+      if (typed !== null && (typed || '').trim().toLowerCase() === (nameLocal || '').trim().toLowerCase()) {
         performDelete();
       } else if (typed !== null) {
         if (showAlert) showAlert("Erro", "Nome informado não confere. Exclusão cancelada.");
@@ -1628,7 +1628,7 @@ export default function RiskZonesTab({
                       type="text"
                       required
                       value={name}
-                      onChange={(e) => setName(e.target.value.toUpperCase())}
+                      onChange={(e) => setName(String(e.target.value || '').toUpperCase())}
                       placeholder="Ex: CD VALINHOS, RUA DA SAÚDE..."
                       className="w-full bg-slate-900 border border-slate-800 rounded-xl px-3 py-2.5 text-xs text-white focus:border-emerald-500 outline-none"
                     />
@@ -2212,7 +2212,7 @@ export default function RiskZonesTab({
                 type="text"
                 required
                 value={editName}
-                onChange={(e) => setEditName(e.target.value.toUpperCase())}
+                onChange={(e) => setEditName(String(e.target.value || '').toUpperCase())}
                 placeholder="Ex: CD VALINHOS, RUA DA SAÚDE..."
                 className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2.5 text-xs text-white focus:border-emerald-500 outline-none"
               />

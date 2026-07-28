@@ -2,7 +2,7 @@ import { ExtractionResult, InvoiceData } from '../types';
 
 export class InvoiceParser {
   public static parse(rawText: string): ExtractionResult<InvoiceData> {
-    const lines = rawText.split('\n').map((l) => l.trim()).filter(Boolean);
+    const lines = (rawText || '').split('\n').map((l) => l.trim()).filter(Boolean);
 
     let estabelecimento = 'Estabelecimento Comercial';
     if (lines.length > 0) {
@@ -38,7 +38,7 @@ export class InvoiceParser {
     lines.forEach((line) => {
       const itemMatch = line.match(/^(.+?)\s+(\d+)\s*x\s*([\d\.,]+)\s+([\d\.,]+)$/i) ||
         line.match(/^(.+?)\s+R?\$\s*([\d\.,]+)$/i);
-      if (itemMatch && !line.toUpperCase().includes('TOTAL') && !line.toUpperCase().includes('SUBTOTAL')) {
+      if (itemMatch && !(line || '').toUpperCase().includes('TOTAL') && !(line || '').toUpperCase().includes('SUBTOTAL')) {
         const desc = itemMatch[1].trim();
         const valStr = (itemMatch[4] || itemMatch[2] || '0').replace(/\./g, '').replace(',', '.');
         const val = parseFloat(valStr);

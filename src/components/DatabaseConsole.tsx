@@ -97,16 +97,16 @@ export default function DatabaseConsole({
       }
 
       const headers = parseCSVLine(lines[0]);
-      const idxId = headers.findIndex(h => h.toLowerCase().includes('id_transacao'));
-      const idxData = headers.findIndex(h => h.toLowerCase() === 'data');
-      const idxValor = headers.findIndex(h => h.toLowerCase() === 'valor');
-      const idxDataPagamento = headers.findIndex(h => h.toLowerCase() === 'data_pagamento');
-      const idxValorPg = headers.findIndex(h => h.toLowerCase() === 'valor_pg');
-      const idxTipo = headers.findIndex(h => h.toLowerCase() === 'tipo');
-      const idxDescricao = headers.findIndex(h => h.toLowerCase() === 'descricao');
-      const idxCategoria = headers.findIndex(h => h.toLowerCase() === 'categoria');
-      const idxStatus = headers.findIndex(h => h.toLowerCase() === 'status');
-      const idxOrigemAbastecimento = headers.findIndex(h => h.toLowerCase().includes('origem_abastecimento'));
+      const idxId = headers.findIndex(h => String(h || '').toLowerCase().includes('id_transacao'));
+      const idxData = headers.findIndex(h => String(h || '').toLowerCase() === 'data');
+      const idxValor = headers.findIndex(h => String(h || '').toLowerCase() === 'valor');
+      const idxDataPagamento = headers.findIndex(h => String(h || '').toLowerCase() === 'data_pagamento');
+      const idxValorPg = headers.findIndex(h => String(h || '').toLowerCase() === 'valor_pg');
+      const idxTipo = headers.findIndex(h => String(h || '').toLowerCase() === 'tipo');
+      const idxDescricao = headers.findIndex(h => String(h || '').toLowerCase() === 'descricao');
+      const idxCategoria = headers.findIndex(h => String(h || '').toLowerCase() === 'categoria');
+      const idxStatus = headers.findIndex(h => String(h || '').toLowerCase() === 'status');
+      const idxOrigemAbastecimento = headers.findIndex(h => String(h || '').toLowerCase().includes('origem_abastecimento'));
 
       const parsedTransactions: Transaction[] = [];
 
@@ -430,8 +430,8 @@ export default function DatabaseConsole({
 
   const filteredList = getActiveList().filter((item: any) => {
     if (!searchQuery) return true;
-    const itemStr = JSON.stringify(item).toLowerCase();
-    return itemStr.includes(searchQuery.toLowerCase());
+    const itemStr = JSON.stringify(item || {}).toLowerCase();
+    return itemStr.includes((searchQuery || '').toLowerCase());
   });
 
   return (

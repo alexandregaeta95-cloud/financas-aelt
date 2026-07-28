@@ -109,11 +109,11 @@ function cleanDuplicateTransactions(txs: any[]): Transaction[] {
     t.status = String(t.status || 'PAGO').toUpperCase();
     t.valor = typeof t.valor === 'number' && !isNaN(t.valor) ? t.valor : (parseFloat(String(t.valor || 0).replace(',', '.')) || 0);
 
-    if (t.veiculo) t.veiculo = String(t.veiculo).toUpperCase();
-    if (t.descricaoVeiculo) t.descricaoVeiculo = String(t.descricaoVeiculo).toUpperCase();
-    if (t.nomePosto) t.nomePosto = String(t.nomePosto).toUpperCase();
-    if (t.localizacaoPosto) t.localizacaoPosto = String(t.localizacaoPosto).toUpperCase();
-    if (t.motorista) t.motorista = String(t.motorista).toUpperCase();
+    if (t.veiculo) t.veiculo = String(t.veiculo || '').toUpperCase();
+    if (t.descricaoVeiculo) t.descricaoVeiculo = String(t.descricaoVeiculo || '').toUpperCase();
+    if (t.nomePosto) t.nomePosto = String(t.nomePosto || '').toUpperCase();
+    if (t.localizacaoPosto) t.localizacaoPosto = String(t.localizacaoPosto || '').toUpperCase();
+    if (t.motorista) t.motorista = String(t.motorista || '').toUpperCase();
 
     uniqueTxs.push(t as Transaction);
   });
@@ -178,6 +178,14 @@ export default function App() {
     overrideZones?: RiskZone[];
     overrideAppts?: MedicalAppointment[];
     overridePrescs?: MedicalPrescription[];
+    forceOverwriteSpreadsheet?: boolean;
+    overrideCompromissos?: Compromisso[];
+    overrideVehicles?: RegisteredVehicle[];
+    overridePerfServices?: CarServicePerformed[];
+    overrideSchedServices?: CarServiceScheduled[];
+    overrideBanks?: BankAccount[];
+    overrideCards?: CreditCard[];
+    overrideGroceryItems?: GroceryItem[];
   } | null>(null);
 
   // Live state synchronized lists (backed by Local Storage as an immediate fallback)
@@ -2190,7 +2198,7 @@ export default function App() {
       budgetsEntries.forEach(([catName, annualLimitVal]) => {
         const annualLimit = Number(annualLimitVal);
         const monthlyLimit = annualLimit / 12;
-        const catUpper = catName.toUpperCase();
+        const catUpper = (catName || '').toUpperCase();
 
         const spentInCatThisMonth = transactions
           .filter(t => {
@@ -4001,6 +4009,7 @@ export default function App() {
             customCategories={customCategories}
             onTriggerBankIntegration={triggerBankIntegration}
             forcedFilter="RECEITA"
+            isDbReady={isDbLoaded}
           />
         );
       case 'despesas':
@@ -4039,6 +4048,7 @@ export default function App() {
             customCategories={customCategories}
             onTriggerBankIntegration={triggerBankIntegration}
             forcedFilter="DESPESA"
+            isDbReady={isDbLoaded}
           />
         );
       case 'abastecimentos':
@@ -4077,6 +4087,7 @@ export default function App() {
               customCategories={customCategories}
               onTriggerBankIntegration={triggerBankIntegration}
               forcedFilter="ABASTECIMENTO"
+              isDbReady={isDbLoaded}
             />
           </ErrorBoundary>
         );
@@ -4115,6 +4126,7 @@ export default function App() {
             customCategories={customCategories}
             onTriggerBankIntegration={triggerBankIntegration}
             forcedFilter="FINANCAS"
+            isDbReady={isDbLoaded}
           />
         );
       case 'oficina':
@@ -5200,13 +5212,13 @@ export default function App() {
                       {dialog.cancelText || 'Cancelar'}
                     </button>
                     <button
-                      disabled={dialog.requireInputText ? modalInputVal.trim().toLowerCase() !== dialog.requireInputText.trim().toLowerCase() : false}
+                      disabled={dialog.requireInputText ? (modalInputVal || '').trim().toLowerCase() !== (dialog.requireInputText || '').trim().toLowerCase() : false}
                       onClick={() => {
                         setDialog(prev => ({ ...prev, isOpen: false }));
                         dialog.onConfirm?.();
                       }}
                       className={`flex-1 font-bold text-xs py-2.5 rounded-xl cursor-pointer transition-all active:scale-95 shadow-md ${
-                        dialog.requireInputText && modalInputVal.trim().toLowerCase() !== dialog.requireInputText.trim().toLowerCase()
+                        dialog.requireInputText && (modalInputVal || '').trim().toLowerCase() !== (dialog.requireInputText || '').trim().toLowerCase()
                           ? 'bg-slate-800 text-slate-500 border border-slate-850 cursor-not-allowed opacity-50'
                           : 'bg-rose-500 hover:bg-rose-400 text-white shadow-rose-500/10'
                       }`}

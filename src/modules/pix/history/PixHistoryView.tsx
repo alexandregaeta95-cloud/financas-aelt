@@ -26,9 +26,9 @@ export function PixHistoryView() {
   const filteredHistory = history.filter(item => {
     if (filter !== 'TODOS' && item.status !== filter) return false;
     if (search) {
-      const low = search.toLowerCase();
-      const matchBanco = item.banco.toLowerCase().includes(low);
-      const matchTexto = item.textoRecebido.toLowerCase().includes(low);
+      const low = (search || '').toLowerCase();
+      const matchBanco = (item.banco || '').toLowerCase().includes(low);
+      const matchTexto = (item.textoRecebido || '').toLowerCase().includes(low);
       if (!matchBanco && !matchTexto) return false;
     }
     return true;

@@ -199,7 +199,7 @@ export default function AnalysisTab({
         } else {
           totalDespesas += val;
           const matchesCategory = selectedCategory !== 'TODAS' && 
-            cat === selectedCategory.toUpperCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+            cat === String(selectedCategory || '').toUpperCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
           if (matchesCategory) {
             totalCategoria += val;
           }
@@ -365,7 +365,7 @@ export default function AnalysisTab({
     return monthTransactions.filter(t => {
       if (selectedCategory === 'TODAS') return true;
       const cat = String(t.categoria || '').trim().toUpperCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
-      const filterCat = selectedCategory.toUpperCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+      const filterCat = String(selectedCategory || '').toUpperCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
       return cat === filterCat;
     });
   }, [monthTransactions, selectedCategory]);
@@ -893,7 +893,7 @@ export default function AnalysisTab({
       
       doc.setFont("helvetica", "normal");
       doc.setTextColor(100, 116, 139);
-      doc.text(`Competência: ${getMonthLabel(selectedMonth).toUpperCase()}`, 195, 26, { align: "right" });
+      doc.text(`Competência: ${String(getMonthLabel(selectedMonth) || '').toUpperCase()}`, 195, 26, { align: "right" });
       doc.text(`Emitido em: ${new Date().toLocaleDateString('pt-BR')} às ${new Date().toLocaleTimeString('pt-BR')}`, 195, 31, { align: "right" });
 
       doc.setDrawColor(primaryColor[0], primaryColor[1], primaryColor[2]);
@@ -1073,7 +1073,7 @@ export default function AnalysisTab({
         return [
           t.data,
           t.descricao || "Sem descrição",
-          t.categoria ? t.categoria.toUpperCase() : "GERAL",
+          t.categoria ? String(t.categoria).toUpperCase() : "GERAL",
           isIncome ? "RECEITA" : "DESPESA",
           `${isIncome ? '+' : '-'} ${formatBRL(value)}`,
           t.status || "PAGO"
@@ -1711,7 +1711,7 @@ export default function AnalysisTab({
                       </td>
                       <td className="py-3.5 px-4 text-center">
                         <span className={`text-[9px] font-bold uppercase px-1.5 py-0.5 rounded ${
-                          String(t.status).trim().toUpperCase() === 'PAGO'
+                          String(t.status || '').trim().toUpperCase() === 'PAGO'
                             ? 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/20'
                             : 'bg-amber-500/15 text-amber-400 border border-amber-500/20'
                         }`}>

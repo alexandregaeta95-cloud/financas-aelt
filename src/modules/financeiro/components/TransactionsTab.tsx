@@ -85,6 +85,7 @@ interface TransactionsTabProps {
   onTriggerBankIntegration?: (bancoId: number, valor: number, descricao: string) => void;
   
   forcedFilter?: 'RECEITA' | 'DESPESA' | 'ABASTECIMENTO' | 'FINANCAS';
+  isDbReady?: boolean;
 }
 
 export default function TransactionsTab({
@@ -124,7 +125,8 @@ export default function TransactionsTab({
   customCategories = [],
   onTriggerBankIntegration,
   
-  forcedFilter
+  forcedFilter,
+  isDbReady = true
 }: TransactionsTabProps) {
   const [searchTerm, setSearchInput] = useState<string>('');
   const [selectedFilter, setSelectedFilter] = useState<string>(() => {
@@ -842,7 +844,7 @@ export default function TransactionsTab({
   }, [transactions]);
 
   const filteredStations = React.useMemo(() => {
-    if (!nomePosto.trim()) return [];
+    if (!String(nomePosto || '').trim()) return [];
     const val = String(nomePosto || '').toUpperCase();
     return allGasStations.filter(station => station.includes(val) && station !== val);
   }, [nomePosto, allGasStations]);
@@ -1231,9 +1233,9 @@ export default function TransactionsTab({
       .map(t => (t.categoria || '').trim().toUpperCase())
       .filter(Boolean);
     if (editingTx && editingTx.categoria) {
-      existingCats.push(editingTx.categoria.trim().toUpperCase());
+      existingCats.push(String(editingTx.categoria || '').trim().toUpperCase());
     }
-    const cleanCustoms = customCategories.map(c => c.trim().toUpperCase());
+    const cleanCustoms = customCategories.map(c => String(c || '').trim().toUpperCase());
     const combined = new Set([...defaultCategories, ...cleanCustoms, ...existingCats]);
     return Array.from(combined);
   }, [transactions, editingTx, customCategories]);
@@ -1245,7 +1247,7 @@ export default function TransactionsTab({
       .map(t => (t.tipo || '').trim().toUpperCase())
       .filter(t => t && t !== 'RECEITA' && t !== 'DESPESA' && t !== 'ETANOL' && t !== 'GASOLINA' && t !== 'GAS. COMUM' && t !== 'DIESEL' && t !== 'GNV');
     if (editingTx && editingTx.tipo) {
-      existingTypes.push(editingTx.tipo.trim().toUpperCase());
+      existingTypes.push(String(editingTx.tipo || '').trim().toUpperCase());
     }
     const combined = new Set([...defaultTypes, ...existingTypes]);
     let result = Array.from(combined);
@@ -2697,6 +2699,18 @@ export default function TransactionsTab({
             </button>
           </div>
         </form>
+      </div>
+    );
+  }
+
+  if (!isDbReady) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[400px] p-8 text-center bg-slate-900/50 rounded-2xl border border-slate-800/80 my-4 space-y-3 animate-pulse">
+        <div className="w-10 h-10 border-4 border-indigo-500/20 border-t-indigo-500 rounded-full animate-spin"></div>
+        <p className="text-slate-200 font-semibold text-sm">Carregando e preparando dados do banco de dados local...</p>
+        <p className="text-slate-400 text-xs max-w-md">
+          Aguarde a inicialização para visualizar e filtrar os lançamentos e relatórios financeiros com segurança.
+        </p>
       </div>
     );
   }

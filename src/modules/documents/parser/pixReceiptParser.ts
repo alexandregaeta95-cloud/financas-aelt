@@ -2,8 +2,8 @@ import { ExtractionResult, PixReceipt } from '../types';
 
 export class PixReceiptParser {
   public static parse(rawText: string): ExtractionResult<PixReceipt> {
-    const lines = rawText.split('\n').map((l) => l.trim()).filter(Boolean);
-    const textUpper = rawText.toUpperCase();
+    const lines = (rawText || '').split('\n').map((l) => l.trim()).filter(Boolean);
+    const textUpper = (rawText || '').toUpperCase();
 
     // Determine type
     let tipoPix: PixReceipt['tipoPix'] = 'ENVIADO';

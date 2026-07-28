@@ -679,7 +679,7 @@ export default function MedicalAppointmentsTab({
   };
 
   const getSpecialtyIcon = (spec: string) => {
-    const s = spec.toLowerCase();
+    const s = (spec || '').toLowerCase();
     if (s.includes('cardio')) return 'cardiology';
     if (s.includes('derm')) return 'medical_services';
     if (s.includes('orto') || s.includes('osso')) return 'orthopedics';

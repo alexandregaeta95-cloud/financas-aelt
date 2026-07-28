@@ -28,6 +28,7 @@ export interface Transaction {
   localizacaoPosto?: string;
   motorista?: string;
   obs?: string;
+  formaPagamento?: string;
   temJuros?: boolean;
   valorJuros?: number;
   updatedAt?: number;

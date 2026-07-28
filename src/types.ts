@@ -1,4 +1,4 @@
-export * from './modules/financeiro/types';
+export * from './modules/financeiro/types/index';
 
 export interface RiskZone {
   id: number;
@@ -42,6 +42,7 @@ export interface BankAccount {
   agencia?: string;
   conta?: string;
   saldoInicial: number;
+  saldo?: number;
   limite?: number;
 }
 
@@ -51,6 +52,8 @@ export interface CreditCard {
   tipo: 'CARTÃO';
   limite: number;
   gasto: number;
+  diaVencimento?: number;
+  limiteUtilizado?: number;
 }
 
 export interface MedicalAppointment {
@@ -59,6 +62,7 @@ export interface MedicalAppointment {
   medico: string;
   data: string; // YYYY-MM-DD
   hora: string; // HH:MM
+  horario?: string;
   local: string;
   observacoes?: string;
   status: 'Agendada' | 'Realizada' | 'Cancelada';
@@ -88,6 +92,9 @@ export interface RegisteredVehicle {
   motorista: string; // ex: "ALEXANDRE"
   placa?: string; // ex: "ABC-1234"
   mesFinalPlaca?: number; // Mês final/vencimento (1-12) para o IPVA
+  marca?: string;
+  modelo?: string;
+  kmAtual?: number;
 }
 
 export interface Compromisso {
@@ -95,6 +102,8 @@ export interface Compromisso {
   titulo: string;
   data: string; // YYYY-MM-DD
   hora?: string; // HH:MM
+  horario?: string;
+  categoria?: string;
   descricao?: string;
   cor: string; // Hex color (e.g., "#22c55e", "#3b82f6", etc.)
   piscando?: boolean; // whether the indicator should flash/pulse
@@ -135,7 +144,11 @@ export interface SecurityConfig {
   mode: 'SENHA' | 'PIN' | 'BIOMETRIA';
   password?: string;
   pin?: string;
+  pinCode?: string;
+  biometricsEnabled?: boolean;
+  requireAppLock?: boolean;
   biometricType?: 'FACE_ID' | 'TOUCH_ID';
+  biometricsType?: 'FACE_ID' | 'TOUCH_ID';
 }
 
 export interface SavingsGoal {

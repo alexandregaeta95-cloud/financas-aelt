@@ -26,7 +26,7 @@ export function PixSimulatorModal({ isOpen, onClose }: PixSimulatorModalProps) {
     // Process via Android Notification Listener Service
     notificationListenerService.receberNotificacao({
       id: `sim-${Date.now()}`,
-      packageName: `com.${banco.toLowerCase().replace(/\s+/g, '')}.app`,
+      packageName: `com.${(banco || '').toLowerCase().replace(/\s+/g, '')}.app`,
       bankName: banco,
       title: `Notificação PIX - ${banco}`,
       text: texto,

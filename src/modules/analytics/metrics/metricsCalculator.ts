@@ -75,9 +75,10 @@ export function calculateFinancialMetrics(
       const cat = t.categoria || 'Outros';
       categoryTotals[cat] = (categoryTotals[cat] || 0) + val;
 
-      if (cat.toLowerCase().includes('fixa') || cat.toLowerCase().includes('aluguel') || cat.toLowerCase().includes('condomínio')) {
+      const catLower = String(cat || '').toLowerCase();
+      if (catLower.includes('fixa') || catLower.includes('aluguel') || catLower.includes('condomínio')) {
         despesasFixas += val;
-      } else if (cat.toLowerCase().includes('invest') || cat.toLowerCase().includes('poupança')) {
+      } else if (catLower.includes('invest') || catLower.includes('poupança')) {
         valorInvestido += val;
       } else {
         despesasVariaveis += val;

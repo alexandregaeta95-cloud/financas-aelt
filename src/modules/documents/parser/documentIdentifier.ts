@@ -2,7 +2,7 @@ import { DocumentType } from '../types';
 
 export class DocumentIdentifier {
   public static identificar(text: string): { type: DocumentType; confidence: number } {
-    const txt = text.toUpperCase();
+    const txt = (text || '').toUpperCase();
 
     // Check PIX
     if (

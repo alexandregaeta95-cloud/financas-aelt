@@ -1449,7 +1449,7 @@ export const parseTransactionRows = (rows: any[], defaultSheetKey?: string): any
     // Categorização inteligente
     let category = 'OUTROS';
     const isFuelType = ['ETANOL', 'GAS. COMUM', 'GAS. ADITIVADA', 'DIESEL', 'GAS COMUM', 'GAS ADITIVADA', 'GASOLINA', 'ALCOOL', 'ETANOL ADITIVADA'].includes(rawTipo);
-    const descUpper = rawDesc.toUpperCase();
+    const descUpper = (rawDesc || '').toUpperCase();
     const hasFuelKeywords = descUpper.includes('POSTO') || descUpper.includes('ABASTECE') || descUpper.includes('COMBUS') || descUpper.includes('IPIRANGA') || descUpper.includes('SHELL') || descUpper.includes('BR ') || descUpper.includes('GASPRIME') || descUpper.includes('TAURIS');
 
     if (isAbastecimentosSheet || normalizedCat.includes('ABASTECIMENTO') || normalizedCat.includes('COMBUSTIVEL') || isFuelType || (hasFuelKeywords && (normalizedCat === '' || normalizedCat === 'OUTROS' || normalizedCat === 'DESPESA')) || !!rawPosto || (km !== undefined && km > 0) || (litros !== undefined && litros > 0)) {
@@ -1477,9 +1477,9 @@ export const parseTransactionRows = (rows: any[], defaultSheetKey?: string): any
     let finalDesc = rawDesc;
     if (!finalDesc) {
       if (rawPosto) {
-        finalDesc = `ABASTECIMENTO: ${rawPosto.toUpperCase()}`;
+        finalDesc = `ABASTECIMENTO: ${(rawPosto || '').toUpperCase()}`;
       } else if (rawVeiculo) {
-        finalDesc = `ABASTECIMENTO (${rawVeiculo.toUpperCase()})`;
+        finalDesc = `ABASTECIMENTO (${(rawVeiculo || '').toUpperCase()})`;
       } else if (category === 'ABASTECIMENTO') {
         finalDesc = 'ABASTECIMENTO';
       } else {
@@ -1544,7 +1544,7 @@ export const parseTransactionRows = (rows: any[], defaultSheetKey?: string): any
     const tx = {
       id: parsedId,
       data: dataStr,
-      descricao: finalDesc.toUpperCase(),
+      descricao: (finalDesc || '').toUpperCase(),
       categoria: category,
       valor,
       tipo: finalTipo,
@@ -1553,10 +1553,10 @@ export const parseTransactionRows = (rows: any[], defaultSheetKey?: string): any
       km: km !== undefined && isNaN(km) ? undefined : km,
       litros: litros !== undefined && isNaN(litros) ? undefined : litros,
       precoLitro: precoLitro !== undefined && isNaN(precoLitro) ? undefined : precoLitro,
-      veiculo: rawVeiculo ? rawVeiculo.toUpperCase() : undefined,
-      descricaoVeiculo: row[idxDescricaoVeiculo] ? String(row[idxDescricaoVeiculo]).trim() : undefined,
+      veiculo: rawVeiculo ? String(rawVeiculo || '').toUpperCase() : undefined,
+      descricaoVeiculo: row[idxDescricaoVeiculo] ? String(row[idxDescricaoVeiculo] || '').trim() : undefined,
       completouTanque,
-      nomePosto: rawPosto ? rawPosto.toUpperCase() : undefined,
+      nomePosto: rawPosto ? String(rawPosto || '').toUpperCase() : undefined,
       localizacaoPosto: row[idxLocalPosto] ? String(row[idxLocalPosto]).trim().toUpperCase() : undefined,
       motorista: row[idxMotorista] ? String(row[idxMotorista]).trim().toUpperCase() : undefined,
       obs: row[idxObs] ? String(row[idxObs]).trim() : undefined
@@ -1844,7 +1844,7 @@ export const fetchTransactionsFromSpreadsheet = async (
   if (match) {
     targetSheetName = match;
   } else if (existingSheetTitles.length > 0) {
-    const firstNonRecurso = existingSheetTitles.find(t => !t.toUpperCase().includes('RECURSO'));
+    const firstNonRecurso = existingSheetTitles.find(t => !String(t || '').toUpperCase().includes('RECURSO'));
     if (firstNonRecurso) {
       targetSheetName = firstNonRecurso;
     } else {
@@ -2042,7 +2042,7 @@ export function normalizeVehicleObject(v: any): any | null {
   return {
     ...v,
     id,
-    descricao: desc.toUpperCase(),
+    descricao: (desc || '').toUpperCase(),
     placa,
     motorista,
     mesFinalPlaca: v.mesFinalPlaca ? String(v.mesFinalPlaca).trim() : undefined,

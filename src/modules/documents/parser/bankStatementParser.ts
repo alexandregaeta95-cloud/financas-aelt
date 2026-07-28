@@ -2,8 +2,8 @@ import { BankStatement, BankStatementItem, CreditCardInvoice, CreditCardInvoiceI
 
 export class BankStatementParser {
   public static parseStatement(rawText: string): ExtractionResult<BankStatement> {
-    const lines = rawText.split('\n').map((l) => l.trim()).filter(Boolean);
-    const textUpper = rawText.toUpperCase();
+    const lines = (rawText || '').split('\n').map((l) => l.trim()).filter(Boolean);
+    const textUpper = (rawText || '').toUpperCase();
 
     let banco = 'Banco Principal';
     if (textUpper.includes('ITAÚ') || textUpper.includes('ITAU')) banco = 'Itaú Unibanco';
@@ -29,9 +29,9 @@ export class BankStatementParser {
         const numVal = parseFloat(valStrRaw);
 
         if (!isNaN(numVal) && Math.abs(numVal) > 0) {
-          const isExpense = numVal < 0 || line.includes('-') || desc.toUpperCase().includes('PAGTO') || desc.toUpperCase().includes('SAIDA');
+          const descUpper = (desc || '').toUpperCase();
+          const isExpense = numVal < 0 || line.includes('-') || descUpper.includes('PAGTO') || descUpper.includes('SAIDA');
           const absVal = Math.abs(numVal);
-          const descUpper = desc.toUpperCase();
 
           let subtipo: BankStatementItem['subtipo'] = 'OUTRO';
           if (descUpper.includes('PIX')) subtipo = 'PIX';
@@ -118,8 +118,8 @@ export class BankStatementParser {
   }
 
   public static parseCreditCard(rawText: string): ExtractionResult<CreditCardInvoice> {
-    const lines = rawText.split('\n').map((l) => l.trim()).filter(Boolean);
-    const textUpper = rawText.toUpperCase();
+    const lines = (rawText || '').split('\n').map((l) => l.trim()).filter(Boolean);
+    const textUpper = (rawText || '').toUpperCase();
 
     let bancoOuEmissor = 'Cartão de Crédito';
     if (textUpper.includes('NUBANK')) bancoOuEmissor = 'Cartão Nubank';

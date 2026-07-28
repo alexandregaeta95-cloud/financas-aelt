@@ -31,7 +31,7 @@ export const ProfileSecurity: React.FC<ProfileSecurityProps> = ({
     setSecurityConfig(prev => ({
       ...prev,
       biometricsEnabled: enabled,
-      biometricsType: prev.biometricsType || 'FINGERPRINT'
+      biometricsType: prev.biometricsType || 'FACE_ID'
     }));
     if (showAlert) {
       showAlert('Biometria', enabled ? 'Autenticação biométrica ativada.' : 'Autenticação biométrica desativada.');

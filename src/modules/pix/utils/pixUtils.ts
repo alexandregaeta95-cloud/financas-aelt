@@ -82,7 +82,7 @@ export function validarDuplicidade(pix: PixTransaction, historico: PixHistory[])
   return historico.some(h => {
     if (h.status === 'ERRO' || h.status === 'IGNORADO') return false;
     const mesmoValor = Math.abs(h.valor - pix.valor) < 0.01;
-    const mesmoBanco = h.banco.toLowerCase() === pix.banco.toLowerCase();
+    const mesmoBanco = (h.banco || '').toLowerCase() === (pix.banco || '').toLowerCase();
     const mesmoTexto = normalizarTexto(h.textoRecebido) === normalizarTexto(pix.textoOriginal);
     return mesmoValor && mesmoBanco && mesmoTexto;
   });

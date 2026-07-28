@@ -226,7 +226,7 @@ export default function Dashboard({
 
     const sortedList = Object.entries(categoriesMap)
       .map(([name, value], idx) => {
-        const upper = name.toUpperCase();
+        const upper = (name || '').toUpperCase();
         const color = categoryColors[upper] || colorPalette[idx % colorPalette.length];
         return { name, value, color };
       })
