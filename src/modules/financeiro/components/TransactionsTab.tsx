@@ -4042,7 +4042,7 @@ export default function TransactionsTab({
                     const parsedPg = parseFloat(baixaValorPg.replace(/\./g, "").replace(",", "."));
                     const parsedJuros = parseFloat(baixaValorJuros.replace(/\./g, "").replace(",", "."));
                     
-                    if (isNaN(parsedPg) || parsedPg < 0) {
+                    if (isNaN(parsedPg) || pnarsedPg < 0) {
                       alertUser("Campo Inválido", "Por favor, insira um valor pago válido.");
                       return;
                     }
