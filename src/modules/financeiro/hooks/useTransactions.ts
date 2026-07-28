@@ -56,25 +56,26 @@ export function useTransactions(options: UseTransactionsOptions = { autoLoad: tr
   }, []);
 
   const filteredAndSortedTransactions = useMemo(() => {
-    return transactions
+    return (transactions || [])
       .filter(t => {
+        if (!t) return false;
         // Busca por termo
         if (searchTerm) {
-          const lower = searchTerm.toLowerCase();
-          const matchDesc = (t.descricao || '').toLowerCase().includes(lower);
-          const matchCat = (t.categoria || '').toLowerCase().includes(lower);
-          const matchBanco = (t.bancoNome || '').toLowerCase().includes(lower);
-          const matchPosto = (t.nomePosto || t.localizacaoPosto || '').toLowerCase().includes(lower);
-          const matchMotorista = (t.motorista || '').toLowerCase().includes(lower);
-          const matchVeiculo = (t.veiculo || t.descricaoVeiculo || '').toLowerCase().includes(lower);
+          const lower = String(searchTerm || '').toLowerCase();
+          const matchDesc = String(t.descricao || '').toLowerCase().includes(lower);
+          const matchCat = String(t.categoria || '').toLowerCase().includes(lower);
+          const matchBanco = String(t.bancoNome || '').toLowerCase().includes(lower);
+          const matchPosto = String(t.nomePosto || t.localizacaoPosto || '').toLowerCase().includes(lower);
+          const matchMotorista = String(t.motorista || '').toLowerCase().includes(lower);
+          const matchVeiculo = String(t.veiculo || t.descricaoVeiculo || '').toLowerCase().includes(lower);
           if (!matchDesc && !matchCat && !matchBanco && !matchPosto && !matchMotorista && !matchVeiculo) return false;
         }
         // Filtro por categoria
-        if (categoryFilter !== 'TODAS' && t.categoria !== categoryFilter) {
+        if (categoryFilter !== 'TODAS' && String(t.categoria || '').toUpperCase() !== String(categoryFilter || '').toUpperCase()) {
           return false;
         }
         // Filtro por tipo
-        if (typeFilter !== 'TODOS' && t.tipo !== typeFilter) {
+        if (typeFilter !== 'TODOS' && String(t.tipo || '').toUpperCase() !== String(typeFilter || '').toUpperCase()) {
           return false;
         }
         return true;

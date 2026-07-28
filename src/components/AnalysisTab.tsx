@@ -352,7 +352,8 @@ export default function AnalysisTab({
 
   // Filter transactions of selected month
   const monthTransactions = React.useMemo(() => {
-    return transactions.filter(t => {
+    return (transactions || []).filter(t => {
+      if (!t) return false;
       if (t.tipo === 'CONTAS BANCARIAS' || t.tipo === 'CARTÃO DE CRÉDITO') return false;
       const parsed = parseDateParts(t.data);
       if (!parsed) return false;
@@ -362,7 +363,8 @@ export default function AnalysisTab({
 
   // Filter transactions of selected month and category
   const filteredMonthTransactions = React.useMemo(() => {
-    return monthTransactions.filter(t => {
+    return (monthTransactions || []).filter(t => {
+      if (!t) return false;
       if (selectedCategory === 'TODAS') return true;
       const cat = String(t.categoria || '').trim().toUpperCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
       const filterCat = String(selectedCategory || '').toUpperCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
@@ -1671,7 +1673,8 @@ export default function AnalysisTab({
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-850/60 bg-slate-900/20">
-                {filteredMonthTransactions.map((t) => {
+                {(filteredMonthTransactions || []).map((t) => {
+                  if (!t) return null;
                   const val = parseToNumber(t.valor);
                   const isIncome = String(t.tipo || '').trim().toUpperCase() === 'RECEITA' || 
                     String(t.categoria || '').trim().toUpperCase() === 'RECEITA';

@@ -629,28 +629,30 @@ export default function MedicalAppointmentsTab({
   };
 
   // Filtering lists
-  const filteredAppointments = appointments.filter((appt) => {
+  const filteredAppointments = (appointments || []).filter((appt) => {
+    if (!appt) return false;
     if (filter !== 'Todas' && appt.status !== filter) return false;
     if (!appointmentSearch) return true;
-    const s = appointmentSearch.toLowerCase();
+    const s = String(appointmentSearch || '').toLowerCase();
     return (
-      (appt.medico || '').toLowerCase().includes(s) ||
-      (appt.especialidade || '').toLowerCase().includes(s)
+      String(appt.medico || '').toLowerCase().includes(s) ||
+      String(appt.especialidade || '').toLowerCase().includes(s)
     );
   });
 
-  const filteredPrescriptions = prescriptions.filter((presc) => {
+  const filteredPrescriptions = (prescriptions || []).filter((presc) => {
+    if (!presc) return false;
     const status = presc.status || 'Ativa';
     if (prescFilter === 'Ativas' && status !== 'Ativa') return false;
     if (prescFilter === 'Baixadas' && status !== 'Baixada') return false;
 
     if (!prescSearch) return true;
-    const s = prescSearch.toLowerCase();
+    const s = String(prescSearch || '').toLowerCase();
     return (
-      (presc.medico || '').toLowerCase().includes(s) ||
-      (presc.especialidade || '').toLowerCase().includes(s) ||
-      (presc.medicamentos || '').toLowerCase().includes(s) ||
-      (presc.instrucoes && (presc.instrucoes || '').toLowerCase().includes(s))
+      String(presc.medico || '').toLowerCase().includes(s) ||
+      String(presc.especialidade || '').toLowerCase().includes(s) ||
+      String(presc.medicamentos || '').toLowerCase().includes(s) ||
+      (presc.instrucoes && String(presc.instrucoes || '').toLowerCase().includes(s))
     );
   });
 

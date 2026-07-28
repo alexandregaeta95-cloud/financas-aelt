@@ -1166,9 +1166,10 @@ export default function RiskZonesTab({
   };
 
   // Searching and Filtering
-  const filteredZones = riskZones.filter(z => {
-    const query = searchTerm.toLowerCase();
-    const matchesSearch = (z.nomeLocal || '').toLowerCase().includes(query) || (z.localizacao || '').includes(query);
+  const filteredZones = (riskZones || []).filter(z => {
+    if (!z) return false;
+    const query = String(searchTerm || '').toLowerCase();
+    const matchesSearch = String(z.nomeLocal || '').toLowerCase().includes(query) || String(z.localizacao || '').toLowerCase().includes(query);
     const matchesLevel = filterLevel === 'todos' || z.nivelRisco === filterLevel;
     const matchesActive = !hideInactive || z.ativo;
     return matchesSearch && matchesLevel && matchesActive;

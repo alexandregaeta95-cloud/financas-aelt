@@ -206,6 +206,40 @@ function readGenericSheet(ss, sheetName, fields) {
 function saveAllDataToSheet(payload) {
   var ss = SpreadsheetApp.getActiveSpreadsheet();
 
+  var txHeaders = [
+    'id', 'data', 'descricao', 'valor', 'tipo', 'categoria', 'status', 'bancoid', 'formaPagamento', 'obs', 'comprovanteUrl', 'km', 'litros', 'precoLitro', 'veiculo', 'Valor_PG', 'Completou_o_Tanque', 'KM_Percorrido', 'Media_(Km/L)', 'Nome_Posto', 'Localizacao_do_Posto', 'Motorista'
+  ];
+
+  var mapTxToRow = function(t) {
+    if (!t) return [];
+    var valNum = typeof t.valor === 'number' && !isNaN(t.valor) ? t.valor : parseFloat(String(t.valor || 0).replace(',', '.'));
+    var valPgNum = typeof t.valorPg === 'number' && !isNaN(t.valorPg) ? t.valorPg : (t.status === 'PAGO' ? valNum : 0);
+    return [
+      t.id || '',
+      t.data || '',
+      t.descricao || '',
+      isNaN(valNum) ? 0 : valNum,
+      t.tipo || '',
+      t.categoria || '',
+      t.status || 'PAGO',
+      t.bancoId || '',
+      t.formaPagamento || '',
+      t.obs || '',
+      t.comprovanteUrl || '',
+      t.km || '',
+      t.litros || '',
+      t.precoLitro || '',
+      t.veiculo || t.descricaoVeiculo || '',
+      isNaN(valPgNum) ? 0 : valPgNum,
+      t.completouTanque ? 'Sim' : '',
+      t.kmPercorrido || '',
+      t.media || '',
+      t.nomePosto || '',
+      t.localizacaoPosto || '',
+      t.motorista || ''
+    ];
+  };
+
   var transactions = payload.transactions || [];
   var receitas = [];
   var despesas = [];
@@ -226,20 +260,10 @@ function saveAllDataToSheet(payload) {
     }
   });
 
-  // 1. Gravar Receitas
-  writeRowsToSheet(ss, 'Receitas', ['ID', 'Data', 'Descrição', 'Categoria', 'Valor', 'Status', 'Observação'], receitas.map(function(t) {
-    return [t.id, t.data, t.descricao, t.categoria, t.valor, t.status || 'PAGO', t.obs || ''];
-  }));
-
-  // 2. Gravar Despesas
-  writeRowsToSheet(ss, 'Despesas', ['ID', 'Data', 'Descrição', 'Categoria', 'Valor', 'Status', 'Observação'], despesas.map(function(t) {
-    return [t.id, t.data, t.descricao, t.categoria, t.valor, t.status || 'PAGO', t.obs || ''];
-  }));
-
-  // 3. Gravar Abastecimentos
-  writeRowsToSheet(ss, 'Abastecimentos', ['ID', 'Data', 'Descrição', 'Categoria', 'Valor', 'KM', 'Litros', 'Preço/L', 'Veículo', 'Status', 'Observação'], abastecimentos.map(function(t) {
-    return [t.id, t.data, t.descricao, t.categoria || 'ABASTECIMENTO', t.valor, t.km || '', t.litros || '', t.precoLitro || '', t.veiculo || '', t.status || 'PAGO', t.obs || ''];
-  }));
+  writeRowsToSheet(ss, 'Lançamentos', txHeaders, transactions.map(mapTxToRow));
+  writeRowsToSheet(ss, 'Receitas', txHeaders, receitas.map(mapTxToRow));
+  writeRowsToSheet(ss, 'Despesas', txHeaders, despesas.map(mapTxToRow));
+  writeRowsToSheet(ss, 'Abastecimentos', txHeaders, abastecimentos.map(mapTxToRow));
 
   // 4. Gravar Zonas de Risco
   var zList = payload.riskZones || [];
