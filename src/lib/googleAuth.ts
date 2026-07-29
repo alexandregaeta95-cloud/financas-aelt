@@ -1304,10 +1304,8 @@ export const syncTransactionsToSpreadsheet = async (
   });
 
   const headers = [
-    "ID", "Data", "Descrição", "Categoria", "Valor (R$)", "Tipo", "Status",
-    "Valor_PG", "KM", "Litros", "Preço por Litro", "Veículo",
-    "Completou o Tanque", "KM Percorrido", "Média (Km/L)",
-    "Nome Posto", "Localização do Posto", "Motorista", "OBS", "Descrição do Veículo"
+    "id", "data", "descricao", "valor", "tipo", "categoria", "status", "bancoId", "formaPagamento", "obs", "comprovanteUrl", "km", "litros", "precoLitro", "veiculo",
+    "Valor_R$", "Completou_o_Tanque", "KM_Percorrido", "Media_(Km/L)", "Nome_Posto", "Localizacao_do_Posto", "Motorista"
   ];
 
   const rows = transactions.map(t => {
@@ -1316,27 +1314,39 @@ export const syncTransactionsToSpreadsheet = async (
     const kmPerc = kmPercorridoByTxId[t.id];
     const valorPgVal = t.valorPg !== undefined ? t.valorPg : (t.status === 'PAGO' ? t.valor : 0);
 
+    const numValor = typeof t.valor === 'number' ? t.valor : parseFloat(String(t.valor || 0).replace(/\./g, '').replace(',', '.'));
+    const safeValor = isNaN(numValor) ? 0 : numValor;
+
+    const numValorPg = typeof valorPgVal === 'number' ? valorPgVal : parseFloat(String(valorPgVal || 0).replace(/\./g, '').replace(',', '.'));
+    const safeValorPg = isNaN(numValorPg) ? 0 : numValorPg;
+
+    const numLitros = typeof t.litros === 'number' ? t.litros : parseFloat(String(t.litros || 0).replace(',', '.'));
+    const numPrecoLitro = typeof t.precoLitro === 'number' ? t.precoLitro : parseFloat(String(t.precoLitro || 0).replace(',', '.'));
+    const numMedia = typeof media === 'number' ? media : parseFloat(String(media || 0).replace(',', '.'));
+
     return [
       t.id,
-      t.data,
-      t.descricao,
-      t.categoria,
-      t.valor.toFixed(2).replace('.', ','),
-      isAbastecimento ? (t.tipo || 'DESPESA') : (t.tipo === 'RECEITA' ? 'Receita' : 'Despesa'),
-      t.status,
-      valorPgVal.toFixed(2).replace('.', ','),
+      t.data || '',
+      t.descricao || '',
+      safeValor.toFixed(2).replace('.', ','),
+      isAbastecimento ? (t.tipo || 'DESPESA') : (t.tipo === 'RECEITA' ? 'RECEITA' : (t.tipo || 'DESPESA')),
+      t.categoria || '',
+      t.status || 'PAGO',
+      t.bancoId || '',
+      t.formaPagamento || '',
+      t.obs || '',
+      t.comprovanteUrl || '',
       isAbastecimento && t.km ? String(t.km) : '',
-      isAbastecimento && t.litros ? t.litros.toFixed(2).replace('.', ',') : '',
-      isAbastecimento && t.precoLitro ? t.precoLitro.toFixed(3).replace('.', ',') : '',
-      isAbastecimento ? (t.veiculo || 'FOX') : '',
+      isAbastecimento && t.litros ? (isNaN(numLitros) ? '0,00' : numLitros.toFixed(2).replace('.', ',')) : '',
+      isAbastecimento && t.precoLitro ? (isNaN(numPrecoLitro) ? '0,000' : numPrecoLitro.toFixed(3).replace('.', ',')) : '',
+      isAbastecimento ? (t.veiculo || 'CARRO') : (t.descricaoVeiculo || ''),
+      safeValorPg.toFixed(2).replace('.', ','),
       isAbastecimento ? (t.completouTanque ? 'Sim' : 'Não') : '',
       isAbastecimento && kmPerc !== undefined ? String(kmPerc) : '',
-      isAbastecimento && media !== undefined ? media.toFixed(2).replace('.', ',') : '',
+      isAbastecimento && media !== undefined ? (isNaN(numMedia) ? '0,00' : numMedia.toFixed(2).replace('.', ',')) : '',
       t.nomePosto || '',
       t.localizacaoPosto || '',
-      t.motorista || '',
-      t.obs || '',
-      t.descricaoVeiculo || (isAbastecimento && t.veiculo ? t.veiculo : '')
+      t.motorista || ''
     ];
   });
 
@@ -1852,7 +1862,7 @@ export const fetchTransactionsFromSpreadsheet = async (
       return existingSheetTitles.find(t => normalizeSheetName(t) === normalizeSheetName(name)) || name;
     });
 
-    const ranges = targetSheets.map(s => `'${s}'!A1:T2000`);
+    const ranges = targetSheets.map(s => `'${s}'!A1:Z2000`);
     const rangesQuery = ranges.map(r => `ranges=${encodeURIComponent(r)}`).join('&');
     const batchGetUrl = `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values:batchGet?${rangesQuery}`;
     
@@ -2295,9 +2305,9 @@ export const fetchAllDataFromSpreadsheet = async (
   };
 
   const sheetsToFetch = [
-    { key: 'Receitas', title: findSheetTitle('Receitas'), range: 'A1:T2000' },
-    { key: 'Despesas', title: findSheetTitle('Despesas'), range: 'A1:T2000' },
-    { key: 'Abastecimentos', title: findSheetTitle('Abastecimentos'), range: 'A1:T2000' },
+    { key: 'Receitas', title: findSheetTitle('Receitas'), range: 'A1:Z2000' },
+    { key: 'Despesas', title: findSheetTitle('Despesas'), range: 'A1:Z2000' },
+    { key: 'Abastecimentos', title: findSheetTitle('Abastecimentos'), range: 'A1:Z2000' },
     { key: 'Oficina', title: findSheetTitle('Oficina'), range: 'A1:N2000' },
     { key: 'Agenda', title: findSheetTitle('Agenda'), range: 'A1:J2000' },
     { key: 'Zona de risco', title: findSheetTitle('Zona de risco'), range: 'A1:O2000' },

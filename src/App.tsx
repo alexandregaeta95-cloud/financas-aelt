@@ -270,14 +270,16 @@ export default function App() {
       if (saved) {
         const parsed = JSON.parse(saved);
         if (Array.isArray(parsed)) {
-          const filtered = parsed.filter(v => {
-            if (!v || typeof v !== 'object') return false;
-            try {
-              const desc = String(v.descricao || v.modelo || v.nome || v.placa || '').toUpperCase();
-              return desc !== 'FOX PRATA';
-            } catch {
-              return false;
-            }
+          const filtered = parsed.filter(Boolean).map((v: any) => ({
+            ...v,
+            descricao: (v.descricao || v.modelo || v.nome || '').toString().toUpperCase(),
+            placa: (v.placa || '').toString().toUpperCase(),
+            motorista: (v.motorista || '').toString().toUpperCase(),
+            marca: (v.marca || '').toString().toUpperCase(),
+            modelo: (v.modelo || '').toString().toUpperCase()
+          })).filter(v => {
+            const desc = (v.descricao || v.modelo || v.nome || v.placa || '').toString().toUpperCase();
+            return desc !== 'FOX PRATA';
           });
           if (filtered.length !== parsed.length) {
             localStorage.setItem('wealthflow_registered_vehicles', JSON.stringify(filtered));
@@ -1007,8 +1009,16 @@ export default function App() {
             localStorage.setItem('wealthflow_compromissos', JSON.stringify(sheetData.compromissos));
           }
           if (sheetData && Array.isArray(sheetData.registeredVehicles) && sheetData.registeredVehicles.length > 0) {
-            setRegisteredVehicles(sheetData.registeredVehicles);
-            localStorage.setItem('wealthflow_registered_vehicles', JSON.stringify(sheetData.registeredVehicles));
+            const safeVehs = sheetData.registeredVehicles.filter(Boolean).map((v: any) => ({
+              ...v,
+              descricao: (v.descricao || v.modelo || v.nome || '').toString().toUpperCase(),
+              placa: (v.placa || '').toString().toUpperCase(),
+              motorista: (v.motorista || '').toString().toUpperCase(),
+              marca: (v.marca || '').toString().toUpperCase(),
+              modelo: (v.modelo || '').toString().toUpperCase()
+            }));
+            setRegisteredVehicles(safeVehs);
+            localStorage.setItem('wealthflow_registered_vehicles', JSON.stringify(safeVehs));
           }
           if (sheetData && Array.isArray(sheetData.performedServices) && sheetData.performedServices.length > 0) {
             setPerformedServices(sheetData.performedServices);
@@ -2832,8 +2842,16 @@ export default function App() {
           localStorage.setItem('wealthflow_compromissos', JSON.stringify(testData.compromissos));
         }
         if (testData && Array.isArray(testData.registeredVehicles) && testData.registeredVehicles.length > 0) {
-          setRegisteredVehicles(testData.registeredVehicles);
-          localStorage.setItem('wealthflow_registered_vehicles', JSON.stringify(testData.registeredVehicles));
+          const safeVehs = testData.registeredVehicles.filter(Boolean).map((v: any) => ({
+            ...v,
+            descricao: (v.descricao || v.modelo || v.nome || '').toString().toUpperCase(),
+            placa: (v.placa || '').toString().toUpperCase(),
+            motorista: (v.motorista || '').toString().toUpperCase(),
+            marca: (v.marca || '').toString().toUpperCase(),
+            modelo: (v.modelo || '').toString().toUpperCase()
+          }));
+          setRegisteredVehicles(safeVehs);
+          localStorage.setItem('wealthflow_registered_vehicles', JSON.stringify(safeVehs));
         }
         if (testData && Array.isArray(testData.performedServices) && testData.performedServices.length > 0) {
           setPerformedServices(testData.performedServices);
@@ -2936,8 +2954,16 @@ export default function App() {
         localStorage.setItem('wealthflow_compromissos', JSON.stringify(sheetData.compromissos));
       }
       if (sheetData && Array.isArray(sheetData.registeredVehicles) && sheetData.registeredVehicles.length > 0) {
-        setRegisteredVehicles(sheetData.registeredVehicles);
-        localStorage.setItem('wealthflow_registered_vehicles', JSON.stringify(sheetData.registeredVehicles));
+        const safeVehs = sheetData.registeredVehicles.filter(Boolean).map((v: any) => ({
+          ...v,
+          descricao: (v.descricao || v.modelo || v.nome || '').toString().toUpperCase(),
+          placa: (v.placa || '').toString().toUpperCase(),
+          motorista: (v.motorista || '').toString().toUpperCase(),
+          marca: (v.marca || '').toString().toUpperCase(),
+          modelo: (v.modelo || '').toString().toUpperCase()
+        }));
+        setRegisteredVehicles(safeVehs);
+        localStorage.setItem('wealthflow_registered_vehicles', JSON.stringify(safeVehs));
       }
       if (sheetData && Array.isArray(sheetData.performedServices) && sheetData.performedServices.length > 0) {
         setPerformedServices(sheetData.performedServices);
