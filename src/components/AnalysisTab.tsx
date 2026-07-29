@@ -36,14 +36,17 @@ import {
 // Robust helper to parse different date formats safely (DD/MM/YYYY, YYYY-MM-DD, etc.)
 const parseDateParts = (dateStr: string) => {
   if (!dateStr) return null;
-  const str = String(dateStr).trim();
+  const raw = String(dateStr).trim();
+  const str = raw.split(' ')[0].split('T')[0].trim();
   if (str.includes('/')) {
     const parts = str.split('/');
     if (parts.length === 3) {
+      let year = parts[2].trim();
+      if (year.length === 2) year = '20' + year;
       return {
-        day: parts[0].padStart(2, '0'),
-        month: parts[1].padStart(2, '0'),
-        year: parts[2]
+        day: parts[0].trim().padStart(2, '0'),
+        month: parts[1].trim().padStart(2, '0'),
+        year
       };
     }
   } else if (str.includes('-')) {
@@ -52,16 +55,18 @@ const parseDateParts = (dateStr: string) => {
       if (parts[0].length === 4) {
         // YYYY-MM-DD
         return {
-          day: parts[2].padStart(2, '0'),
-          month: parts[1].padStart(2, '0'),
-          year: parts[0]
+          day: parts[2].trim().padStart(2, '0'),
+          month: parts[1].trim().padStart(2, '0'),
+          year: parts[0].trim()
         };
       } else {
         // DD-MM-YYYY
+        let year = parts[2].trim();
+        if (year.length === 2) year = '20' + year;
         return {
-          day: parts[0].padStart(2, '0'),
-          month: parts[1].padStart(2, '0'),
-          year: parts[2]
+          day: parts[0].trim().padStart(2, '0'),
+          month: parts[1].trim().padStart(2, '0'),
+          year
         };
       }
     }

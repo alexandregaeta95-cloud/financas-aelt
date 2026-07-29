@@ -3167,27 +3167,41 @@ export default function App() {
           // Helper to parse date
           const parseTxDateLocal = (dateStr: string): Date => {
             if (!dateStr) return new Date(0);
-            const str = String(dateStr).trim();
+            const raw = String(dateStr).trim().replace(/^["']|["']$/g, '');
+            const str = raw.split(' ')[0].split('T')[0].trim();
             if (str.includes('/')) {
               const parts = str.split('/');
               if (parts.length === 3) {
                 const day = parseInt(parts[0], 10);
                 const month = parseInt(parts[1], 10) - 1;
-                const year = parseInt(parts[2], 10);
-                return new Date(year, month, day);
+                let year = parseInt(parts[2], 10);
+                if (year < 100) year += 2000;
+                const d = new Date(year, month, day);
+                d.setHours(0, 0, 0, 0);
+                return d;
               }
             } else if (str.includes('-')) {
               const parts = str.split('-');
               if (parts.length === 3) {
                 if (parts[0].length === 4) {
-                  return new Date(parseInt(parts[0], 10), parseInt(parts[1], 10) - 1, parseInt(parts[2], 10));
+                  const d = new Date(parseInt(parts[0], 10), parseInt(parts[1], 10) - 1, parseInt(parts[2], 10));
+                  d.setHours(0, 0, 0, 0);
+                  return d;
                 } else {
-                  return new Date(parseInt(parts[2], 10), parseInt(parts[1], 10) - 1, parseInt(parts[0], 10));
+                  let year = parseInt(parts[2], 10);
+                  if (year < 100) year += 2000;
+                  const d = new Date(year, parseInt(parts[1], 10) - 1, parseInt(parts[0], 10));
+                  d.setHours(0, 0, 0, 0);
+                  return d;
                 }
               }
             }
-            const d = new Date(str);
-            return isNaN(d.getTime()) ? new Date(0) : d;
+            const d = new Date(raw);
+            if (!isNaN(d.getTime())) {
+              d.setHours(0, 0, 0, 0);
+              return d;
+            }
+            return new Date(0);
           };
 
           // Sort chronologically (oldest to newest)

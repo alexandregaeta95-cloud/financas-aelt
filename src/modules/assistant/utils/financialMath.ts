@@ -2,17 +2,39 @@ import { Transaction } from '../../../types';
 
 export function parseTxDate(dateStr: string): Date {
   if (!dateStr) return new Date();
-  if (dateStr.includes('/')) {
-    const parts = dateStr.split('/');
+  const raw = String(dateStr).trim().replace(/^["']|["']$/g, '');
+  const clean = raw.split(' ')[0].split('T')[0].trim();
+  if (clean.includes('/')) {
+    const parts = clean.split('/');
     if (parts.length === 3) {
       const day = parseInt(parts[0], 10);
       const month = parseInt(parts[1], 10) - 1;
-      const year = parseInt(parts[2], 10);
-      return new Date(year, month, day);
+      let year = parseInt(parts[2], 10);
+      if (year < 100) year += 2000;
+      const d = new Date(year, month, day);
+      d.setHours(0, 0, 0, 0);
+      return d;
+    }
+  } else if (clean.includes('-')) {
+    const parts = clean.split('-');
+    if (parts.length === 3) {
+      if (parts[0].length === 4) {
+        const d = new Date(parseInt(parts[0], 10), parseInt(parts[1], 10) - 1, parseInt(parts[2], 10));
+        d.setHours(0, 0, 0, 0);
+        return d;
+      } else {
+        const d = new Date(parseInt(parts[2], 10), parseInt(parts[1], 10) - 1, parseInt(parts[0], 10));
+        d.setHours(0, 0, 0, 0);
+        return d;
+      }
     }
   }
-  const d = new Date(dateStr);
-  return isNaN(d.getTime()) ? new Date() : d;
+  const d = new Date(raw);
+  if (!isNaN(d.getTime())) {
+    d.setHours(0, 0, 0, 0);
+    return d;
+  }
+  return new Date();
 }
 
 export function isSameMonthYear(d1: Date, d2: Date): boolean {

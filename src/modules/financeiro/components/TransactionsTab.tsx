@@ -276,44 +276,49 @@ export default function TransactionsTab({
   const parseTxDate = (dateVal: any): Date | null => {
     if (!dateVal) return null;
     if (dateVal instanceof Date) {
-      return isNaN(dateVal.getTime()) ? null : dateVal;
+      if (isNaN(dateVal.getTime())) return null;
+      const d = new Date(dateVal.getTime());
+      d.setHours(0, 0, 0, 0);
+      return d;
     }
-    const dateStr = String(dateVal).trim();
-    if (!dateStr) return null;
+    const rawStr = String(dateVal).trim().replace(/^["']|["']$/g, '');
+    if (!rawStr) return null;
 
-    // YYYY-MM-DD or ISO string
-    if (dateStr.includes('-') && dateStr.indexOf('-') === 4) {
-      const cleanStr = dateStr.split('T')[0];
-      const parts = cleanStr.split('-');
-      if (parts.length === 3) {
-        const year = parseInt(parts[0], 10);
-        const month = parseInt(parts[1], 10) - 1;
-        const day = parseInt(parts[2], 10);
-        if (!isNaN(day) && !isNaN(month) && !isNaN(year)) {
-          return new Date(year, month, day);
-        }
+    // Isolate date portion by dropping time component if present (e.g. "28/07/2026 14:08:22" -> "28/07/2026")
+    const dateOnlyPart = rawStr.split(' ')[0].split('T')[0].trim();
+
+    // 1. Format YYYY-MM-DD or YYYY/MM/DD
+    if (/^\d{4}[-/]\d{1,2}[-/]\d{1,2}$/.test(dateOnlyPart)) {
+      const sep = dateOnlyPart.includes('-') ? '-' : '/';
+      const parts = dateOnlyPart.split(sep).map(p => parseInt(p, 10));
+      if (!parts.some(isNaN)) {
+        const d = new Date(parts[0], parts[1] - 1, parts[2]);
+        d.setHours(0, 0, 0, 0);
+        return isNaN(d.getTime()) ? null : d;
       }
     }
 
-    // DD/MM/YYYY or D/M/YYYY or DD-MM-YYYY
-    if (dateStr.includes('/') || dateStr.includes('-')) {
-      const sep = dateStr.includes('/') ? '/' : '-';
-      const parts = dateStr.split(sep);
-      if (parts.length === 3) {
-        const p0 = parseInt(parts[0], 10);
-        const p1 = parseInt(parts[1], 10);
-        const p2 = parseInt(parts[2], 10);
-        if (!isNaN(p0) && !isNaN(p1) && !isNaN(p2)) {
-          if (parts[0].length === 4) {
-            return new Date(p0, p1 - 1, p2);
-          }
-          return new Date(p2, p1 - 1, p0);
-        }
+    // 2. Format DD/MM/YYYY or DD-MM-YYYY or DD/MM/YY
+    if (/^\d{1,2}[-/]\d{1,2}[-/]\d{2,4}$/.test(dateOnlyPart)) {
+      const sep = dateOnlyPart.includes('/') ? '/' : '-';
+      const parts = dateOnlyPart.split(sep).map(p => parseInt(p, 10));
+      if (!parts.some(isNaN)) {
+        let year = parts[2];
+        if (year < 100) year += 2000;
+        const d = new Date(year, parts[1] - 1, parts[0]);
+        d.setHours(0, 0, 0, 0);
+        return isNaN(d.getTime()) ? null : d;
       }
     }
 
-    const fallback = new Date(dateStr);
-    return isNaN(fallback.getTime()) ? null : fallback;
+    // 3. Fallback: native JS Date parse
+    const fallback = new Date(rawStr);
+    if (!isNaN(fallback.getTime())) {
+      fallback.setHours(0, 0, 0, 0);
+      return fallback;
+    }
+
+    return null;
   };
 
   const parseInputDate = (dateVal: any): Date | null => {
@@ -326,21 +331,15 @@ export default function TransactionsTab({
     const txDateObj = parseTxDate(tData);
     if (!txDateObj) return false;
 
-    const txMidnight = new Date(txDateObj.getFullYear(), txDateObj.getMonth(), txDateObj.getDate()).getTime();
+    const txTime = txDateObj.getTime();
 
     if (pInicio) {
       const startObj = parseInputDate(pInicio);
-      if (startObj) {
-        const startMidnight = new Date(startObj.getFullYear(), startObj.getMonth(), startObj.getDate()).getTime();
-        if (txMidnight < startMidnight) return false;
-      }
+      if (startObj && txTime < startObj.getTime()) return false;
     }
     if (pFim) {
       const endObj = parseInputDate(pFim);
-      if (endObj) {
-        const endMidnight = new Date(endObj.getFullYear(), endObj.getMonth(), endObj.getDate()).getTime();
-        if (txMidnight > endMidnight) return false;
-      }
+      if (endObj && txTime > endObj.getTime()) return false;
     }
     return true;
   };
@@ -1736,16 +1735,18 @@ export default function TransactionsTab({
       .filter(t => safeMatchSearch(t, searchTerm))
       .filter(t => checkTxMatchesPeriod(t.data, periodoInicio, periodoFim))
       .filter(t => {
+        if (!t) return false;
         // Status Quick Filtering
+        const stUpper = String(t.status || '').toUpperCase();
         if (statusFilter === 'a_pagar') {
-          return t.status === 'PENDENTE' || t.status === 'ATRASADO';
+          return stUpper === 'PENDENTE' || stUpper === 'ATRASADO';
         }
         if (statusFilter === 'pago') {
-          return t.status === 'PAGO' || t.status === 'REALIZADO';
+          return stUpper === 'PAGO' || stUpper === 'REALIZADO';
         }
         if (statusFilter === 'vencendo_48h') {
-          const isNotPaid = (t.status ?? '').toString().toUpperCase() !== 'PAGO' && (t.status ?? '').toString().toUpperCase() !== 'REALIZADO';
-          const isAPagarType = (t.tipo ?? '').toString().toUpperCase() !== 'RECEITA';
+          const isNotPaid = stUpper !== 'PAGO' && stUpper !== 'REALIZADO';
+          const isAPagarType = String(t.tipo || '').toUpperCase() !== 'RECEITA';
           if (!isNotPaid || !isAPagarType) return false;
           
           const todayObj = new Date();
@@ -1769,9 +1770,13 @@ export default function TransactionsTab({
     let sumConsumo = 0;
 
     list.forEach(t => {
-      const val = t.valor || 0;
-      const isReceita = t.tipo === 'RECEITA';
-      const isDespesa = t.tipo === 'DESPESA' || t.tipo === 'PAGO' || ['ETANOL', 'GAS. COMUM', 'ETANOL ADITIVADA', 'GAS, ADITIVADA'].includes(t.tipo);
+      if (!t) return;
+      const val = Number(t.valor) || 0;
+      const tpUpper = String(t.tipo || '').trim().toUpperCase();
+      const catUpper = String(t.categoria || '').trim().toUpperCase();
+
+      const isReceita = tpUpper === 'RECEITA';
+      const isDespesa = tpUpper === 'DESPESA' || tpUpper === 'PAGO' || ['ETANOL', 'GAS. COMUM', 'ETANOL ADITIVADA', 'GAS, ADITIVADA'].includes(tpUpper);
 
       if (isReceita) {
         sumTodosReceitas += val;
@@ -1781,13 +1786,13 @@ export default function TransactionsTab({
         sumTodosDespesas += val;
         sumDespesas += val;
       }
-      if (t.categoria === 'ABASTECIMENTO') {
+      if (catUpper === 'ABASTECIMENTO') {
         sumAbastecimento += val;
       }
-      if (t.categoria === 'CASA') {
+      if (catUpper === 'CASA') {
         sumCasa += val;
       }
-      if (t.categoria === 'CONSUMO' || t.categoria === 'CUMSUMO') {
+      if (catUpper === 'CONSUMO' || catUpper === 'CUMSUMO') {
         sumConsumo += val;
       }
     });
