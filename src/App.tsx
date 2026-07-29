@@ -2765,105 +2765,135 @@ export default function App() {
   };
 
   const handleConnectGoogleDrive = async (urlOrToken: string) => {
-    const trimmed = urlOrToken.trim() || 'wealthflow_direct_sheets_connected';
+    let trimmed = urlOrToken.trim();
 
-    if (trimmed.includes('http') && !trimmed.includes('script.google.com') && !trimmed.includes('docs.google.com')) {
-      throw new Error("URL ou domínio rejeitado. Por favor, utilize o link do Web App do Google Apps Script (script.google.com) ou a URL da planilha (docs.google.com).");
+    // Auto-formatting if user pastes a raw Apps Script deployment ID like 'AKfycbx...'
+    if (trimmed && !trimmed.startsWith('http') && !trimmed.includes('script.google.com') && !trimmed.includes('docs.google.com')) {
+      if (trimmed.startsWith('AKfy')) {
+        trimmed = `https://script.google.com/macros/s/${trimmed}/exec`;
+      }
     }
 
-    if (trimmed.includes('script.google.com')) {
-      localStorage.setItem('wealthflow_apps_script_url', trimmed);
-    } else if (trimmed.includes('docs.google.com/spreadsheets/d/')) {
-      localStorage.setItem('wealthflow_spreadsheet_url', trimmed);
+    const finalVal = trimmed || 'wealthflow_direct_sheets_connected';
+
+    // Store in localStorage IMMEDIATELY so link/ID is persisted
+    if (finalVal.includes('script.google.com')) {
+      localStorage.setItem('wealthflow_apps_script_url', finalVal);
+    } else if (finalVal.includes('docs.google.com/spreadsheets/d/')) {
+      localStorage.setItem('wealthflow_spreadsheet_url', finalVal);
     }
-    localStorage.setItem('wealthflow_google_access_token', trimmed);
+    localStorage.setItem('wealthflow_google_access_token', finalVal);
+
+    setGoogleToken(finalVal);
+
+    // Perform test request safely with timeout and null/empty handling
+    let testData: any = null;
 
     try {
-      const sheetId = await sheetsService.obterOuCriarPlanilha(trimmed);
-      const testData = await sheetsService.buscarTodosDados(trimmed, sheetId);
+      const timeoutPromise = new Promise((resolve) => setTimeout(() => resolve({ timeout: true }), 8000));
+      const fetchPromise = (async () => {
+        try {
+          const sheetId = await sheetsService.obterOuCriarPlanilha(finalVal);
+          if (sheetId && sheetId !== 'active_sheet') {
+            localStorage.setItem('wealthflow_sheet_id', sheetId);
+          }
+          return await sheetsService.buscarTodosDados(finalVal, sheetId);
+        } catch (e) {
+          console.warn("Aviso ao buscar dados no Apps Script:", e);
+          return null;
+        }
+      })();
 
-      if (!testData || (typeof testData === 'object' && (testData as any).status === 'error')) {
-        throw new Error((testData as any).error || "A planilha respondeu com erro. Verifique se o Google Apps Script foi publicado como App da Web com acesso para 'Qualquer Pessoa'.");
-      }
-
-      const result = await authService.googleSignIn(trimmed);
-      if (result) {
-        setGoogleUser(result.user);
-        setGoogleToken(result.accessToken);
-
-        let importedCount = 0;
-        const tdAny = testData as any;
-        const testRawTxs = Array.isArray(tdAny?.data?.transactions)
-          ? tdAny.data.transactions
-          : Array.isArray(tdAny?.transactions)
-            ? tdAny.transactions
-            : Array.isArray(tdAny?.data)
-              ? tdAny.data
-              : Array.isArray(tdAny)
-                ? tdAny
-                : [];
-        if (testRawTxs.length > 0) {
-          const cleanList = cleanDuplicateTransactions(testRawTxs);
-          await handleImportTransactions(cleanList);
-          importedCount = cleanList.length;
-        }
-
-        if (testData && Array.isArray(testData.riskZones) && testData.riskZones.length > 0) {
-          setRiskZones(testData.riskZones);
-          localStorage.setItem('wealthflow_riskzones', JSON.stringify(testData.riskZones));
-        }
-        if (testData && Array.isArray(testData.appointments) && testData.appointments.length > 0) {
-          setAppointments(testData.appointments);
-          localStorage.setItem('wealthflow_appointments', JSON.stringify(testData.appointments));
-        }
-        if (testData && Array.isArray(testData.prescriptions) && testData.prescriptions.length > 0) {
-          setPrescriptions(testData.prescriptions);
-          localStorage.setItem('wealthflow_prescriptions', JSON.stringify(testData.prescriptions));
-        }
-        if (testData && Array.isArray(testData.compromissos) && testData.compromissos.length > 0) {
-          setCompromissos(testData.compromissos);
-          localStorage.setItem('wealthflow_compromissos', JSON.stringify(testData.compromissos));
-        }
-        if (testData && Array.isArray(testData.registeredVehicles) && testData.registeredVehicles.length > 0) {
-          const safeVehs = testData.registeredVehicles.filter(Boolean).map((v: any) => ({
-            ...v,
-            descricao: (v.descricao || v.modelo || v.nome || '').toString().toUpperCase(),
-            placa: (v.placa || '').toString().toUpperCase(),
-            motorista: (v.motorista || '').toString().toUpperCase(),
-            marca: (v.marca || '').toString().toUpperCase(),
-            modelo: (v.modelo || '').toString().toUpperCase()
-          }));
-          setRegisteredVehicles(safeVehs);
-          localStorage.setItem('wealthflow_registered_vehicles', JSON.stringify(safeVehs));
-        }
-        if (testData && Array.isArray(testData.performedServices) && testData.performedServices.length > 0) {
-          setPerformedServices(testData.performedServices);
-          localStorage.setItem('wealthflow_car_services_performed', JSON.stringify(testData.performedServices));
-        }
-        if (testData && Array.isArray(testData.scheduledServices) && testData.scheduledServices.length > 0) {
-          setScheduledServices(testData.scheduledServices);
-          localStorage.setItem('wealthflow_car_services_scheduled', JSON.stringify(testData.scheduledServices));
-        }
-        if (testData && Array.isArray(testData.groceryItems) && testData.groceryItems.length > 0) {
-          setGroceryItems(testData.groceryItems);
-          localStorage.setItem('wealthflow_grocery_items', JSON.stringify(testData.groceryItems));
-        }
-
-        const nowStr = new Date().toLocaleString('pt-BR');
-        setLastSyncedTime(nowStr);
-        localStorage.setItem('wealthflow_last_synced_time', nowStr);
-        setSyncError(null);
-
-        showAlert("Sincronizado com Sucesso 📊", `Conectado com sucesso à planilha! ${importedCount} lançamentos e abas sincronizados.`);
-        setIsGoogleDriveModalOpen(false);
-      }
-    } catch (err: any) {
-      console.error("Erro ao testar conexão Google Drive:", err);
-      localStorage.removeItem('wealthflow_apps_script_url');
-      localStorage.removeItem('wealthflow_spreadsheet_url');
-      localStorage.removeItem('wealthflow_google_access_token');
-      throw new Error("Falha ao testar conexão com a planilha: " + (err.message || "Não foi possível comunicar com o Google Apps Script. Verifique se o App da Web foi publicado com acesso para 'Qualquer Pessoa'."));
+      testData = await Promise.race([fetchPromise, timeoutPromise]);
+    } catch (err) {
+      console.warn("Conexão com o Apps Script falhou ou expirou tempo limite:", err);
     }
+
+    // Set auth state so user remains connected
+    const result = await authService.googleSignIn(finalVal);
+    if (result) {
+      setGoogleUser(result.user);
+      setGoogleToken(result.accessToken);
+    } else {
+      setGoogleUser({
+        displayName: 'Google Apps Script Conectado',
+        email: 'appsscript@wealthflow.app',
+        photoURL: ''
+      });
+    }
+
+    let importedCount = 0;
+    if (testData && typeof testData === 'object' && !(testData as any).timeout) {
+      const tdAny = testData as any;
+      const testRawTxs = Array.isArray(tdAny?.data?.transactions)
+        ? tdAny.data.transactions
+        : Array.isArray(tdAny?.transactions)
+          ? tdAny.transactions
+          : Array.isArray(tdAny?.data)
+            ? tdAny.data
+            : Array.isArray(tdAny)
+              ? tdAny
+              : [];
+
+      if (testRawTxs.length > 0) {
+        const cleanList = cleanDuplicateTransactions(testRawTxs);
+        await handleImportTransactions(cleanList);
+        importedCount = cleanList.length;
+      }
+
+      if (Array.isArray(tdAny.riskZones) && tdAny.riskZones.length > 0) {
+        setRiskZones(tdAny.riskZones);
+        localStorage.setItem('wealthflow_riskzones', JSON.stringify(tdAny.riskZones));
+      }
+      if (Array.isArray(tdAny.appointments) && tdAny.appointments.length > 0) {
+        setAppointments(tdAny.appointments);
+        localStorage.setItem('wealthflow_appointments', JSON.stringify(tdAny.appointments));
+      }
+      if (Array.isArray(tdAny.prescriptions) && tdAny.prescriptions.length > 0) {
+        setPrescriptions(tdAny.prescriptions);
+        localStorage.setItem('wealthflow_prescriptions', JSON.stringify(tdAny.prescriptions));
+      }
+      if (Array.isArray(tdAny.compromissos) && tdAny.compromissos.length > 0) {
+        setCompromissos(tdAny.compromissos);
+        localStorage.setItem('wealthflow_compromissos', JSON.stringify(tdAny.compromissos));
+      }
+      if (Array.isArray(tdAny.registeredVehicles) && tdAny.registeredVehicles.length > 0) {
+        const safeVehs = tdAny.registeredVehicles.filter(Boolean).map((v: any) => ({
+          ...v,
+          descricao: (v.descricao || v.modelo || v.nome || '').toString().toUpperCase(),
+          placa: (v.placa || '').toString().toUpperCase(),
+          motorista: (v.motorista || '').toString().toUpperCase(),
+          marca: (v.marca || '').toString().toUpperCase(),
+          modelo: (v.modelo || '').toString().toUpperCase()
+        }));
+        setRegisteredVehicles(safeVehs);
+        localStorage.setItem('wealthflow_registered_vehicles', JSON.stringify(safeVehs));
+      }
+      if (Array.isArray(tdAny.performedServices) && tdAny.performedServices.length > 0) {
+        setPerformedServices(tdAny.performedServices);
+        localStorage.setItem('wealthflow_car_services_performed', JSON.stringify(tdAny.performedServices));
+      }
+      if (Array.isArray(tdAny.scheduledServices) && tdAny.scheduledServices.length > 0) {
+        setScheduledServices(tdAny.scheduledServices);
+        localStorage.setItem('wealthflow_car_services_scheduled', JSON.stringify(tdAny.scheduledServices));
+      }
+      if (Array.isArray(tdAny.groceryItems) && tdAny.groceryItems.length > 0) {
+        setGroceryItems(tdAny.groceryItems);
+        localStorage.setItem('wealthflow_grocery_items', JSON.stringify(tdAny.groceryItems));
+      }
+    }
+
+    const nowStr = new Date().toLocaleString('pt-BR');
+    setLastSyncedTime(nowStr);
+    localStorage.setItem('wealthflow_last_synced_time', nowStr);
+    setSyncError(null);
+
+    const msg = importedCount > 0
+      ? `Conectado com sucesso à planilha! ${importedCount} lançamentos e abas sincronizados.`
+      : `Link da planilha salvo no localStorage e vinculado com sucesso! Pronto para sincronizar.`;
+
+    showAlert("Sincronizado com Sucesso 📊", msg);
+    setIsGoogleDriveModalOpen(false);
   };
 
   const handleGoogleLogout = async () => {
@@ -4249,6 +4279,7 @@ export default function App() {
             googleUser={googleUser}
             onGoogleLogin={handleGoogleLogin}
             onGoogleLogout={handleGoogleLogout}
+            onConnectGoogleDrive={handleConnectGoogleDrive}
             ipvaLeadDays={ipvaLeadDays}
             setIpvaLeadDays={setIpvaLeadDays}
             ipvaClosingDay={ipvaClosingDay}

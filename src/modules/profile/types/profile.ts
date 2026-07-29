@@ -55,6 +55,7 @@ export interface ProfileTabProps {
   googleUser?: any | null;
   onGoogleLogin?: () => Promise<void>;
   onGoogleLogout?: () => Promise<void>;
+  onConnectGoogleDrive?: (urlOrToken: string) => Promise<void>;
   ipvaLeadDays?: number;
   setIpvaLeadDays?: React.Dispatch<React.SetStateAction<number>>;
   ipvaClosingDay?: number;

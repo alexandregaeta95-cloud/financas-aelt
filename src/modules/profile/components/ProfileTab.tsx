@@ -211,6 +211,7 @@ export function ProfileTab(props: ProfileTabProps) {
             googleUser={googleUser}
             onGoogleLogin={onGoogleLogin}
             onGoogleLogout={onGoogleLogout}
+            onConnectGoogleDrive={props.onConnectGoogleDrive}
             showAlert={showAlert}
           />
           <ProfileBackup
