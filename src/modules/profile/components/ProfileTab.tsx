@@ -10,7 +10,6 @@ import ProfileSecurity from './ProfileSecurity';
 import ProfilePrivacy from './ProfilePrivacy';
 import ProfileGoogleSheets from './ProfileGoogleSheets';
 import ProfileAI from './ProfileAI';
-import ProfilePix from './ProfilePix';
 import ProfileOCR from './ProfileOCR';
 import ProfileVehicles from './ProfileVehicles';
 import ProfileRiskZones from './ProfileRiskZones';
@@ -246,14 +245,6 @@ export function ProfileTab(props: ProfileTabProps) {
               showAlert={showAlert}
             />
           </div>
-        </div>
-      )}
-
-      {activeSubTab === 'pix' && (
-        <div className="space-y-6 animate-fade-in">
-          <ProfilePix
-            showAlert={showAlert}
-          />
         </div>
       )}
     </div>

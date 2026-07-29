@@ -1,7 +1,7 @@
 import React from 'react';
 import { BankAccount, CreditCard, Transaction, RiskZone, Infraction, RegisteredVehicle, Compromisso, SecurityConfig } from '../../../types';
 
-export type ProfileSubTab = 'config' | 'notificacoes' | 'metas' | 'integracoes' | 'pix';
+export type ProfileSubTab = 'config' | 'notificacoes' | 'metas' | 'integracoes';
 
 export interface UserProfileData {
   nome: string;

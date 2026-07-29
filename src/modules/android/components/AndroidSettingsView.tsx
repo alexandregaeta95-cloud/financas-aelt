@@ -3,7 +3,6 @@ import { backgroundServiceManager } from '../service/backgroundService';
 import { permissionManager } from '../permissions/permissionManager';
 import { notificationListenerService } from '../notification/notificationListenerService';
 import { AndroidSettings } from '../types';
-import { PixNotificationPlugin } from '../plugins/pixNotificationPlugin';
 
 export const AndroidSettingsView: React.FC = () => {
   const [settings, setSettings] = useState<AndroidSettings>(() => backgroundServiceManager.getSettings());
@@ -24,19 +23,6 @@ export const AndroidSettingsView: React.FC = () => {
   };
 
   const handleGrantPermission = async (type: 'notificationAccess' | 'backgroundExecution' | 'autoStart') => {
-    if (type === 'notificationAccess') {
-      try {
-        await PixNotificationPlugin.requestPermission();
-      } catch (e) {
-        console.warn('Erro ao solicitar permissão nativa de notificação:', e);
-      }
-    } else if (type === 'backgroundExecution') {
-      try {
-        await PixNotificationPlugin.requestBatteryOptimizationIgnore();
-      } catch (e) {
-        console.warn('Erro ao solicitar isenção de otimização de bateria:', e);
-      }
-    }
     permissionManager.solicitarPermissao(type);
     setPermissions(permissionManager.verificarPermissoes());
   };

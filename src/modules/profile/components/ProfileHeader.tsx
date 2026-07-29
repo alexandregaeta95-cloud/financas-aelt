@@ -110,19 +110,6 @@ export const ProfileHeader: React.FC<ProfileHeaderProps> = ({
             <span className="relative inline-flex rounded-full h-2 w-2 bg-amber-500"></span>
           </span>
         </button>
-
-        <button
-          onClick={() => setActiveSubTab('pix')}
-          className={`flex-1 flex items-center justify-center gap-2 py-2.5 px-3 rounded-xl text-xs font-bold uppercase tracking-wider transition-all cursor-pointer whitespace-nowrap relative ${
-            activeSubTab === 'pix'
-              ? 'bg-emerald-500 text-slate-950 shadow-lg shadow-emerald-500/10'
-              : 'text-slate-400 hover:text-white hover:bg-slate-800/40'
-          }`}
-          id="btn-subtab-pix"
-        >
-          <span className="material-symbols-outlined text-sm">bolt</span>
-          Assistente PIX
-        </button>
       </div>
     </div>
   );

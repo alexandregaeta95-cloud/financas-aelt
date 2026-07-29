@@ -48,36 +48,36 @@ const itemVariants = {
 
 interface TransactionsTabProps {
   transactions: Transaction[];
-  infractions: Infraction[];
-  onAddTransaction: (tx: Omit<Transaction, 'id'> | Omit<Transaction, 'id'>[]) => void;
-  onEditTransaction: (id: number, tx: Partial<Transaction>) => void;
-  onDeleteTransaction: (id: number) => void;
-  onImportTransactions: (importedTxs: Transaction[]) => Promise<void>;
-  onWipeTransactions?: () => Promise<void>;
-  onReindexTransactions?: () => Promise<void>;
-  showAddForm: boolean;
-  setShowAddForm: (show: boolean) => void;
+  infractions?: Infraction[];
+  onAddTransaction?: (tx: Omit<Transaction, 'id'> | Omit<Transaction, 'id'>[]) => void;
+  onEditTransaction?: (id: number, tx: Partial<Transaction>) => void;
+  onDeleteTransaction?: (id: number) => void;
+  onImportTransactions?: (importedTxs: Transaction[]) => Promise<void>;
+  onWipeTransactions?: () => Promise<void> | void;
+  onReindexTransactions?: () => Promise<void> | void;
+  showAddForm?: boolean;
+  setShowAddForm?: (show: boolean) => void;
 
   showAlert?: (title: string, message: string) => void;
   showConfirm?: (title: string, message: string, onConfirm: () => void) => void;
 
   // Shared Google Sync props
-  googleUser: any;
-  googleToken: string | null;
-  isSyncing: boolean;
-  isImporting: boolean;
-  spreadsheetUrl: string;
-  syncError: string | null;
-  lastSyncedTime: string;
-  autoSync: boolean;
-  onGoogleLogin: () => Promise<void>;
-  onGoogleLogout: () => Promise<void>;
-  onToggleAutoSync: (checked: boolean) => void;
-  onTriggerSync: (token?: string) => Promise<void>;
-  onTriggerImport: () => Promise<void>;
+  googleUser?: any;
+  googleToken?: string | null;
+  isSyncing?: boolean;
+  isImporting?: boolean;
+  spreadsheetUrl?: string;
+  syncError?: string | null;
+  lastSyncedTime?: string;
+  autoSync?: boolean;
+  onGoogleLogin?: () => Promise<void>;
+  onGoogleLogout?: () => Promise<void>;
+  onToggleAutoSync?: (checked: boolean) => void;
+  onTriggerSync?: (token?: string) => Promise<void>;
+  onTriggerImport?: () => Promise<void>;
 
-  registeredVehicles: RegisteredVehicle[];
-  setRegisteredVehicles: React.Dispatch<React.SetStateAction<RegisteredVehicle[]>>;
+  registeredVehicles?: RegisteredVehicle[];
+  setRegisteredVehicles?: React.Dispatch<React.SetStateAction<RegisteredVehicle[]>>;
 
   bankAccounts?: BankAccount[];
   onUpdateBankAccounts?: (accounts: BankAccount[]) => void;

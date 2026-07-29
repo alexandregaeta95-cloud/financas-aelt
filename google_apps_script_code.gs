@@ -84,7 +84,9 @@ function fetchTransactionsFromSheet() {
   var ss = SpreadsheetApp.getActiveSpreadsheet();
   var allTx = [];
 
-  var sheetsToRead = ['Receitas', 'Despesas', 'Abastecimentos'];
+  var sheetsToRead = ['Receitas', 'Despesas', 'Abastecimentos', 'Abastecimento'];
+  var readSheetNames = {};
+
   sheetsToRead.forEach(function(sheetName) {
     var sheet = ss.getSheetByName(sheetName);
     if (!sheet) return;
@@ -104,6 +106,14 @@ function fetchTransactionsFromSheet() {
     var litrosIdx = headers.indexOf('LITROS');
     var precoLitroIdx = headers.findIndex(function(h) { return h.indexOf('PRECO') !== -1 || h.indexOf('PREÇO') !== -1; });
     var veiculoIdx = headers.findIndex(function(h) { return h.indexOf('VEICULO') !== -1 || h.indexOf('VEÍCULO') !== -1; });
+    var valorPgIdx = headers.findIndex(function(h) { return h.indexOf('VALOR_PG') !== -1 || h.indexOf('VALOR PG') !== -1; });
+    var completouTanqueIdx = headers.findIndex(function(h) { return h.indexOf('COMPLETOU') !== -1; });
+    var kmPercorridoIdx = headers.findIndex(function(h) { return h.indexOf('KM_PERCORRIDO') !== -1 || h.indexOf('KM PERCORRIDO') !== -1; });
+    var mediaKmLIdx = headers.findIndex(function(h) { return h.indexOf('MEDIA') !== -1; });
+    var nomePostoIdx = headers.findIndex(function(h) { return h.indexOf('NOME_POSTO') !== -1 || (h.indexOf('POSTO') !== -1 && h.indexOf('LOCALIZACAO') === -1); });
+    var localizacaoPostoIdx = headers.findIndex(function(h) { return h.indexOf('LOCALIZACAO') !== -1; });
+    var motoristaIdx = headers.indexOf('MOTORISTA');
+    var formaPgIdx = headers.findIndex(function(h) { return h.indexOf('FORMA') !== -1; });
 
     for (var i = 1; i < data.length; i++) {
       var row = data[i];
@@ -113,9 +123,14 @@ function fetchTransactionsFromSheet() {
       var idNum = Number(rawId);
       if (!rawId || isNaN(idNum) || idNum <= 0) continue;
 
-      var tipo = (sheetName === 'Receitas') ? 'RECEITAS' : ((sheetName === 'Abastecimentos') ? 'DESPESAS' : 'DESPESAS');
+      // Avoid duplicate reads if transaction was already processed from another sheet
+      if (readSheetNames[idNum]) continue;
+      readSheetNames[idNum] = true;
+
+      var isAbastSheet = (sheetName === 'Abastecimentos' || sheetName === 'Abastecimento');
+      var tipo = (sheetName === 'Receitas') ? 'RECEITA' : 'DESPESA';
       var cat = catIdx !== -1 ? String(row[catIdx] || '').trim() : '';
-      if (sheetName === 'Abastecimentos' && !cat) cat = 'ABASTECIMENTO';
+      if (isAbastSheet && !cat) cat = 'ABASTECIMENTO';
 
       var desc = descIdx !== -1 ? String(row[descIdx] || '').trim() : '';
       var val = valIdx !== -1 ? Math.abs(parseFloat(row[valIdx]) || 0) : 0;
@@ -134,6 +149,13 @@ function fetchTransactionsFromSheet() {
         }
       }
 
+      var rawKm = kmIdx !== -1 ? parseFloat(row[kmIdx]) : NaN;
+      var rawLitros = litrosIdx !== -1 ? parseFloat(row[litrosIdx]) : NaN;
+      var rawPrecoLitro = precoLitroIdx !== -1 ? parseFloat(row[precoLitroIdx]) : NaN;
+      var rawValorPg = valorPgIdx !== -1 ? parseFloat(row[valorPgIdx]) : NaN;
+      var rawKmPercorrido = kmPercorridoIdx !== -1 ? parseFloat(row[kmPercorridoIdx]) : NaN;
+      var rawMediaKmL = mediaKmLIdx !== -1 ? parseFloat(row[mediaKmLIdx]) : NaN;
+
       allTx.push({
         id: idNum,
         data: dateStr,
@@ -143,10 +165,18 @@ function fetchTransactionsFromSheet() {
         tipo: tipo,
         status: status || 'PAGO',
         obs: obsIdx !== -1 ? String(row[obsIdx] || '').trim() : '',
-        km: kmIdx !== -1 ? String(row[kmIdx] || '').trim() : '',
-        litros: litrosIdx !== -1 ? String(row[litrosIdx] || '').trim() : '',
-        precoLitro: precoLitroIdx !== -1 ? String(row[precoLitroIdx] || '').trim() : '',
-        veiculo: veiculoIdx !== -1 ? String(row[veiculoIdx] || '').trim() : ''
+        km: !isNaN(rawKm) ? rawKm : (kmIdx !== -1 ? String(row[kmIdx] || '').trim() : ''),
+        litros: !isNaN(rawLitros) ? rawLitros : (litrosIdx !== -1 ? String(row[litrosIdx] || '').trim() : ''),
+        precoLitro: !isNaN(rawPrecoLitro) ? rawPrecoLitro : (precoLitroIdx !== -1 ? String(row[precoLitroIdx] || '').trim() : ''),
+        veiculo: veiculoIdx !== -1 ? String(row[veiculoIdx] || '').trim() : '',
+        valorPg: !isNaN(rawValorPg) ? rawValorPg : undefined,
+        completouTanque: completouTanqueIdx !== -1 ? (String(row[completouTanqueIdx] || '').trim().toUpperCase() === 'SIM') : undefined,
+        kmPercorrido: !isNaN(rawKmPercorrido) ? rawKmPercorrido : undefined,
+        mediaKmL: !isNaN(rawMediaKmL) ? rawMediaKmL : undefined,
+        nomePosto: nomePostoIdx !== -1 ? String(row[nomePostoIdx] || '').trim() : '',
+        localizacaoPosto: localizacaoPostoIdx !== -1 ? String(row[localizacaoPostoIdx] || '').trim() : '',
+        motorista: motoristaIdx !== -1 ? String(row[motoristaIdx] || '').trim() : '',
+        formaPagamento: formaPgIdx !== -1 ? String(row[formaPgIdx] || '').trim() : ''
       });
     }
   });
@@ -207,7 +237,7 @@ function saveAllDataToSheet(payload) {
   var ss = SpreadsheetApp.getActiveSpreadsheet();
 
   var txHeaders = [
-    'id', 'data', 'descricao', 'valor', 'tipo', 'categoria', 'status', 'bancoid', 'formaPagamento', 'obs', 'comprovanteUrl', 'km', 'litros', 'precoLitro', 'veiculo', 'Valor_PG', 'Completou_o_Tanque', 'KM_Percorrido', 'Media_(Km/L)', 'Nome_Posto', 'Localizacao_do_Posto', 'Motorista'
+    'ID', 'DATA', 'DESCRICAO', 'VALOR', 'TIPO', 'CATEGORIA', 'STATUS', 'BANCO_ID', 'FORMA_PAGAMENTO', 'OBS', 'COMPROVANTE_URL', 'KM', 'LITROS', 'PRECO_LITRO', 'VEICULO', 'VALOR_PG', 'COMPLETOU_O_TANQUE', 'KM_PERCORRIDO', 'MEDIA_KM_L', 'NOME_POSTO', 'LOCALIZACAO_DO_POSTO', 'MOTORISTA'
   ];
 
   var mapTxToRow = function(t) {

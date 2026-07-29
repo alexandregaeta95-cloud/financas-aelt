@@ -5,6 +5,9 @@ import { initialTransactions, bankAccounts, creditCards } from './data/transacti
 import { initialRiskZones } from './data/riskZones';
 import { initialInfractions, nonAppealedInfractions } from './data/infractions';
 
+// Pages
+import { Abastecimento, Dashboard as DashboardPage, Financeiro } from './pages';
+
 // Tab imports
 import Dashboard from './components/Dashboard';
 import TransactionsTab from './components/TransactionsTab';
@@ -18,7 +21,6 @@ import CarServicesTab from './components/CarServicesTab';
 import IndicacoesTab from './components/IndicacoesTab';
 import LockScreen from './components/LockScreen';
 import { checkIpvaAlerts } from './lib/ipvaUtils';
-import { PixDetectedDialog, usePix } from './modules/pix';
 import GoogleDriveModal from './components/GoogleDriveModal';
 import { AssistantDashboardView } from './modules/assistant';
 import { DocumentScannerView } from './modules/documents';
@@ -144,26 +146,6 @@ export default function App() {
   });
   const [isMaisMenuOpen, setIsMaisMenuOpen] = useState<boolean>(false);
   const [isDbLoaded, setIsDbLoaded] = useState<boolean>(false);
-
-  // Intelligent PIX Assistant hook integration
-  const {
-    isDialogOpen: isPixDialogOpen,
-    activePix,
-    confirmar: handleConfirmPixOption,
-    cancelar: handleCancelPix
-  } = usePix((payload) => {
-    // Populate draft for TransactionsTab form
-    localStorage.setItem('draft_txType', payload.tipo);
-    localStorage.setItem('draft_category', payload.categoria);
-    localStorage.setItem('draft_amountStr', payload.valor.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }));
-    localStorage.setItem('draft_date', payload.data);
-    localStorage.setItem('draft_desc', payload.descricao);
-    localStorage.setItem('draft_obs', payload.obs || '');
-    
-    // Navigate to transactions tab and open add form
-    setCurrentTab('transactions');
-    setShowAddTxForm(true);
-  });
 
   // Synchronization locking references to prevent race conditions and loops
   const syncLockRef = React.useRef<boolean>(false);
@@ -4054,7 +4036,19 @@ export default function App() {
       case 'analytics':
       case 'bi':
       case 'executivo':
-        return <ExecutiveDashboardView />;
+        return (
+          <DashboardPage
+            transactions={transactions}
+            bankAccounts={bankAccountsState}
+            creditCards={creditCards}
+            registeredVehicles={registeredVehicles}
+            riskZones={riskZones}
+            infractions={infractions}
+            compromissos={compromissos}
+            onNavigateTab={handleTabNavigate}
+            showAlert={showAlert}
+          />
+        );
       case 'analysis':
         return (
           <AnalysisTab 
@@ -4065,157 +4059,86 @@ export default function App() {
         );
       case 'receitas':
         return (
-          <TransactionsTab 
+          <Financeiro
             transactions={transactions}
-            infractions={infractions}
-            onAddTransaction={handleAddTransaction}
-            onEditTransaction={handleEditTransaction}
-            onDeleteTransaction={handleDeleteTransaction}
-            onImportTransactions={handleImportTransactions}
-            onWipeTransactions={handleWipeTransactions}
-            onReindexTransactions={handleReindexTransactions}
-            showAddForm={showAddTxForm}
-            setShowAddForm={setShowAddTxForm}
-            googleUser={googleUser}
-            googleToken={googleToken}
-            isSyncing={isSyncing}
-            isImporting={isImporting}
-            spreadsheetUrl={spreadsheetUrl}
-            syncError={syncError}
-            lastSyncedTime={lastSyncedTime}
-            autoSync={autoSync}
-            onGoogleLogin={handleGoogleLogin}
-            onGoogleLogout={handleGoogleLogout}
-            onToggleAutoSync={handleToggleAutoSync}
-            onTriggerSync={triggerSync}
-            onTriggerImport={triggerImport}
-            showAlert={showAlert}
-            showConfirm={showConfirm}
+            setTransactions={setTransactions}
+            bankAccounts={bankAccountsState}
+            setBankAccounts={setBankAccountsState}
+            creditCards={creditCards}
             registeredVehicles={registeredVehicles}
             setRegisteredVehicles={setRegisteredVehicles}
-            bankAccounts={bankAccountsState}
-            onUpdateBankAccounts={setBankAccountsState}
-            customCategories={customCategories}
-            onTriggerBankIntegration={triggerBankIntegration}
+            showAlert={showAlert}
+            showConfirm={showConfirm}
+            onWipeTransactions={handleWipeTransactions}
+            googleToken={googleToken}
+            spreadsheetUrl={spreadsheetUrl}
+            compromissos={compromissos}
+            setCompromissos={setCompromissos}
             forcedFilter="RECEITA"
-            isDbReady={isDbLoaded}
+            initialShowAddForm={showAddTxForm}
           />
         );
       case 'despesas':
       case 'transactions': // Fallback for safety
         return (
-          <TransactionsTab 
+          <Financeiro
             transactions={transactions}
-            infractions={infractions}
-            onAddTransaction={handleAddTransaction}
-            onEditTransaction={handleEditTransaction}
-            onDeleteTransaction={handleDeleteTransaction}
-            onImportTransactions={handleImportTransactions}
-            onWipeTransactions={handleWipeTransactions}
-            onReindexTransactions={handleReindexTransactions}
-            showAddForm={showAddTxForm}
-            setShowAddForm={setShowAddTxForm}
-            googleUser={googleUser}
-            googleToken={googleToken}
-            isSyncing={isSyncing}
-            isImporting={isImporting}
-            spreadsheetUrl={spreadsheetUrl}
-            syncError={syncError}
-            lastSyncedTime={lastSyncedTime}
-            autoSync={autoSync}
-            onGoogleLogin={handleGoogleLogin}
-            onGoogleLogout={handleGoogleLogout}
-            onToggleAutoSync={handleToggleAutoSync}
-            onTriggerSync={triggerSync}
-            onTriggerImport={triggerImport}
-            showAlert={showAlert}
-            showConfirm={showConfirm}
+            setTransactions={setTransactions}
+            bankAccounts={bankAccountsState}
+            setBankAccounts={setBankAccountsState}
+            creditCards={creditCards}
             registeredVehicles={registeredVehicles}
             setRegisteredVehicles={setRegisteredVehicles}
-            bankAccounts={bankAccountsState}
-            onUpdateBankAccounts={setBankAccountsState}
-            customCategories={customCategories}
-            onTriggerBankIntegration={triggerBankIntegration}
+            showAlert={showAlert}
+            showConfirm={showConfirm}
+            onWipeTransactions={handleWipeTransactions}
+            googleToken={googleToken}
+            spreadsheetUrl={spreadsheetUrl}
+            compromissos={compromissos}
+            setCompromissos={setCompromissos}
             forcedFilter="DESPESA"
-            isDbReady={isDbLoaded}
+            initialShowAddForm={showAddTxForm}
           />
         );
       case 'abastecimentos':
         return (
-          <ErrorBoundary moduleName="Abastecimento">
-            <TransactionsTab 
-              transactions={transactions}
-              infractions={infractions}
-              onAddTransaction={handleAddTransaction}
-              onEditTransaction={handleEditTransaction}
-              onDeleteTransaction={handleDeleteTransaction}
-              onImportTransactions={handleImportTransactions}
-              onWipeTransactions={handleWipeTransactions}
-              onReindexTransactions={handleReindexTransactions}
-              showAddForm={showAddTxForm}
-              setShowAddForm={setShowAddTxForm}
-              googleUser={googleUser}
-              googleToken={googleToken}
-              isSyncing={isSyncing}
-              isImporting={isImporting}
-              spreadsheetUrl={spreadsheetUrl}
-              syncError={syncError}
-              lastSyncedTime={lastSyncedTime}
-              autoSync={autoSync}
-              onGoogleLogin={handleGoogleLogin}
-              onGoogleLogout={handleGoogleLogout}
-              onToggleAutoSync={handleToggleAutoSync}
-              onTriggerSync={triggerSync}
-              onTriggerImport={triggerImport}
-              showAlert={showAlert}
-              showConfirm={showConfirm}
-              registeredVehicles={registeredVehicles}
-              setRegisteredVehicles={setRegisteredVehicles}
-              bankAccounts={bankAccountsState}
-              onUpdateBankAccounts={setBankAccountsState}
-              customCategories={customCategories}
-              onTriggerBankIntegration={triggerBankIntegration}
-              forcedFilter="ABASTECIMENTO"
-              isDbReady={isDbLoaded}
-            />
-          </ErrorBoundary>
+          <Abastecimento
+            transactions={transactions}
+            setTransactions={setTransactions}
+            bankAccounts={bankAccountsState}
+            setBankAccounts={setBankAccountsState}
+            creditCards={creditCards}
+            registeredVehicles={registeredVehicles}
+            setRegisteredVehicles={setRegisteredVehicles}
+            showAlert={showAlert}
+            showConfirm={showConfirm}
+            onWipeTransactions={handleWipeTransactions}
+            googleToken={googleToken}
+            spreadsheetUrl={spreadsheetUrl}
+            compromissos={compromissos}
+            setCompromissos={setCompromissos}
+            initialShowAddForm={showAddTxForm}
+          />
         );
       case 'financas':
         return (
-          <TransactionsTab 
+          <Financeiro
             transactions={transactions}
-            infractions={infractions}
-            onAddTransaction={handleAddTransaction}
-            onEditTransaction={handleEditTransaction}
-            onDeleteTransaction={handleDeleteTransaction}
-            onImportTransactions={handleImportTransactions}
-            onWipeTransactions={handleWipeTransactions}
-            onReindexTransactions={handleReindexTransactions}
-            showAddForm={showAddTxForm}
-            setShowAddForm={setShowAddTxForm}
-            googleUser={googleUser}
-            googleToken={googleToken}
-            isSyncing={isSyncing}
-            isImporting={isImporting}
-            spreadsheetUrl={spreadsheetUrl}
-            syncError={syncError}
-            lastSyncedTime={lastSyncedTime}
-            autoSync={autoSync}
-            onGoogleLogin={handleGoogleLogin}
-            onGoogleLogout={handleGoogleLogout}
-            onToggleAutoSync={handleToggleAutoSync}
-            onTriggerSync={triggerSync}
-            onTriggerImport={triggerImport}
-            showAlert={showAlert}
-            showConfirm={showConfirm}
+            setTransactions={setTransactions}
+            bankAccounts={bankAccountsState}
+            setBankAccounts={setBankAccountsState}
+            creditCards={creditCards}
             registeredVehicles={registeredVehicles}
             setRegisteredVehicles={setRegisteredVehicles}
-            bankAccounts={bankAccountsState}
-            onUpdateBankAccounts={setBankAccountsState}
-            customCategories={customCategories}
-            onTriggerBankIntegration={triggerBankIntegration}
+            showAlert={showAlert}
+            showConfirm={showConfirm}
+            onWipeTransactions={handleWipeTransactions}
+            googleToken={googleToken}
+            spreadsheetUrl={spreadsheetUrl}
+            compromissos={compromissos}
+            setCompromissos={setCompromissos}
             forcedFilter="FINANCAS"
-            isDbReady={isDbLoaded}
+            initialShowAddForm={showAddTxForm}
           />
         );
       case 'oficina':
@@ -5330,13 +5253,6 @@ export default function App() {
           </div>
         )}
       </AnimatePresence>
-
-      <PixDetectedDialog
-        isOpen={isPixDialogOpen}
-        pix={activePix}
-        onOptionSelect={handleConfirmPixOption}
-        onClose={handleCancelPix}
-      />
 
       <GoogleDriveModal
         isOpen={isGoogleDriveModalOpen}
