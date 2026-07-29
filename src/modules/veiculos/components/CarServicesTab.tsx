@@ -240,15 +240,15 @@ export default function CarServicesTab({
     return safePerformedServices
       .filter(s => {
         if (!s) return false;
-        const sVehDesc = (s.veiculoDescricao || (s as any)['Veículo'] || '').toUpperCase();
-        const vfUpper = (vehicleFilter || 'TODOS').toUpperCase();
+        const sVehDesc = (s.veiculoDescricao || (s as any)['Veículo'] || '').toString().toUpperCase();
+        const vfUpper = (vehicleFilter || 'TODOS').toString().toUpperCase();
         const matchesVehicle = vfUpper === 'TODOS' || sVehDesc === vfUpper;
 
-        const q = (searchQuery || '').toLowerCase();
-        const sDesc = (s.descricao || (s as any)['Descrição do Serviço'] || (s as any)['Descrição'] || '').toLowerCase();
-        const sOficina = (s.oficina || (s as any)['Oficina/Estabelecimento'] || (s as any)['Oficina'] || '').toLowerCase();
-        const sObs = (s.observacoes || (s as any)['Observações'] || '').toLowerCase();
-        const matchesSearch = !q || sDesc.includes(q) || sVehDesc.toLowerCase().includes(q) || sOficina.includes(q) || sObs.includes(q);
+        const q = (searchQuery || '').toString().toLowerCase();
+        const sDesc = (s.descricao || (s as any)['Descrição do Serviço'] || (s as any)['Descrição'] || '').toString().toLowerCase();
+        const sOficina = (s.oficina || (s as any)['Oficina/Estabelecimento'] || (s as any)['Oficina'] || '').toString().toLowerCase();
+        const sObs = (s.observacoes || (s as any)['Observações'] || '').toString().toLowerCase();
+        const matchesSearch = !q || sDesc.includes(q) || (sVehDesc || '').toString().toLowerCase().includes(q) || sOficina.includes(q) || sObs.includes(q);
         return matchesVehicle && matchesSearch;
       });
   }, [safePerformedServices, vehicleFilter, searchQuery]);
@@ -257,13 +257,13 @@ export default function CarServicesTab({
     return safeScheduledServices
       .filter(s => {
         if (!s) return false;
-        const sVehDesc = (s.veiculoDescricao || (s as any)['Veículo'] || '').toUpperCase();
-        const vfUpper = (vehicleFilter || 'TODOS').toUpperCase();
+        const sVehDesc = (s.veiculoDescricao || (s as any)['Veículo'] || '').toString().toUpperCase();
+        const vfUpper = (vehicleFilter || 'TODOS').toString().toUpperCase();
         const matchesVehicle = vfUpper === 'TODOS' || sVehDesc === vfUpper;
 
-        const q = (searchQuery || '').toLowerCase();
-        const sDesc = (s.descricao || (s as any)['Descrição do Serviço'] || (s as any)['Descrição'] || '').toLowerCase();
-        const matchesSearch = !q || sDesc.includes(q) || sVehDesc.toLowerCase().includes(q);
+        const q = (searchQuery || '').toString().toLowerCase();
+        const sDesc = (s.descricao || (s as any)['Descrição do Serviço'] || (s as any)['Descrição'] || '').toString().toLowerCase();
+        const matchesSearch = !q || sDesc.includes(q) || (sVehDesc || '').toString().toLowerCase().includes(q);
         return matchesVehicle && matchesSearch && s.status !== 'REALIZADO';
       });
   }, [safeScheduledServices, vehicleFilter, searchQuery]);
@@ -335,7 +335,7 @@ export default function CarServicesTab({
                   type="button"
                   onClick={() => setVehicleFilter(vDesc)}
                   className={`px-2.5 py-1 rounded-lg transition-colors shrink-0 uppercase font-bold ${
-                    String(vehicleFilter || '').toUpperCase() === String(vDesc).toUpperCase()
+                    (vehicleFilter || '').toString().toUpperCase() === (vDesc || '').toString().toUpperCase()
                       ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30'
                       : 'bg-slate-950 text-slate-400 border border-slate-900 hover:text-slate-200'
                   }`}

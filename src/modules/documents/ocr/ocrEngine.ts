@@ -27,7 +27,7 @@ export class OCREngine {
       };
     }
 
-    const img = input.imageBase64 || '';
+    const img = String(input.imageBase64 || '');
     
     // Check if there is an embedded mock text inside data string or perform intelligent image OCR simulation
     let extractedText = '';

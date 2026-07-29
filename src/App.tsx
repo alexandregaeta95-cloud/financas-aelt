@@ -2255,7 +2255,7 @@ export default function App() {
       budgetsEntries.forEach(([catName, annualLimitVal]) => {
         const annualLimit = Number(annualLimitVal);
         const monthlyLimit = annualLimit / 12;
-        const catUpper = (catName || '').toUpperCase();
+        const catUpper = (catName || '').toString().toUpperCase();
 
         const spentInCatThisMonth = transactions
           .filter(t => {
@@ -2726,7 +2726,8 @@ export default function App() {
     } catch (err: any) {
       const errMsg = err.message || "Erro desconhecido durante a sincronização.";
       const isAuthError = errMsg.includes("Sessão expirada") || errMsg.includes("401") || errMsg.includes("unauthorized") || errMsg.includes("expired");
-      const isOfflineError = !navigator.onLine || errMsg.toLowerCase().includes("failed to fetch") || errMsg.toLowerCase().includes("network") || errMsg.toLowerCase().includes("offline");
+      const errMsgStr = (errMsg || '').toString().toLowerCase();
+      const isOfflineError = !navigator.onLine || errMsgStr.includes("failed to fetch") || errMsgStr.includes("network") || errMsgStr.includes("offline");
       
       if (isOfflineError) {
         console.log("Falha de conexão durante a sincronização. Dados salvos na fila local para envio automático ao reconectar.");

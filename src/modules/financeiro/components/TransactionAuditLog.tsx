@@ -101,9 +101,10 @@ export const TransactionAuditLog: React.FC<TransactionAuditLogProps> = ({
       ) : (
         <div className="space-y-3">
           {displayList.map((tx, idx) => {
+            const safeTipoUpper = (tx.tipo || '').toString().toUpperCase();
             const isReceita =
-              tx.tipo?.toUpperCase() === 'RECEITA' ||
-              tx.tipo?.toUpperCase() === 'PAGO' ||
+              safeTipoUpper === 'RECEITA' ||
+              safeTipoUpper === 'PAGO' ||
               tx.valor > 0;
 
             const userWho = tx.motorista || 'Usuário';

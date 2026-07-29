@@ -15,7 +15,7 @@ export function isDuplicateNotification(
     // Check if value matches
     const sameValor = Math.abs(item.valor - valor) < 0.01;
     // Check if bank matches
-    const sameBanco = item.banco?.toLowerCase() === banco?.toLowerCase();
+    const sameBanco = (item.banco || '').toString().toLowerCase() === (banco || '').toString().toLowerCase();
     // Check if text is identical or data matches
     const textOriginal = item.textoRecebido || item.resultadoInterpretacao?.textoOriginal || '';
     const sameText = textOriginal && textoOriginal && textOriginal.trim() === textoOriginal.trim();

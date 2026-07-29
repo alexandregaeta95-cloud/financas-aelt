@@ -61,21 +61,24 @@ export function useTransactions(options: UseTransactionsOptions = { autoLoad: tr
         if (!t) return false;
         // Busca por termo
         if (searchTerm) {
-          const lower = String(searchTerm || '').toLowerCase();
-          const matchDesc = String(t.descricao || '').toLowerCase().includes(lower);
-          const matchCat = String(t.categoria || '').toLowerCase().includes(lower);
-          const matchBanco = String(t.bancoNome || '').toLowerCase().includes(lower);
-          const matchPosto = String(t.nomePosto || t.localizacaoPosto || '').toLowerCase().includes(lower);
-          const matchMotorista = String(t.motorista || '').toLowerCase().includes(lower);
-          const matchVeiculo = String(t.veiculo || t.descricaoVeiculo || '').toLowerCase().includes(lower);
-          if (!matchDesc && !matchCat && !matchBanco && !matchPosto && !matchMotorista && !matchVeiculo) return false;
+          const lower = (searchTerm || '').toString().toLowerCase();
+          const matchDesc = (t.descricao || '').toString().toLowerCase().includes(lower);
+          const matchCat = (t.categoria || '').toString().toLowerCase().includes(lower);
+          const matchBanco = (t.bancoNome || (t as any).banco || '').toString().toLowerCase().includes(lower);
+          const matchPosto = (t.nomePosto || (t as any).Nome_Posto || t.localizacaoPosto || (t as any).Localizacao_do_Posto || '').toString().toLowerCase().includes(lower);
+          const matchMotorista = (t.motorista || '').toString().toLowerCase().includes(lower);
+          const matchVeiculo = (t.veiculo || t.descricaoVeiculo || '').toString().toLowerCase().includes(lower);
+          const matchFormaPag = (t.formaPagamento || (t as any)['Forma de Pagamento'] || '').toString().toLowerCase().includes(lower);
+          const matchObs = (t.obs || (t as any).observacao || (t as any).observacoes || '').toString().toLowerCase().includes(lower);
+          const matchTipo = (t.tipo || '').toString().toLowerCase().includes(lower);
+          if (!matchDesc && !matchCat && !matchBanco && !matchPosto && !matchMotorista && !matchVeiculo && !matchFormaPag && !matchObs && !matchTipo) return false;
         }
         // Filtro por categoria
-        if (categoryFilter !== 'TODAS' && String(t.categoria || '').toUpperCase() !== String(categoryFilter || '').toUpperCase()) {
+        if (categoryFilter !== 'TODAS' && (t.categoria || '').toString().toUpperCase() !== (categoryFilter || '').toString().toUpperCase()) {
           return false;
         }
         // Filtro por tipo
-        if (typeFilter !== 'TODOS' && String(t.tipo || '').toUpperCase() !== String(typeFilter || '').toUpperCase()) {
+        if (typeFilter !== 'TODOS' && (t.tipo || '').toString().toUpperCase() !== (typeFilter || '').toString().toUpperCase()) {
           return false;
         }
         return true;

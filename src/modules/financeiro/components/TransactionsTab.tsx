@@ -1714,8 +1714,37 @@ export default function TransactionsTab({
   // Defensive search filter helper to prevent render crashes on undefined/null properties
   const safeMatchSearch = React.useCallback((item: any, searchInput: string): boolean => {
     if (!item || typeof item !== 'object') return false;
-    const term = String(searchInput || '').trim().toUpperCase();
+    const term = (searchInput || '').toString().trim().toUpperCase();
     if (!term) return true;
+
+    // Explicitly convert and check key fields safely
+    const veiculo = (item.veiculo || item.descricaoVeiculo || item.Veiculo || item['Veículo'] || '').toString().toUpperCase();
+    const motorista = (item.motorista || item.Motorista || '').toString().toUpperCase();
+    const nomePosto = (item.nomePosto || item.Nome_Posto || item['Nome Posto'] || item.posto || item.Posto || '').toString().toUpperCase();
+    const localizacaoPosto = (item.localizacaoPosto || item.Localizacao_do_Posto || item['Localização do Posto'] || item.localizacao || '').toString().toUpperCase();
+    const tipo = (item.tipo || item.Tipo || item.TIPO || '').toString().toUpperCase();
+    const categoria = (item.categoria || item.Categoria || item.CATEGORIA || '').toString().toUpperCase();
+    const descricao = (item.descricao || item.Descricao || item.DESCRICAO || '').toString().toUpperCase();
+    const formaPagamento = (item.formaPagamento || item['Forma de Pagamento'] || item.metodoPagamento || '').toString().toUpperCase();
+    const obs = (item.obs || item.observacao || item.observacoes || item.Observacao || item['Observações'] || item.OBS || '').toString().toUpperCase();
+    const bancoNome = (item.bancoNome || item.banco || item.Banco || '').toString().toUpperCase();
+    const status = (item.status || item.Status || item.STATUS || '').toString().toUpperCase();
+
+    if (
+      veiculo.includes(term) ||
+      motorista.includes(term) ||
+      nomePosto.includes(term) ||
+      localizacaoPosto.includes(term) ||
+      tipo.includes(term) ||
+      categoria.includes(term) ||
+      descricao.includes(term) ||
+      formaPagamento.includes(term) ||
+      obs.includes(term) ||
+      bancoNome.includes(term) ||
+      status.includes(term)
+    ) {
+      return true;
+    }
 
     return Object.values(item).some(val => {
       if (val === null || val === undefined) return false;
@@ -1724,7 +1753,16 @@ export default function TransactionsTab({
         const brlStr = isNaN(val) ? '' : val.toFixed(2).replace('.', ',');
         return numStr.includes(term) || brlStr.includes(term);
       }
-      return String(val || '').toUpperCase().includes(term);
+      if (typeof val === 'string' || typeof val === 'boolean') {
+        return (val || '').toString().toUpperCase().includes(term);
+      }
+      if (typeof val === 'object') {
+        return Object.values(val).some(nestedVal => {
+          if (nestedVal === null || nestedVal === undefined) return false;
+          return (nestedVal || '').toString().toUpperCase().includes(term);
+        });
+      }
+      return false;
     });
   }, []);
 
@@ -1837,25 +1875,26 @@ export default function TransactionsTab({
     .filter(t => {
       if (!t) return false;
       // Pill Filtering
-      if (selectedFilter === 'receita') return String(t.tipo ?? '').toUpperCase() === 'RECEITA';
-      if (selectedFilter === 'despesa') return String(t.tipo ?? '').toUpperCase() === 'DESPESA' || String(t.tipo ?? '').toUpperCase() === 'PAGO' || ['ETANOL', 'GAS. COMUM', 'ETANOL ADITIVADA', 'GAS, ADITIVADA'].includes(String(t.tipo ?? '').toUpperCase());
-      if (selectedFilter === 'abastecimento') return String(t.categoria ?? '').toUpperCase() === 'ABASTECIMENTO';
-      if (selectedFilter === 'casa') return String(t.categoria ?? '').toUpperCase() === 'CASA';
-      if (selectedFilter === 'consumo') return String(t.categoria ?? '').toUpperCase() === 'CONSUMO' || String(t.categoria ?? '').toUpperCase() === 'CUMSUMO';
+      if (selectedFilter === 'receita') return (t.tipo || '').toString().toUpperCase() === 'RECEITA';
+      if (selectedFilter === 'despesa') return (t.tipo || '').toString().toUpperCase() === 'DESPESA' || (t.tipo || '').toString().toUpperCase() === 'PAGO' || ['ETANOL', 'GAS. COMUM', 'ETANOL ADITIVADA', 'GAS, ADITIVADA'].includes((t.tipo || '').toString().toUpperCase());
+      if (selectedFilter === 'abastecimento') return (t.categoria || '').toString().toUpperCase() === 'ABASTECIMENTO';
+      if (selectedFilter === 'casa') return (t.categoria || '').toString().toUpperCase() === 'CASA';
+      if (selectedFilter === 'consumo') return (t.categoria || '').toString().toUpperCase() === 'CONSUMO' || (t.categoria || '').toString().toUpperCase() === 'CUMSUMO';
       return true;
     })
     .filter(t => {
       if (!t) return false;
       // Status Quick Filtering
+      const stUpper = (t.status || '').toString().toUpperCase();
       if (statusFilter === 'a_pagar') {
-        return String(t.status ?? '').toUpperCase() === 'PENDENTE' || String(t.status ?? '').toUpperCase() === 'ATRASADO';
+        return stUpper === 'PENDENTE' || stUpper === 'ATRASADO';
       }
       if (statusFilter === 'pago') {
-        return String(t.status ?? '').toUpperCase() === 'PAGO' || String(t.status ?? '').toUpperCase() === 'REALIZADO';
+        return stUpper === 'PAGO' || stUpper === 'REALIZADO';
       }
       if (statusFilter === 'vencendo_48h') {
-        const isNotPaid = String(t.status ?? '').toUpperCase() !== 'PAGO' && String(t.status ?? '').toUpperCase() !== 'REALIZADO';
-        const isAPagarType = String(t.tipo ?? '').toUpperCase() !== 'RECEITA';
+        const isNotPaid = stUpper !== 'PAGO' && stUpper !== 'REALIZADO';
+        const isAPagarType = (t.tipo || '').toString().toUpperCase() !== 'RECEITA';
         if (!isNotPaid || !isAPagarType) return false;
         
         const todayObj = new Date();
@@ -1891,23 +1930,24 @@ export default function TransactionsTab({
     .filter(t => t && t.tipo !== 'CONTAS BANCARIAS' && t.tipo !== 'CARTÃO DE CRÉDITO')
     .filter(t => {
       if (!t) return false;
-      if (selectedFilter === 'receita') return String(t.tipo ?? '').toUpperCase() === 'RECEITA';
-      if (selectedFilter === 'despesa') return String(t.tipo ?? '').toUpperCase() === 'DESPESA' || String(t.tipo ?? '').toUpperCase() === 'PAGO' || ['ETANOL', 'GAS. COMUM', 'ETANOL ADITIVADA', 'GAS, ADITIVADA'].includes(String(t.tipo ?? '').toUpperCase());
-      if (selectedFilter === 'abastecimento') return String(t.categoria ?? '').toUpperCase() === 'ABASTECIMENTO';
-      if (selectedFilter === 'casa') return String(t.categoria ?? '').toUpperCase() === 'CASA';
-      if (selectedFilter === 'consumo') return String(t.categoria ?? '').toUpperCase() === 'CONSUMO' || String(t.categoria ?? '').toUpperCase() === 'CUMSUMO';
+      if (selectedFilter === 'receita') return (t.tipo || '').toString().toUpperCase() === 'RECEITA';
+      if (selectedFilter === 'despesa') return (t.tipo || '').toString().toUpperCase() === 'DESPESA' || (t.tipo || '').toString().toUpperCase() === 'PAGO' || ['ETANOL', 'GAS. COMUM', 'ETANOL ADITIVADA', 'GAS, ADITIVADA'].includes((t.tipo || '').toString().toUpperCase());
+      if (selectedFilter === 'abastecimento') return (t.categoria || '').toString().toUpperCase() === 'ABASTECIMENTO';
+      if (selectedFilter === 'casa') return (t.categoria || '').toString().toUpperCase() === 'CASA';
+      if (selectedFilter === 'consumo') return (t.categoria || '').toString().toUpperCase() === 'CONSUMO' || (t.categoria || '').toString().toUpperCase() === 'CUMSUMO';
       return true;
     })
     .filter(t => safeMatchSearch(t, searchTerm))
     .filter(t => checkTxMatchesPeriod(t.data, periodoInicio, periodoFim));
 
   const countTodos = baseFilteredForStatusCounts.length;
-  const countAPagar = baseFilteredForStatusCounts.filter(t => t && (String(t.status ?? '').toUpperCase() === 'PENDENTE' || String(t.status ?? '').toUpperCase() === 'ATRASADO')).length;
-  const countPago = baseFilteredForStatusCounts.filter(t => t && (String(t.status ?? '').toUpperCase() === 'PAGO' || String(t.status ?? '').toUpperCase() === 'REALIZADO')).length;
+  const countAPagar = baseFilteredForStatusCounts.filter(t => t && ((t.status || '').toString().toUpperCase() === 'PENDENTE' || (t.status || '').toString().toUpperCase() === 'ATRASADO')).length;
+  const countPago = baseFilteredForStatusCounts.filter(t => t && ((t.status || '').toString().toUpperCase() === 'PAGO' || (t.status || '').toString().toUpperCase() === 'REALIZADO')).length;
   const countVencendo48h = baseFilteredForStatusCounts.filter(t => {
     if (!t) return false;
-    const isNotPaid = String(t.status ?? '').toUpperCase() !== 'PAGO' && String(t.status ?? '').toUpperCase() !== 'REALIZADO';
-    const isAPagarType = String(t.tipo ?? '').toUpperCase() !== 'RECEITA';
+    const stUpper = (t.status || '').toString().toUpperCase();
+    const isNotPaid = stUpper !== 'PAGO' && stUpper !== 'REALIZADO';
+    const isAPagarType = (t.tipo || '').toString().toUpperCase() !== 'RECEITA';
     if (!isNotPaid || !isAPagarType) return false;
 
     const todayObj = new Date();

@@ -183,8 +183,8 @@ export default function IndicacoesTab({ transactions, onNavigate, showAlert }: I
 
       // Fallback realistic values if no KM tracking is registered
       if (avgKmL === 0) {
-        const hasEtanol = st.types.some(t => String(t || '').toUpperCase().includes('ETANOL'));
-        const nameUpper = String(st.name || '').toUpperCase();
+        const hasEtanol = st.types.some(t => (t || '').toString().toUpperCase().includes('ETANOL'));
+        const nameUpper = (st.name || '').toString().toUpperCase();
         if (hasEtanol) {
           avgKmL = nameUpper.includes('SHELL') ? 8.4 : nameUpper.includes('IPIRANGA') ? 8.1 : 7.9;
         } else {
@@ -197,7 +197,7 @@ export default function IndicacoesTab({ transactions, onNavigate, showAlert }: I
         avgPrice,
         avgKmL,
         avgCostPerKm: avgKmL > 0 ? (avgPrice / avgKmL) : 0,
-        primaryFuelGroup: st.types.some(t => String(t || '').toUpperCase().includes('ETANOL')) ? 'ETANOL' : 'GASOLINA'
+        primaryFuelGroup: st.types.some(t => (t || '').toString().toUpperCase().includes('ETANOL')) ? 'ETANOL' : 'GASOLINA'
       };
     });
 
