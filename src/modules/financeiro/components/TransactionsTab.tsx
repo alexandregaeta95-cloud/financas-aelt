@@ -273,26 +273,76 @@ export default function TransactionsTab({
     return false;
   };
 
-  const parseTxDate = (dateStr: string): Date | null => {
+  const parseTxDate = (dateVal: any): Date | null => {
+    if (!dateVal) return null;
+    if (dateVal instanceof Date) {
+      return isNaN(dateVal.getTime()) ? null : dateVal;
+    }
+    const dateStr = String(dateVal).trim();
     if (!dateStr) return null;
-    const parts = dateStr.split('/');
-    if (parts.length !== 3) return null;
-    const day = parseInt(parts[0], 10);
-    const month = parseInt(parts[1], 10) - 1;
-    const year = parseInt(parts[2], 10);
-    if (isNaN(day) || isNaN(month) || isNaN(year)) return null;
-    return new Date(year, month, day);
+
+    // YYYY-MM-DD or ISO string
+    if (dateStr.includes('-') && dateStr.indexOf('-') === 4) {
+      const cleanStr = dateStr.split('T')[0];
+      const parts = cleanStr.split('-');
+      if (parts.length === 3) {
+        const year = parseInt(parts[0], 10);
+        const month = parseInt(parts[1], 10) - 1;
+        const day = parseInt(parts[2], 10);
+        if (!isNaN(day) && !isNaN(month) && !isNaN(year)) {
+          return new Date(year, month, day);
+        }
+      }
+    }
+
+    // DD/MM/YYYY or D/M/YYYY or DD-MM-YYYY
+    if (dateStr.includes('/') || dateStr.includes('-')) {
+      const sep = dateStr.includes('/') ? '/' : '-';
+      const parts = dateStr.split(sep);
+      if (parts.length === 3) {
+        const p0 = parseInt(parts[0], 10);
+        const p1 = parseInt(parts[1], 10);
+        const p2 = parseInt(parts[2], 10);
+        if (!isNaN(p0) && !isNaN(p1) && !isNaN(p2)) {
+          if (parts[0].length === 4) {
+            return new Date(p0, p1 - 1, p2);
+          }
+          return new Date(p2, p1 - 1, p0);
+        }
+      }
+    }
+
+    const fallback = new Date(dateStr);
+    return isNaN(fallback.getTime()) ? null : fallback;
   };
 
-  const parseInputDate = (dateStr: string): Date | null => {
-    if (!dateStr) return null;
-    const parts = dateStr.split('-');
-    if (parts.length !== 3) return null;
-    const year = parseInt(parts[0], 10);
-    const month = parseInt(parts[1], 10) - 1;
-    const day = parseInt(parts[2], 10);
-    if (isNaN(day) || isNaN(month) || isNaN(year)) return null;
-    return new Date(year, month, day);
+  const parseInputDate = (dateVal: any): Date | null => {
+    return parseTxDate(dateVal);
+  };
+
+  const checkTxMatchesPeriod = (tData: any, pInicio: string, pFim: string): boolean => {
+    if (!pInicio && !pFim) return true;
+    if (!tData) return false;
+    const txDateObj = parseTxDate(tData);
+    if (!txDateObj) return false;
+
+    const txMidnight = new Date(txDateObj.getFullYear(), txDateObj.getMonth(), txDateObj.getDate()).getTime();
+
+    if (pInicio) {
+      const startObj = parseInputDate(pInicio);
+      if (startObj) {
+        const startMidnight = new Date(startObj.getFullYear(), startObj.getMonth(), startObj.getDate()).getTime();
+        if (txMidnight < startMidnight) return false;
+      }
+    }
+    if (pFim) {
+      const endObj = parseInputDate(pFim);
+      if (endObj) {
+        const endMidnight = new Date(endObj.getFullYear(), endObj.getMonth(), endObj.getDate()).getTime();
+        if (txMidnight > endMidnight) return false;
+      }
+    }
+    return true;
   };
 
   const alertUser = (title: string, message: string) => {
@@ -1684,23 +1734,7 @@ export default function TransactionsTab({
     const list = (transactions || [])
       .filter(t => t && t.tipo !== 'CONTAS BANCARIAS' && t.tipo !== 'CARTÃO DE CRÉDITO') // Hide non-ledger configuration rows
       .filter(t => safeMatchSearch(t, searchTerm))
-      .filter(t => {
-        // Period Filtering
-        if (!periodoInicio && !periodoFim) return true;
-        const txDateObj = parseTxDate(t.data);
-        if (!txDateObj) return false;
-        const txTime = txDateObj.getTime();
-
-        if (periodoInicio) {
-          const startObj = parseInputDate(periodoInicio);
-          if (startObj && txTime < startObj.getTime()) return false;
-        }
-        if (periodoFim) {
-          const endObj = parseInputDate(periodoFim);
-          if (endObj && txTime > endObj.getTime()) return false;
-        }
-        return true;
-      })
+      .filter(t => checkTxMatchesPeriod(t.data, periodoInicio, periodoFim))
       .filter(t => {
         // Status Quick Filtering
         if (statusFilter === 'a_pagar') {
@@ -1831,23 +1865,7 @@ export default function TransactionsTab({
       return true;
     })
     .filter(t => safeMatchSearch(t, searchTerm))
-    .filter(t => {
-      // Period Filtering
-      if (!periodoInicio && !periodoFim) return true;
-      const txDateObj = parseTxDate(t.data);
-      if (!txDateObj) return false;
-      const txTime = txDateObj.getTime();
-
-      if (periodoInicio) {
-        const startObj = parseInputDate(periodoInicio);
-        if (startObj && txTime < startObj.getTime()) return false;
-      }
-      if (periodoFim) {
-        const endObj = parseInputDate(periodoFim);
-        if (endObj && txTime > endObj.getTime()) return false;
-      }
-      return true;
-    });
+    .filter(t => checkTxMatchesPeriod(t.data, periodoInicio, periodoFim));
 
   // Sort them by date descending (latest first) to ensure "os últimos lançamentos" are at the top
   const filteredTransactions = [...rawFilteredTransactions].sort((a, b) => {
@@ -1876,22 +1894,7 @@ export default function TransactionsTab({
       return true;
     })
     .filter(t => safeMatchSearch(t, searchTerm))
-    .filter(t => {
-      if (!t) return false;
-      if (!periodoInicio && !periodoFim) return true;
-      const txDateObj = parseTxDate(t.data);
-      if (!txDateObj) return false;
-      const txTime = txDateObj.getTime();
-      if (periodoInicio) {
-        const startObj = parseInputDate(periodoInicio);
-        if (startObj && txTime < startObj.getTime()) return false;
-      }
-      if (periodoFim) {
-        const endObj = parseInputDate(periodoFim);
-        if (endObj && txTime > endObj.getTime()) return false;
-      }
-      return true;
-    });
+    .filter(t => checkTxMatchesPeriod(t.data, periodoInicio, periodoFim));
 
   const countTodos = baseFilteredForStatusCounts.length;
   const countAPagar = baseFilteredForStatusCounts.filter(t => t && (String(t.status ?? '').toUpperCase() === 'PENDENTE' || String(t.status ?? '').toUpperCase() === 'ATRASADO')).length;
