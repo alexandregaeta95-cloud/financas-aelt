@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
@@ -87,6 +87,7 @@ interface TransactionsTabProps {
   onTriggerBankIntegration?: (bancoId: number, valor: number, descricao: string) => void;
   
   forcedFilter?: 'RECEITA' | 'DESPESA' | 'ABASTECIMENTO' | 'FINANCAS';
+  initialShowAddForm?: boolean;
   isDbReady?: boolean;
 }
 
@@ -99,8 +100,8 @@ export default function TransactionsTab({
   onImportTransactions,
   onWipeTransactions,
   onReindexTransactions,
-  showAddForm,
-  setShowAddForm,
+  showAddForm: propShowAddForm,
+  setShowAddForm: propSetShowAddForm,
   showAlert,
   showConfirm,
 
@@ -129,8 +130,35 @@ export default function TransactionsTab({
   onTriggerBankIntegration,
   
   forcedFilter,
+  initialShowAddForm,
   isDbReady = true
 }: TransactionsTabProps) {
+  const [internalShowAddForm, setInternalShowAddForm] = useState<boolean>(initialShowAddForm || propShowAddForm || false);
+
+  useEffect(() => {
+    if (typeof propShowAddForm === 'boolean') {
+      setInternalShowAddForm(propShowAddForm);
+    } else if (typeof initialShowAddForm === 'boolean') {
+      setInternalShowAddForm(initialShowAddForm);
+    }
+  }, [propShowAddForm, initialShowAddForm]);
+
+  const showAddForm = typeof propShowAddForm === 'boolean' ? propShowAddForm : internalShowAddForm;
+
+  const setShowAddForm = useCallback((value: boolean | ((prev: boolean) => boolean)) => {
+    setInternalShowAddForm(prev => {
+      const nextVal = typeof value === 'function' ? value(prev) : value;
+      if (typeof propSetShowAddForm === 'function') {
+        try {
+          propSetShowAddForm(nextVal);
+        } catch (e) {
+          console.warn("Error calling prop setShowAddForm:", e);
+        }
+      }
+      return nextVal;
+    });
+  }, [propSetShowAddForm]);
+
   const [searchTerm, setSearchInput] = useState<string>('');
   const [selectedFilter, setSelectedFilter] = useState<string>(() => {
     if (forcedFilter === 'RECEITA') return 'receita';
