@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Transaction, RiskZone, Infraction, MedicalAppointment, MedicalPrescription, BankAccount, CreditCard, RegisteredVehicle, Compromisso, CarServicePerformed, CarServiceScheduled, SecurityConfig, GroceryItem } from './types';
 import { initialTransactions, bankAccounts, creditCards } from './data/transactions';
@@ -970,10 +970,77 @@ export default function App() {
   });
   const [isGoogleDriveModalOpen, setIsGoogleDriveModalOpen] = useState<boolean>(false);
 
+  const isDbLoadedRef = useRef<boolean>(false);
+  useEffect(() => {
+    isDbLoadedRef.current = isDbLoaded;
+  }, [isDbLoaded]);
+
   // Load live data from Google Sheets SSOT & Cache on mount
   const loadDataFromSheets = async (showToast = false) => {
-    setIsDbLoaded(false);
     try {
+      // 1. Always load local IndexedDB data FIRST to ensure offline-first UI & selects (drivers, vehicles, categories, etc) are populated instantly
+      const localTxs = await getTransactionsFromDb();
+      if (Array.isArray(localTxs) && localTxs.length > 0) {
+        setTransactions(cleanDuplicateTransactions(localTxs));
+      }
+
+      const vehicleList = await getRegisteredVehiclesFromDb();
+      if (Array.isArray(vehicleList) && vehicleList.length > 0) {
+        const safeVehs = vehicleList.filter(Boolean).map((v: any) => ({
+          ...v,
+          descricao: (v.descricao || v.modelo || v.nome || '').toString().toUpperCase(),
+          placa: (v.placa || '').toString().toUpperCase(),
+          motorista: (v.motorista || '').toString().toUpperCase(),
+          marca: (v.marca || '').toString().toUpperCase(),
+          modelo: (v.modelo || '').toString().toUpperCase()
+        }));
+        setRegisteredVehicles(safeVehs);
+      }
+
+      const zoneList = await getRiskZonesFromDb();
+      if (Array.isArray(zoneList) && zoneList.length > 0) setRiskZones(zoneList);
+
+      const infList = await getInfractionsFromDb();
+      if (Array.isArray(infList) && infList.length > 0) setInfractions(infList);
+
+      const nonAppList = await getNonAppealedFromDb();
+      if (Array.isArray(nonAppList) && nonAppList.length > 0) setNonAppealed(nonAppList);
+
+      const apptList = await getMedicalAppointmentsFromDb();
+      if (Array.isArray(apptList) && apptList.length > 0) setAppointments(apptList);
+
+      const prescriptionList = await getMedicalPrescriptionsFromDb();
+      if (Array.isArray(prescriptionList) && prescriptionList.length > 0) setPrescriptions(prescriptionList);
+
+      const compList = await getCompromissosFromDb();
+      if (Array.isArray(compList) && compList.length > 0) setCompromissos(compList);
+
+      const dbPerfList = await getPerformedServicesFromDb();
+      if (Array.isArray(dbPerfList) && dbPerfList.length > 0) setPerformedServices(dbPerfList);
+
+      const dbSchedList = await getScheduledServicesFromDb();
+      if (Array.isArray(dbSchedList) && dbSchedList.length > 0) setScheduledServices(dbSchedList);
+
+      const dbGrocList = await getGroceryItemsFromDb();
+      if (Array.isArray(dbGrocList) && dbGrocList.length > 0) setGroceryItems(dbGrocList);
+
+      const avatar = await getAvatarUrlFromDb();
+      if (avatar) setAvatarUrl(avatar);
+
+      const customCats = await getCustomCategoriesFromDb();
+      if (Array.isArray(customCats) && customCats.length > 0) setCustomCategories(customCats);
+
+      const secConfig = await getSecurityConfigFromDb();
+      if (secConfig) {
+        setSecurityConfig(secConfig);
+        setIsAppLocked(!!secConfig.enabled);
+      }
+
+      // Mark local DB as ready so all dropdowns, selects, and local mutations proceed immediately
+      setIsDbLoaded(true);
+      isDbLoadedRef.current = true;
+
+      // 2. Perform optional remote Google Sheets fetch if token and sheet ID exist
       let loadedFromSheets = false;
       const activeToken = googleToken;
       
@@ -981,132 +1048,74 @@ export default function App() {
         try {
           const sheetId = await sheetsService.obterOuCriarPlanilha(activeToken);
           if (!sheetId || sheetId === 'active_sheet' || sheetId.trim() === '') {
-            console.warn("ID da planilha não configurado ou 'active_sheet'. Pulando carregamento remoto do Sheets.");
+            console.warn("ID da planilha não configurado ou 'active_sheet'. Mantendo dados do banco de dados local.");
           } else {
             const sheetData = await sheetsService.buscarTodosDados(activeToken, sheetId);
-          
-          const sdAny = sheetData as any;
-          const rawTxs = Array.isArray(sdAny?.data?.transactions)
-            ? sdAny.data.transactions
-            : Array.isArray(sdAny?.transactions)
-              ? sdAny.transactions
-              : Array.isArray(sdAny?.data)
-                ? sdAny.data
-                : Array.isArray(sdAny)
-                  ? sdAny
-                  : [];
-          if (rawTxs.length > 0) {
-            const cleanList = cleanDuplicateTransactions(rawTxs);
-            setTransactions(cleanList);
-            localStorage.setItem('wealthflow_transactions', JSON.stringify(cleanList));
-          }
-          if (sheetData && Array.isArray(sheetData.riskZones) && sheetData.riskZones.length > 0) {
-            setRiskZones(sheetData.riskZones);
-            localStorage.setItem('wealthflow_riskzones', JSON.stringify(sheetData.riskZones));
-          }
-          if (sheetData && Array.isArray(sheetData.appointments) && sheetData.appointments.length > 0) {
-            setAppointments(sheetData.appointments);
-            localStorage.setItem('wealthflow_appointments', JSON.stringify(sheetData.appointments));
-          }
-          if (sheetData && Array.isArray(sheetData.prescriptions) && sheetData.prescriptions.length > 0) {
-            setPrescriptions(sheetData.prescriptions);
-            localStorage.setItem('wealthflow_prescriptions', JSON.stringify(sheetData.prescriptions));
-          }
-          if (sheetData && Array.isArray(sheetData.compromissos) && sheetData.compromissos.length > 0) {
-            setCompromissos(sheetData.compromissos);
-            localStorage.setItem('wealthflow_compromissos', JSON.stringify(sheetData.compromissos));
-          }
-          if (sheetData && Array.isArray(sheetData.registeredVehicles) && sheetData.registeredVehicles.length > 0) {
-            const safeVehs = sheetData.registeredVehicles.filter(Boolean).map((v: any) => ({
-              ...v,
-              descricao: (v.descricao || v.modelo || v.nome || '').toString().toUpperCase(),
-              placa: (v.placa || '').toString().toUpperCase(),
-              motorista: (v.motorista || '').toString().toUpperCase(),
-              marca: (v.marca || '').toString().toUpperCase(),
-              modelo: (v.modelo || '').toString().toUpperCase()
-            }));
-            setRegisteredVehicles(safeVehs);
-            localStorage.setItem('wealthflow_registered_vehicles', JSON.stringify(safeVehs));
-          }
-          if (sheetData && Array.isArray(sheetData.performedServices) && sheetData.performedServices.length > 0) {
-            setPerformedServices(sheetData.performedServices);
-            localStorage.setItem('wealthflow_car_services_performed', JSON.stringify(sheetData.performedServices));
-          }
-          if (sheetData && Array.isArray(sheetData.scheduledServices) && sheetData.scheduledServices.length > 0) {
-            setScheduledServices(sheetData.scheduledServices);
-            localStorage.setItem('wealthflow_car_services_scheduled', JSON.stringify(sheetData.scheduledServices));
-          }
-          if (sheetData && sheetData.categoryBudgets && typeof sheetData.categoryBudgets === 'object' && Object.keys(sheetData.categoryBudgets).length > 0) {
-            setCategoryBudgets(sheetData.categoryBudgets);
-            localStorage.setItem('wealthflow_category_budgets', JSON.stringify(sheetData.categoryBudgets));
-          }
-          if (sheetData && Array.isArray(sheetData.groceryItems) && sheetData.groceryItems.length > 0) {
-            setGroceryItems(sheetData.groceryItems);
-            localStorage.setItem('wealthflow_grocery_items', JSON.stringify(sheetData.groceryItems));
-          }
-          loadedFromSheets = true;
+            
+            const sdAny = sheetData as any;
+            const rawTxs = Array.isArray(sdAny?.data?.transactions)
+              ? sdAny.data.transactions
+              : Array.isArray(sdAny?.transactions)
+                ? sdAny.transactions
+                : Array.isArray(sdAny?.data)
+                  ? sdAny.data
+                  : Array.isArray(sdAny)
+                    ? sdAny
+                    : [];
+            if (rawTxs.length > 0) {
+              const cleanList = cleanDuplicateTransactions(rawTxs);
+              setTransactions(cleanList);
+              localStorage.setItem('wealthflow_transactions', JSON.stringify(cleanList));
+            }
+            if (sheetData && Array.isArray(sheetData.riskZones) && sheetData.riskZones.length > 0) {
+              setRiskZones(sheetData.riskZones);
+              localStorage.setItem('wealthflow_riskzones', JSON.stringify(sheetData.riskZones));
+            }
+            if (sheetData && Array.isArray(sheetData.appointments) && sheetData.appointments.length > 0) {
+              setAppointments(sheetData.appointments);
+              localStorage.setItem('wealthflow_appointments', JSON.stringify(sheetData.appointments));
+            }
+            if (sheetData && Array.isArray(sheetData.prescriptions) && sheetData.prescriptions.length > 0) {
+              setPrescriptions(sheetData.prescriptions);
+              localStorage.setItem('wealthflow_prescriptions', JSON.stringify(sheetData.prescriptions));
+            }
+            if (sheetData && Array.isArray(sheetData.compromissos) && sheetData.compromissos.length > 0) {
+              setCompromissos(sheetData.compromissos);
+              localStorage.setItem('wealthflow_compromissos', JSON.stringify(sheetData.compromissos));
+            }
+            if (sheetData && Array.isArray(sheetData.registeredVehicles) && sheetData.registeredVehicles.length > 0) {
+              const safeVehs = sheetData.registeredVehicles.filter(Boolean).map((v: any) => ({
+                ...v,
+                descricao: (v.descricao || v.modelo || v.nome || '').toString().toUpperCase(),
+                placa: (v.placa || '').toString().toUpperCase(),
+                motorista: (v.motorista || '').toString().toUpperCase(),
+                marca: (v.marca || '').toString().toUpperCase(),
+                modelo: (v.modelo || '').toString().toUpperCase()
+              }));
+              setRegisteredVehicles(safeVehs);
+              localStorage.setItem('wealthflow_registered_vehicles', JSON.stringify(safeVehs));
+            }
+            if (sheetData && Array.isArray(sheetData.performedServices) && sheetData.performedServices.length > 0) {
+              setPerformedServices(sheetData.performedServices);
+              localStorage.setItem('wealthflow_car_services_performed', JSON.stringify(sheetData.performedServices));
+            }
+            if (sheetData && Array.isArray(sheetData.scheduledServices) && sheetData.scheduledServices.length > 0) {
+              setScheduledServices(sheetData.scheduledServices);
+              localStorage.setItem('wealthflow_car_services_scheduled', JSON.stringify(sheetData.scheduledServices));
+            }
+            if (sheetData && sheetData.categoryBudgets && typeof sheetData.categoryBudgets === 'object' && Object.keys(sheetData.categoryBudgets).length > 0) {
+              setCategoryBudgets(sheetData.categoryBudgets);
+              localStorage.setItem('wealthflow_category_budgets', JSON.stringify(sheetData.categoryBudgets));
+            }
+            if (sheetData && Array.isArray(sheetData.groceryItems) && sheetData.groceryItems.length > 0) {
+              setGroceryItems(sheetData.groceryItems);
+              localStorage.setItem('wealthflow_grocery_items', JSON.stringify(sheetData.groceryItems));
+            }
+            loadedFromSheets = true;
           }
         } catch (e) {
           console.warn("Falha ao buscar dados da planilha, utilizando cache local:", e);
         }
-      }
-
-      if (!loadedFromSheets) {
-        const txList = await getTransactionsFromDb();
-        const cleanList = cleanDuplicateTransactions(txList);
-        setTransactions(cleanList);
-        
-        const zoneList = await getRiskZonesFromDb();
-        setRiskZones(zoneList);
-
-        const infList = await getInfractionsFromDb();
-        setInfractions(infList);
-
-        const nonAppList = await getNonAppealedFromDb();
-        setNonAppealed(nonAppList);
-
-        const apptList = await getMedicalAppointmentsFromDb();
-        setAppointments(apptList);
-
-        const prescriptionList = await getMedicalPrescriptionsFromDb();
-        setPrescriptions(prescriptionList);
-
-        const vehicleList = await getRegisteredVehiclesFromDb();
-        if (vehicleList && vehicleList.length > 0) {
-          setRegisteredVehicles(vehicleList);
-        }
-
-        const compList = await getCompromissosFromDb();
-        setCompromissos(compList);
-
-        const dbPerfList = await getPerformedServicesFromDb();
-        if (dbPerfList && dbPerfList.length > 0) {
-          setPerformedServices(dbPerfList);
-        }
-
-        const dbSchedList = await getScheduledServicesFromDb();
-        if (dbSchedList && dbSchedList.length > 0) {
-          setScheduledServices(dbSchedList);
-        }
-
-        const dbGrocList = await getGroceryItemsFromDb();
-        if (dbGrocList && dbGrocList.length > 0) {
-          setGroceryItems(dbGrocList);
-        }
-      }
-
-      const avatar = await getAvatarUrlFromDb();
-      setAvatarUrl(avatar);
-
-      const customCats = await getCustomCategoriesFromDb();
-      if (customCats && customCats.length > 0) {
-        setCustomCategories(customCats);
-      }
-
-      const secConfig = await getSecurityConfigFromDb();
-      if (secConfig) {
-        setSecurityConfig(secConfig);
-        setIsAppLocked(!!secConfig.enabled);
       }
       
       if (showToast) {
@@ -1120,6 +1129,7 @@ export default function App() {
       console.error("Erro ao carregar dados:", e);
     } finally {
       setIsDbLoaded(true);
+      isDbLoadedRef.current = true;
     }
   };
 
@@ -2453,9 +2463,13 @@ export default function App() {
     const activeToken = tokenToUse || getEffectiveGoogleToken();
     if (!activeToken) return;
 
-    if (!isDbLoaded) {
-      console.log("Sincronização adiada: banco de dados local ainda não inicializado.");
-      return;
+    if (!isDbLoadedRef.current) {
+      console.log("Aguardando inicialização do banco de dados local...");
+      let waitCount = 0;
+      while (!isDbLoadedRef.current && waitCount < 50) {
+        await new Promise(r => setTimeout(r, 100));
+        waitCount++;
+      }
     }
 
     // Offline-first check: if device is offline, store sync queue locally
