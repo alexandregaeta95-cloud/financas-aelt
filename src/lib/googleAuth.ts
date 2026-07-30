@@ -714,45 +714,106 @@ export const syncDataToSpreadsheet = async (
     }
 
     const formattedTxs = txsToSync.map(t => {
-      const isAbast = String(t.categoria || t.Categoria || '').toUpperCase() === 'ABASTECIMENTO';
-      const cartaoVal = t.Cartão_Id !== undefined && t.Cartão_Id !== null && String(t.Cartão_Id) !== ''
-        ? String(t.Cartão_Id)
-        : (t.cartaoid !== undefined && t.cartaoid !== null && String(t.cartaoid) !== ''
-            ? String(t.cartaoid)
-            : (t.cartaoId !== undefined && t.cartaoId !== null && String(t.cartaoId) !== ''
-                ? String(t.cartaoId)
-                : (t.bancoId || t.Banco_Id ? String(t.bancoId || t.Banco_Id) : '')));
+      const isAbast = String(t.categoria || t.Categoria || '').toUpperCase() === 'ABASTECIMENTO' || t.km !== undefined || t.KM !== undefined || t.litros !== undefined || t.Litros !== undefined;
+      const cartaoVal = t.cartaoId !== undefined && t.cartaoId !== null && String(t.cartaoId) !== ''
+        ? String(t.cartaoId)
+        : (t.Cartão_Id !== undefined && t.Cartão_Id !== null && String(t.Cartão_Id) !== ''
+            ? String(t.Cartão_Id)
+            : (t.cartaoid !== undefined && t.cartaoid !== null && String(t.cartaoid) !== ''
+                ? String(t.cartaoid)
+                : ''));
 
       const valorPgVal = t.valorPg !== undefined ? t.valorPg : (t.Valor_PG !== undefined ? t.Valor_PG : (t.status === 'PAGO' ? t.valor : 0));
-      const compTanque = t.completouTanque !== undefined ? (t.completouTanque ? 'Sim' : 'Não') : (t.Completou_O_Tanque !== undefined ? String(t.Completou_O_Tanque) : '');
+      
+      let compTanqueStr = '';
+      if (t.completouOTanque !== undefined) {
+        compTanqueStr = (t.completouOTanque === true || t.completouOTanque === 'Sim' || t.completouOTanque === 'SIM') ? 'Sim' : 'Não';
+      } else if (t.completouTanque !== undefined) {
+        compTanqueStr = (t.completouTanque === true || t.completouTanque === 'Sim' || t.completouTanque === 'SIM') ? 'Sim' : 'Não';
+      } else if (t.Completou_O_Tanque !== undefined) {
+        compTanqueStr = (t.Completou_O_Tanque === true || t.Completou_O_Tanque === 'Sim' || t.Completou_O_Tanque === 'SIM') ? 'Sim' : 'Não';
+      } else if (isAbast) {
+        compTanqueStr = 'Sim';
+      }
+
       const mediaVal = t.mediaKmL !== undefined ? t.mediaKmL : (t['Média_(Km/L)'] !== undefined ? t['Média_(Km/L)'] : '');
       const kmPercVal = t.kmPercorrido !== undefined ? t.kmPercorrido : (t.KM_Percorrido !== undefined ? t.KM_Percorrido : '');
 
       return {
-        ...t,
-        Id: t.id || t.Id,
+        // 1. Id
+        id: t.id || t.Id || '',
+        Id: t.id || t.Id || '',
+        // 2. Data
+        data: t.data || t.Data || '',
         Data: t.data || t.Data || '',
+        // 3. Descrição
+        descricao: t.descricao || t.Descrição || '',
         Descrição: t.descricao || t.Descrição || '',
-        Valor: t.valor !== undefined ? t.valor : t.Valor,
+        // 4. Valor
+        valor: t.valor !== undefined ? t.valor : (t.Valor !== undefined ? t.Valor : 0),
+        Valor: t.valor !== undefined ? t.valor : (t.Valor !== undefined ? t.Valor : 0),
+        // 5. Valor_PG
+        valorPg: valorPgVal,
         Valor_PG: valorPgVal,
+        // 6. Banco_Id
+        bancoId: t.bancoId || t.Banco_Id || '',
         Banco_Id: t.bancoId || t.Banco_Id || '',
+        // 7. Cartão_Id
+        cartaoId: cartaoVal,
+        cartaoid: cartaoVal,
         Cartão_Id: cartaoVal,
+        // 8. Forma_Pagamento
+        formaPagamento: t.formaPagamento || t.Forma_Pagamento || '',
         Forma_Pagamento: t.formaPagamento || t.Forma_Pagamento || '',
+        // 9. Tipo
+        tipo: t.tipo || t.Tipo || 'DESPESA',
         Tipo: t.tipo || t.Tipo || 'DESPESA',
+        // 10. Categoria
+        categoria: t.categoria || t.Categoria || '',
         Categoria: t.categoria || t.Categoria || '',
+        // 11. Status
+        status: t.status || t.Status || 'PAGO',
         Status: t.status || t.Status || 'PAGO',
-        KM: isAbast ? (t.km !== undefined ? t.km : (t.KM !== undefined ? t.KM : '')) : '',
-        Litros: isAbast ? (t.litros !== undefined ? t.litros : (t.Litros !== undefined ? t.Litros : '')) : '',
-        Preço_Litro: isAbast ? (t.precoLitro !== undefined ? t.precoLitro : (t.Preço_Litro !== undefined ? t.Preço_Litro : '')) : '',
-        Completou_O_Tanque: compTanque,
+        // 12. KM
+        km: isAbast ? (t.km !== undefined && t.km !== null ? t.km : (t.KM !== undefined && t.KM !== null ? t.KM : '')) : '',
+        KM: isAbast ? (t.km !== undefined && t.km !== null ? t.km : (t.KM !== undefined && t.KM !== null ? t.KM : '')) : '',
+        // 13. Litros
+        litros: isAbast ? (t.litros !== undefined && t.litros !== null ? t.litros : (t.Litros !== undefined && t.Litros !== null ? t.Litros : '')) : '',
+        Litros: isAbast ? (t.litros !== undefined && t.litros !== null ? t.litros : (t.Litros !== undefined && t.Litros !== null ? t.Litros : '')) : '',
+        // 14. Preço_Litro
+        precoLitro: isAbast ? (t.precoLitro !== undefined && t.precoLitro !== null ? t.precoLitro : (t.Preço_Litro !== undefined && t.Preço_Litro !== null ? t.Preço_Litro : '')) : '',
+        Preço_Litro: isAbast ? (t.precoLitro !== undefined && t.precoLitro !== null ? t.precoLitro : (t.Preço_Litro !== undefined && t.Preço_Litro !== null ? t.Preço_Litro : '')) : '',
+        // 15. Completou_O_Tanque
+        completouOTanque: compTanqueStr,
+        completouTanque: compTanqueStr === 'Sim',
+        Completou_O_Tanque: compTanqueStr,
+        // 16. KM_Percorrido
+        kmPercorrido: isAbast ? kmPercVal : '',
         KM_Percorrido: isAbast ? kmPercVal : '',
+        // 17. Média_(Km/L)
+        mediaKmL: isAbast ? mediaVal : '',
         'Média_(Km/L)': isAbast ? mediaVal : '',
-        Veiculo: isAbast ? (t.veiculo || t.Veiculo || 'CARRO') : '',
-        Descrição_Do_Veículo: t.descricaoVeiculo || t.Descrição_Do_Veículo || '',
+        // 18. Veiculo
+        veiculo: isAbast ? (t.veiculo || t.Veiculo || 'CARRO') : (t.veiculo || t.Veiculo || ''),
+        Veiculo: isAbast ? (t.veiculo || t.Veiculo || 'CARRO') : (t.veiculo || t.Veiculo || ''),
+        // 19. Descrição_Do_Veículo
+        descricaoDoVeiculo: t.descricaoDoVeiculo || t.descricaoVeiculo || t.Descrição_Do_Veículo || '',
+        descricaoVeiculo: t.descricaoDoVeiculo || t.descricaoVeiculo || t.Descrição_Do_Veículo || '',
+        Descrição_Do_Veículo: t.descricaoDoVeiculo || t.descricaoVeiculo || t.Descrição_Do_Veículo || '',
+        // 20. Motorista
+        motorista: t.motorista || t.Motorista || '',
         Motorista: t.motorista || t.Motorista || '',
+        // 21. Nome_Posto
+        nomePosto: t.nomePosto || t.Nome_Posto || '',
         Nome_Posto: t.nomePosto || t.Nome_Posto || '',
+        // 22. Localização_Do_Posto
+        localizacaoPosto: t.localizacaoPosto || t.Localização_Do_Posto || '',
         Localização_Do_Posto: t.localizacaoPosto || t.Localização_Do_Posto || '',
+        // 23. Comprovante_Url
+        comprovanteUrl: t.comprovanteUrl || t.Comprovante_Url || '',
         Comprovante_Url: t.comprovanteUrl || t.Comprovante_Url || '',
+        // 24. OBS
+        obs: t.obs || t.OBS || '',
         OBS: t.obs || t.OBS || ''
       };
     });
@@ -1007,13 +1068,13 @@ export const syncDataToSpreadsheet = async (
     const numPrecoLitro = typeof t.precoLitro === 'number' ? t.precoLitro : (typeof t.Preço_Litro === 'number' ? t.Preço_Litro : parseFloat(String(t.precoLitro || t.Preço_Litro || 0).replace(',', '.')));
     const numMedia = typeof media === 'number' ? media : parseFloat(String(media || 0).replace(',', '.'));
 
-    const cartaoVal = t.Cartão_Id !== undefined && t.Cartão_Id !== null && String(t.Cartão_Id) !== ''
-      ? String(t.Cartão_Id)
-      : (t.cartaoid !== undefined && t.cartaoid !== null && String(t.cartaoid) !== ''
-          ? String(t.cartaoid)
-          : (t.cartaoId !== undefined && t.cartaoId !== null && String(t.cartaoId) !== ''
-              ? String(t.cartaoId)
-              : (t.bancoId || t.Banco_Id ? String(t.bancoId || t.Banco_Id) : '')));
+    const cartaoVal = t.cartaoId !== undefined && t.cartaoId !== null && String(t.cartaoId) !== ''
+      ? String(t.cartaoId)
+      : (t.Cartão_Id !== undefined && t.Cartão_Id !== null && String(t.Cartão_Id) !== ''
+          ? String(t.Cartão_Id)
+          : (t.cartaoid !== undefined && t.cartaoid !== null && String(t.cartaoid) !== ''
+              ? String(t.cartaoid)
+              : ''));
 
     const compTanqueBool = t.completouTanque !== undefined ? t.completouTanque : (t.Completou_O_Tanque !== undefined ? (t.Completou_O_Tanque === 'Sim' || t.Completou_O_Tanque === true) : true);
 
@@ -1454,13 +1515,13 @@ export const syncTransactionsToSpreadsheet = async (
     const numPrecoLitro = typeof t.precoLitro === 'number' ? t.precoLitro : (typeof t.Preço_Litro === 'number' ? t.Preço_Litro : parseFloat(String(t.precoLitro || t.Preço_Litro || 0).replace(',', '.')));
     const numMedia = typeof media === 'number' ? media : parseFloat(String(media || 0).replace(',', '.'));
 
-    const cartaoVal = t.Cartão_Id !== undefined && t.Cartão_Id !== null && String(t.Cartão_Id) !== ''
-      ? String(t.Cartão_Id)
-      : (t.cartaoid !== undefined && t.cartaoid !== null && String(t.cartaoid) !== ''
-          ? String(t.cartaoid)
-          : (t.cartaoId !== undefined && t.cartaoId !== null && String(t.cartaoId) !== ''
-              ? String(t.cartaoId)
-              : (t.bancoId || t.Banco_Id ? String(t.bancoId || t.Banco_Id) : '')));
+    const cartaoVal = t.cartaoId !== undefined && t.cartaoId !== null && String(t.cartaoId) !== ''
+      ? String(t.cartaoId)
+      : (t.Cartão_Id !== undefined && t.Cartão_Id !== null && String(t.Cartão_Id) !== ''
+          ? String(t.Cartão_Id)
+          : (t.cartaoid !== undefined && t.cartaoid !== null && String(t.cartaoid) !== ''
+              ? String(t.cartaoid)
+              : ''));
 
     const compTanqueBool = t.completouTanque !== undefined ? t.completouTanque : (t.Completou_O_Tanque !== undefined ? (t.Completou_O_Tanque === 'Sim' || t.Completou_O_Tanque === true) : true);
 
