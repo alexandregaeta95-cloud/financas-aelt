@@ -12,7 +12,7 @@ import {
   CartesianGrid,
   ReferenceLine
 } from 'recharts';
-import { Transaction, Infraction, RegisteredVehicle, BankAccount } from '../../../types';
+import { Transaction, Infraction, RegisteredVehicle, BankAccount, CreditCard } from '../../../types';
 import { DateComboInput } from '../../../components/DateComboInput';
 import { TransactionAuditLog } from './TransactionAuditLog';
 
@@ -81,6 +81,7 @@ interface TransactionsTabProps {
   setRegisteredVehicles?: React.Dispatch<React.SetStateAction<RegisteredVehicle[]>>;
 
   bankAccounts?: BankAccount[];
+  creditCards?: CreditCard[];
   onUpdateBankAccounts?: (accounts: BankAccount[]) => void;
   customCategories?: string[];
   onTriggerBankIntegration?: (bancoId: number, valor: number, descricao: string) => void;
@@ -122,6 +123,7 @@ export default function TransactionsTab({
   setRegisteredVehicles,
 
   bankAccounts = [],
+  creditCards = [],
   onUpdateBankAccounts,
   customCategories = [],
   onTriggerBankIntegration,
@@ -395,43 +397,66 @@ export default function TransactionsTab({
     });
 
     const headers = [
-      "id", "data", "descricao", "valor", "tipo", "categoria", "status", "bancoid", "formaPagamento", "obs", "comprovanteUrl", "km", "litros", "precoLitro", "veiculo",
-      "Valor_PG", "Completou_o_Tanque", "KM_Percorrido", "Media_(Km/L)", "Nome_Posto", "Localizacao_do_Posto", "Motorista"
+      "Id", "Data", "Descrição", "Valor", "Valor_PG", "Banco_Id", "Cartão_Id", "Forma_Pagamento",
+      "Tipo", "Categoria", "Status", "KM", "Litros", "Preço_Litro", "Completou_O_Tanque",
+      "KM_Percorrido", "Média_(Km/L)", "Veiculo", "Descrição_Do_Veículo", "Motorista",
+      "Nome_Posto", "Localização_Do_Posto", "Comprovante_Url", "OBS"
     ];
 
     const rows = transactions.map(t => {
-      const isAbastecimento = t.categoria === 'ABASTECIMENTO';
-      const media = mediaMapByTxId[t.id];
-      const kmPerc = kmPercorridoByTxId[t.id];
-      const valorNum = typeof t.valor === 'number' && !isNaN(t.valor) ? t.valor : 0;
-      const valorPgVal = typeof t.valorPg === 'number' && !isNaN(t.valorPg) ? t.valorPg : (t.status === 'PAGO' ? valorNum : 0);
-      const descStr = String(t.descricao || 'LANÇAMENTO');
-      const catStr = String(t.categoria || 'OUTROS');
-      const statusStr = String(t.status || 'PAGO');
+      const isAbastecimento = t.categoria === 'ABASTECIMENTO' || t.Categoria === 'ABASTECIMENTO';
+      const media = t.mediaKmL !== undefined ? t.mediaKmL : (t['Média_(Km/L)'] !== undefined ? t['Média_(Km/L)'] : mediaMapByTxId[t.id]);
+      const kmPerc = t.kmPercorrido !== undefined ? t.kmPercorrido : (t.KM_Percorrido !== undefined ? t.KM_Percorrido : kmPercorridoByTxId[t.id]);
+      const valorNum = typeof t.valor === 'number' && !isNaN(t.valor) ? t.valor : (typeof t.Valor === 'number' && !isNaN(t.Valor) ? t.Valor : 0);
+      const valorPgVal = typeof t.valorPg === 'number' && !isNaN(t.valorPg) ? t.valorPg : (typeof t.Valor_PG === 'number' && !isNaN(t.Valor_PG) ? t.Valor_PG : (t.status === 'PAGO' ? valorNum : 0));
+      const descStr = String(t.descricao || t.Descrição || 'LANÇAMENTO');
+      const catStr = String(t.categoria || t.Categoria || 'OUTROS');
+      const statusStr = String(t.status || t.Status || 'PAGO');
+
+      const cartaoVal = t.Cartão_Id !== undefined && t.Cartão_Id !== null && String(t.Cartão_Id) !== ''
+        ? String(t.Cartão_Id)
+        : (t.cartaoid !== undefined && t.cartaoid !== null && String(t.cartaoid) !== ''
+            ? String(t.cartaoid)
+            : (t.cartaoId !== undefined && t.cartaoId !== null && String(t.cartaoId) !== ''
+                ? String(t.cartaoId)
+                : (t.bancoId || t.Banco_Id ? String(t.bancoId || t.Banco_Id) : '')));
+
+      const kmVal = t.km !== undefined ? t.km : t.KM;
+      const litrosVal = t.litros !== undefined ? t.litros : t.Litros;
+      const precoLitroVal = t.precoLitro !== undefined ? t.precoLitro : t.Preço_Litro;
+      const compTanqueBool = t.completouTanque !== undefined ? t.completouTanque : (t.Completou_O_Tanque !== undefined ? (t.Completou_O_Tanque === 'Sim' || t.Completou_O_Tanque === true) : true);
+      const veiculoVal = t.veiculo || t.Veiculo || 'CARRO';
+      const descVeiculoVal = t.descricaoVeiculo || t.Descrição_Do_Veículo || '';
+      const motoristaVal = t.motorista || t.Motorista || '';
+      const nomePostoVal = t.nomePosto || t.Nome_Posto || '';
+      const localPostoVal = t.localizacaoPosto || t.Localização_Do_Posto || '';
+      const obsVal = t.obs || t.OBS || '';
 
       return [
-        t.id,
-        t.data || '',
+        t.id || t.Id,
+        t.data || t.Data || '',
         `"${descStr.replace(/"/g, '""')}"`,
         valorNum.toFixed(2).replace('.', ','),
-        isAbastecimento ? (t.tipo || 'DESPESA') : (t.tipo === 'RECEITA' ? 'Receita' : 'Despesa'),
+        valorPgVal.toFixed(2).replace('.', ','),
+        t.bancoId || t.Banco_Id || '',
+        cartaoVal,
+        t.formaPagamento || t.Forma_Pagamento || '',
+        isAbastecimento ? (t.tipo || t.Tipo || 'DESPESA') : (t.tipo === 'RECEITA' || t.Tipo === 'RECEITA' ? 'Receita' : 'Despesa'),
         catStr,
         statusStr,
-        t.bancoId || '',
-        t.formaPagamento || '',
-        t.obs ? `"${String(t.obs).replace(/"/g, '""')}"` : '',
-        t.comprovanteUrl || '',
-        isAbastecimento && typeof t.km === 'number' && !isNaN(t.km) ? String(t.km) : '',
-        isAbastecimento && typeof t.litros === 'number' && !isNaN(t.litros) ? t.litros.toFixed(2).replace('.', ',') : '',
-        isAbastecimento && typeof t.precoLitro === 'number' && !isNaN(t.precoLitro) ? t.precoLitro.toFixed(2).replace('.', ',') : '',
-        isAbastecimento ? `"${String(t.veiculo || 'CARRO').replace(/"/g, '""')}"` : (t.descricaoVeiculo ? `"${String(t.descricaoVeiculo).replace(/"/g, '""')}"` : ''),
-        valorPgVal.toFixed(2).replace('.', ','),
-        isAbastecimento ? (t.completouTanque ? 'Sim' : 'Não') : '',
+        isAbastecimento && typeof kmVal === 'number' && !isNaN(kmVal) ? String(kmVal) : '',
+        isAbastecimento && typeof litrosVal === 'number' && !isNaN(litrosVal) ? litrosVal.toFixed(2).replace('.', ',') : '',
+        isAbastecimento && typeof precoLitroVal === 'number' && !isNaN(precoLitroVal) ? precoLitroVal.toFixed(2).replace('.', ',') : '',
+        isAbastecimento ? (compTanqueBool ? 'Sim' : 'Não') : '',
         isAbastecimento && kmPerc !== undefined ? String(kmPerc) : '',
-        isAbastecimento && media !== undefined ? media.toFixed(2).replace('.', ',') : '',
-        isAbastecimento && t.nomePosto ? `"${String(t.nomePosto).replace(/"/g, '""')}"` : '',
-        isAbastecimento && t.localizacaoPosto ? `"${String(t.localizacaoPosto).replace(/"/g, '""')}"` : '',
-        isAbastecimento && t.motorista ? `"${String(t.motorista).replace(/"/g, '""')}"` : ''
+        isAbastecimento && media !== undefined && typeof media === 'number' ? media.toFixed(2).replace('.', ',') : '',
+        isAbastecimento ? `"${String(veiculoVal).replace(/"/g, '""')}"` : '',
+        descVeiculoVal ? `"${String(descVeiculoVal).replace(/"/g, '""')}"` : '',
+        motoristaVal ? `"${String(motoristaVal).replace(/"/g, '""')}"` : '',
+        isAbastecimento && nomePostoVal ? `"${String(nomePostoVal).replace(/"/g, '""')}"` : '',
+        isAbastecimento && localPostoVal ? `"${String(localPostoVal).replace(/"/g, '""')}"` : '',
+        t.comprovanteUrl || t.Comprovante_Url || '',
+        obsVal ? `"${String(obsVal).replace(/"/g, '""')}"` : ''
       ];
     });
     
@@ -682,6 +707,7 @@ export default function TransactionsTab({
     const saved = localStorage.getItem('draft_formBankId');
     return saved ? Number(saved) : 0;
   });
+  const [formCartaoId, setFormCartaoId] = useState<string>(() => localStorage.getItem('draft_formCartaoId') || '');
 
   // Installments states
   const [installments, setInstallments] = useState<string>('1');
@@ -702,6 +728,8 @@ export default function TransactionsTab({
   const [nomePosto, setNomePosto] = useState<string>(() => localStorage.getItem('draft_nomePosto') || '');
   const [localizacaoPosto, setLocalizacaoPosto] = useState<string>(() => localStorage.getItem('draft_localizacaoPosto') || '');
   const [motorista, setMotorista] = useState<string>(() => localStorage.getItem('draft_motorista') || '');
+  const [manualKmPercorrido, setManualKmPercorrido] = useState<string>(() => localStorage.getItem('draft_manualKmPercorrido') || '');
+  const [manualMediaKmL, setManualMediaKmL] = useState<string>(() => localStorage.getItem('draft_manualMediaKmL') || '');
   const [obs, setObs] = useState<string>(() => localStorage.getItem('draft_obs') || '');
 
   // Calculadora de Consumo Médio (KM/L) States
@@ -940,6 +968,7 @@ export default function TransactionsTab({
       setMotorista(localStorage.getItem('draft_motorista') || '');
       setObs(localStorage.getItem('draft_obs') || '');
       setFormBankId(Number(localStorage.getItem('draft_formBankId') || '0'));
+      setFormCartaoId(localStorage.getItem('draft_formCartaoId') || '');
     }
   }, [showAddForm, editingTx]);
 
@@ -1031,8 +1060,11 @@ export default function TransactionsTab({
       localStorage.setItem('draft_nomePosto', nomePosto);
       localStorage.setItem('draft_localizacaoPosto', localizacaoPosto);
       localStorage.setItem('draft_motorista', motorista);
+      localStorage.setItem('draft_manualKmPercorrido', manualKmPercorrido);
+      localStorage.setItem('draft_manualMediaKmL', manualMediaKmL);
       localStorage.setItem('draft_obs', obs);
       localStorage.setItem('draft_formBankId', String(formBankId));
+      localStorage.setItem('draft_formCartaoId', formCartaoId);
     }
   }, [
     showAddForm,
@@ -1056,8 +1088,11 @@ export default function TransactionsTab({
     nomePosto,
     localizacaoPosto,
     motorista,
+    manualKmPercorrido,
+    manualMediaKmL,
     obs,
-    formBankId
+    formBankId,
+    formCartaoId
   ]);
 
   const clearDraftFromStorage = () => {
@@ -1067,7 +1102,8 @@ export default function TransactionsTab({
       'draft_fuelType', 'draft_km', 'draft_litros', 'draft_precoLitro',
       'draft_veiculo', 'draft_descricaoVeiculo', 'draft_valorPgStr',
       'draft_completouTanque', 'draft_nomePosto', 'draft_localizacaoPosto',
-      'draft_motorista', 'draft_obs', 'draft_formBankId'
+      'draft_motorista', 'draft_manualKmPercorrido', 'draft_manualMediaKmL',
+      'draft_obs', 'draft_formBankId', 'draft_formCartaoId'
     ];
     keys.forEach(k => localStorage.removeItem(k));
   };
@@ -1092,8 +1128,11 @@ export default function TransactionsTab({
     setNomePosto(localStorage.getItem('draft_nomePosto') || '');
     setLocalizacaoPosto(localStorage.getItem('draft_localizacaoPosto') || '');
     setMotorista(localStorage.getItem('draft_motorista') || '');
+    setManualKmPercorrido(localStorage.getItem('draft_manualKmPercorrido') || '');
+    setManualMediaKmL(localStorage.getItem('draft_manualMediaKmL') || '');
     setObs(localStorage.getItem('draft_obs') || '');
     setFormBankId(Number(localStorage.getItem('draft_formBankId') || '0'));
+    setFormCartaoId(localStorage.getItem('draft_formCartaoId') || '');
   };
 
   const [isFetchingLocation, setIsFetchingLocation] = useState<boolean>(false);
@@ -1362,6 +1401,8 @@ export default function TransactionsTab({
       setNomePosto(tx.nomePosto || '');
       setLocalizacaoPosto(tx.localizacaoPosto || '');
       setMotorista(tx.motorista || '');
+      setManualKmPercorrido(tx.kmPercorrido !== undefined && tx.kmPercorrido !== null ? String(tx.kmPercorrido) : '');
+      setManualMediaKmL(tx.mediaKmL !== undefined && tx.mediaKmL !== null ? tx.mediaKmL.toFixed(2).replace('.', ',') : '');
     } else {
       setFuelType('ETANOL');
       setKm('');
@@ -1374,11 +1415,15 @@ export default function TransactionsTab({
       setNomePosto('');
       setLocalizacaoPosto('');
       setMotorista('');
+      setManualKmPercorrido('');
+      setManualMediaKmL('');
     }
     
     setInstallments('1');
     setComoDividir('DIVIDIR_TOTAL');
     setFormBankId(tx.bancoId || 0);
+    const initialCartaoId = tx.cartaoid !== undefined && tx.cartaoid !== null ? String(tx.cartaoid) : (tx.cartaoId !== undefined && tx.cartaoId !== null ? String(tx.cartaoId) : (tx.bancoId ? String(tx.bancoId) : ''));
+    setFormCartaoId(initialCartaoId);
     setShowAddForm(true);
   };
 
@@ -1393,6 +1438,7 @@ export default function TransactionsTab({
     setDate(new Date().toISOString().split('T')[0]);
     setStatus('PAGO');
     setFormBankId(0);
+    setFormCartaoId('');
     setInstallments('1');
     setComoDividir('DIVIDIR_TOTAL');
     setFuelType('ETANOL');
@@ -1406,6 +1452,8 @@ export default function TransactionsTab({
     setNomePosto('');
     setLocalizacaoPosto('');
     setMotorista('');
+    setManualKmPercorrido('');
+    setManualMediaKmL('');
     setObs('');
     setShowAddForm(false);
   };
@@ -1450,8 +1498,12 @@ export default function TransactionsTab({
     const parsedLitros = isAbastecimento && litros ? parseFloat(litros.replace(',', '.')) : undefined;
     const parsedPrecoLitro = isAbastecimento && precoLitro ? parseFloat(precoLitro.replace(',', '.')) : undefined;
     const parsedValorPg = isAbastecimento && valorPgStr ? parseFloat(valorPgStr.replace(/\./g, "").replace(",", ".")) : undefined;
+    const parsedManualKmPerc = isAbastecimento && manualKmPercorrido ? parseFloat(manualKmPercorrido.replace(/\./g, "").replace(',', '.')) : undefined;
+    const parsedManualMedia = isAbastecimento && manualMediaKmL ? parseFloat(manualMediaKmL.replace(/\./g, "").replace(',', '.')) : undefined;
 
     const stats = getLiveStats();
+    const finalKmPerc = (parsedManualKmPerc !== undefined && !isNaN(parsedManualKmPerc)) ? parsedManualKmPerc : (stats.kmPercorrido > 0 ? stats.kmPercorrido : undefined);
+    const finalMedia = (parsedManualMedia !== undefined && !isNaN(parsedManualMedia)) ? parsedManualMedia : (stats.mediaKmL > 0 ? stats.mediaKmL : undefined);
 
     const getInstallmentDate = (startDateStr: string, index: number) => {
       const parts = startDateStr.split('-');
@@ -1485,9 +1537,17 @@ export default function TransactionsTab({
     if (editingTx || N === 1) {
       const matchedBank = bankAccounts.find(b => b.id === formBankId);
       const bancoNome = matchedBank ? matchedBank.nome : undefined;
+      const parsedCartaoVal = formCartaoId
+        ? (isNaN(Number(formCartaoId)) ? formCartaoId : Number(formCartaoId))
+        : (formBankId > 0 ? formBankId : undefined);
+
+      const formattedDate = date.split('-').reverse().join('/');
+      const isAbastCat = isAbastecimento;
+      const compTanqueStr = isAbastCat ? (completouTanque ? 'Sim' : 'Não') : '';
+      const finalValorPg = isNaN(parsedValorPg as number) ? undefined : parsedValorPg;
 
       const payload = {
-        data: date.split('-').reverse().join('/'), // format as DD/MM/YYYY
+        data: formattedDate, // format as DD/MM/YYYY
         valor: numericAmount,
         tipo: isAbastecimento ? fuelType : finalType,
         descricao: finalDesc,
@@ -1496,16 +1556,18 @@ export default function TransactionsTab({
         obs: obs.trim() ? obs : undefined,
         bancoId: formBankId > 0 ? formBankId : undefined,
         bancoNome: bancoNome,
+        cartaoid: parsedCartaoVal,
+        cartaoId: parsedCartaoVal,
         ...(isAbastecimento ? {
           km: isNaN(parsedKm as number) ? undefined : parsedKm,
           litros: isNaN(parsedLitros as number) ? undefined : parsedLitros,
           precoLitro: isNaN(parsedPrecoLitro as number) ? undefined : parsedPrecoLitro,
           veiculo: veiculo || 'CARRO',
           descricaoVeiculo: descricaoVeiculo.trim() || undefined,
-          valorPg: isNaN(parsedValorPg as number) ? undefined : parsedValorPg,
+          valorPg: finalValorPg,
           completouTanque: completouTanque,
-          kmPercorrido: stats.kmPercorrido > 0 ? stats.kmPercorrido : undefined,
-          mediaKmL: stats.mediaKmL > 0 ? stats.mediaKmL : undefined,
+          kmPercorrido: finalKmPerc,
+          mediaKmL: finalMedia,
           nomePosto: nomePosto || undefined,
           localizacaoPosto: localizacaoPosto || undefined,
           motorista: motorista || undefined
@@ -1522,7 +1584,31 @@ export default function TransactionsTab({
           nomePosto: undefined,
           localizacaoPosto: undefined,
           motorista: undefined
-        })
+        }),
+        // Explicit 24-column spreadsheet key aliases
+        Data: formattedDate,
+        Descrição: finalDesc,
+        Valor: numericAmount,
+        Valor_PG: finalValorPg !== undefined ? finalValorPg : (status === 'PAGO' ? numericAmount : 0),
+        Banco_Id: formBankId > 0 ? formBankId : '',
+        Cartão_Id: parsedCartaoVal !== undefined ? parsedCartaoVal : '',
+        Forma_Pagamento: '',
+        Tipo: isAbastecimento ? fuelType : finalType,
+        Categoria: finalCategory,
+        Status: status,
+        KM: isAbastCat && !isNaN(parsedKm as number) ? parsedKm : '',
+        Litros: isAbastCat && !isNaN(parsedLitros as number) ? parsedLitros : '',
+        Preço_Litro: isAbastCat && !isNaN(parsedPrecoLitro as number) ? parsedPrecoLitro : '',
+        Completou_O_Tanque: compTanqueStr,
+        KM_Percorrido: isAbastCat && finalKmPerc !== undefined ? finalKmPerc : '',
+        'Média_(Km/L)': isAbastCat && finalMedia !== undefined ? finalMedia : '',
+        Veiculo: isAbastCat ? (veiculo || 'CARRO') : '',
+        Descrição_Do_Veículo: descricaoVeiculo.trim() || '',
+        Motorista: motorista || '',
+        Nome_Posto: nomePosto || '',
+        Localização_Do_Posto: localizacaoPosto || '',
+        Comprovante_Url: '',
+        OBS: obs.trim() || ''
       };
 
       if (editingTx) {
@@ -1597,6 +1683,9 @@ export default function TransactionsTab({
 
       const matchedBank = bankAccounts.find(b => b.id === formBankId);
       const bancoNome = matchedBank ? matchedBank.nome : undefined;
+      const parsedCartaoVal = formCartaoId
+        ? (isNaN(Number(formCartaoId)) ? formCartaoId : Number(formCartaoId))
+        : (formBankId > 0 ? formBankId : undefined);
 
       let totalImpactVal = 0;
 
@@ -1622,6 +1711,10 @@ export default function TransactionsTab({
         const installmentDesc = `${finalDesc} (${i + 1}/${N})`;
         const installmentStatus = (i === 0) ? status : 'PENDENTE';
 
+        const isAbastCatInst = isAbastecimento;
+        const compTanqueStrInst = isAbastCatInst ? (completouTanque ? 'Sim' : 'Não') : '';
+        const finalValorPgInst = isNaN(finalInstValorPg as number) ? undefined : finalInstValorPg;
+
         const payload = {
           data: installmentDateStr,
           valor: finalAmount,
@@ -1632,16 +1725,18 @@ export default function TransactionsTab({
           obs: obs.trim() ? obs : undefined,
           bancoId: formBankId > 0 ? formBankId : undefined,
           bancoNome: bancoNome,
+          cartaoid: parsedCartaoVal,
+          cartaoId: parsedCartaoVal,
           ...(isAbastecimento ? {
             km: isNaN(parsedKm as number) ? undefined : parsedKm,
             litros: isNaN(finalInstLitros as number) ? undefined : finalInstLitros,
             precoLitro: isNaN(parsedPrecoLitro as number) ? undefined : parsedPrecoLitro,
             veiculo: veiculo || 'CARRO',
             descricaoVeiculo: descricaoVeiculo.trim() || undefined,
-            valorPg: isNaN(finalInstValorPg as number) ? undefined : finalInstValorPg,
+            valorPg: finalValorPgInst,
             completouTanque: completouTanque,
-            kmPercorrido: stats.kmPercorrido > 0 ? stats.kmPercorrido : undefined,
-            mediaKmL: stats.mediaKmL > 0 ? stats.mediaKmL : undefined,
+            kmPercorrido: finalKmPerc,
+            mediaKmL: finalMedia,
             nomePosto: nomePosto || undefined,
             localizacaoPosto: localizacaoPosto || undefined,
             motorista: motorista || undefined
@@ -1658,7 +1753,31 @@ export default function TransactionsTab({
             nomePosto: undefined,
             localizacaoPosto: undefined,
             motorista: undefined
-          })
+          }),
+          // Explicit 24-column spreadsheet key aliases
+          Data: installmentDateStr,
+          Descrição: installmentDesc,
+          Valor: finalAmount,
+          Valor_PG: finalValorPgInst !== undefined ? finalValorPgInst : (installmentStatus === 'PAGO' ? finalAmount : 0),
+          Banco_Id: formBankId > 0 ? formBankId : '',
+          Cartão_Id: parsedCartaoVal !== undefined ? parsedCartaoVal : '',
+          Forma_Pagamento: '',
+          Tipo: isAbastecimento ? fuelType : finalType,
+          Categoria: finalCategory,
+          Status: installmentStatus,
+          KM: isAbastCatInst && !isNaN(parsedKm as number) ? parsedKm : '',
+          Litros: isAbastCatInst && !isNaN(finalInstLitros as number) ? finalInstLitros : '',
+          Preço_Litro: isAbastCatInst && !isNaN(parsedPrecoLitro as number) ? parsedPrecoLitro : '',
+          Completou_O_Tanque: compTanqueStrInst,
+          KM_Percorrido: isAbastCatInst && finalKmPerc !== undefined ? finalKmPerc : '',
+          'Média_(Km/L)': isAbastCatInst && finalMedia !== undefined ? finalMedia : '',
+          Veiculo: isAbastCatInst ? (veiculo || 'CARRO') : '',
+          Descrição_Do_Veículo: descricaoVeiculo.trim() || '',
+          Motorista: motorista || '',
+          Nome_Posto: nomePosto || '',
+          Localização_Do_Posto: localizacaoPosto || '',
+          Comprovante_Url: '',
+          OBS: obs.trim() || ''
         };
         payloads.push(payload);
 
@@ -2258,18 +2377,16 @@ export default function TransactionsTab({
 
               {/* Vehicle Description field */}
               <div className="space-y-1.5 mt-2.5">
-                <label className="block text-xs font-semibold text-slate-300">Descrição do Veículo</label>
+                <label className="block text-xs font-semibold text-slate-300">
+                  Descrição do Veículo (<span className="font-mono text-emerald-400">Descrição_do_Veículo</span>)
+                </label>
                 <div className="relative">
-                  <select
+                  <input
+                    type="text"
+                    list="registered-vehicles-list"
                     value={descricaoVeiculo}
                     onChange={(e) => {
                       const val = e.target.value;
-                      if (val === 'CUSTOM_ACTION') {
-                        if (showAlert) {
-                          showAlert("Como Cadastrar", "Para cadastrar novos veículos e motoristas, acesse a aba 'Perfil' na barra de navegação principal e clique em 'Cadastrar Veículo'.");
-                        }
-                        return;
-                      }
                       setDescricaoVeiculo(val);
                       const matched = (registeredVehicles || []).find(v => v && (v.descricao === val || v.modelo === val));
                       if (matched) {
@@ -2281,27 +2398,19 @@ export default function TransactionsTab({
                         }
                       }
                     }}
-                    className="w-full bg-slate-900/60 border border-slate-800 rounded-xl px-3 py-2 text-xs text-white focus:border-emerald-500 outline-none appearance-none cursor-pointer font-sans"
-                  >
-                    <option value="" className="bg-slate-900 text-slate-400 font-sans">-- SELECIONE UM VEÍCULO --</option>
+                    placeholder="Ex: Fiat Uno 1.0 - Placa ABC1D23"
+                    className="w-full bg-slate-900/60 border border-slate-800 rounded-xl px-3 py-2 text-xs text-white focus:border-emerald-500 outline-none"
+                  />
+                  <datalist id="registered-vehicles-list">
                     {(registeredVehicles || []).filter(Boolean).map(v => {
                       const vDesc = v.descricao || v.modelo || v.placa || '';
                       return (
-                        <option key={v.id || vDesc} value={vDesc} className="bg-slate-900 text-white font-sans">
+                        <option key={v.id || vDesc} value={vDesc}>
                           {vDesc} {v.placa ? `(${v.placa})` : ''}
                         </option>
                       );
                     })}
-                    {descricaoVeiculo && !(registeredVehicles || []).some(v => v && (v.descricao === descricaoVeiculo || v.modelo === descricaoVeiculo)) && (
-                      <option value={descricaoVeiculo} className="bg-slate-900 text-white font-sans">
-                        {descricaoVeiculo}
-                      </option>
-                    )}
-                    <option value="CUSTOM_ACTION" className="bg-slate-900 text-emerald-400 font-sans font-bold">+ NOVO VEÍCULO (Cadastrar na aba Perfil)</option>
-                  </select>
-                  <div className="absolute inset-y-0 right-0 flex items-center pr-2 pointer-events-none text-slate-400">
-                    <span className="material-symbols-outlined text-sm">expand_more</span>
-                  </div>
+                  </datalist>
                 </div>
               </div>
 
@@ -2379,6 +2488,45 @@ export default function TransactionsTab({
                       NÃO
                     </button>
                   </div>
+                </div>
+              </div>
+
+              {/* KM Percorrido & Média (Km/L) */}
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1.5">
+                  <label className="block text-xs font-semibold text-slate-300 flex justify-between items-center">
+                    <span>KM Percorrido</span>
+                    {getLiveStats().kmPercorrido > 0 && !manualKmPercorrido && (
+                      <span className="text-[10px] text-emerald-400 font-mono">
+                        Auto: {getLiveStats().kmPercorrido.toLocaleString('pt-BR')} KM
+                      </span>
+                    )}
+                  </label>
+                  <input
+                    type="text"
+                    value={manualKmPercorrido}
+                    onChange={(e) => setManualKmPercorrido(e.target.value)}
+                    className="w-full bg-slate-900/60 border border-slate-800 rounded-xl px-3 py-2 text-xs text-white focus:border-emerald-500 outline-none"
+                    placeholder={getLiveStats().kmPercorrido > 0 ? `Ex: ${getLiveStats().kmPercorrido}` : "Ex: 450"}
+                  />
+                </div>
+
+                <div className="space-y-1.5">
+                  <label className="block text-xs font-semibold text-slate-300 flex justify-between items-center">
+                    <span>Média (Km/L)</span>
+                    {getLiveStats().mediaKmL > 0 && !manualMediaKmL && (
+                      <span className="text-[10px] text-emerald-400 font-mono">
+                        Auto: {getLiveStats().mediaKmL.toFixed(2).replace('.', ',')}
+                      </span>
+                    )}
+                  </label>
+                  <input
+                    type="text"
+                    value={manualMediaKmL}
+                    onChange={(e) => setManualMediaKmL(e.target.value)}
+                    className="w-full bg-slate-900/60 border border-slate-800 rounded-xl px-3 py-2 text-xs text-white focus:border-emerald-500 outline-none"
+                    placeholder={getLiveStats().mediaKmL > 0 ? `Ex: ${getLiveStats().mediaKmL.toFixed(2).replace('.', ',')}` : "Ex: 12,50"}
+                  />
                 </div>
               </div>
 
@@ -2555,36 +2703,87 @@ export default function TransactionsTab({
             </div>
           )}
 
-          {/* Banco / Conta para Lançamento */}
-          <div className="space-y-1.5">
-            <label className="block text-xs font-semibold text-slate-300">Banco / Conta para Lançamento</label>
-            <div className="relative">
-              <select
-                value={formBankId}
-                onChange={(e) => setFormBankId(Number(e.target.value))}
-                className="w-full bg-slate-900/60 border border-slate-800 rounded-xl px-4 h-[46px] text-xs text-white focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 outline-none appearance-none cursor-pointer"
-              >
-                <option value={0} className="bg-slate-900 text-slate-400">-- SELECIONE UM BANCO (OPCIONAL) --</option>
-                {bankAccounts.map((acc) => {
-                  const isNegative = acc.saldoInicial < 0;
-                  const saldoText = isNegative
-                    ? `Devedor: R$ ${Math.abs(acc.saldoInicial).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
-                    : `Saldo: R$ ${acc.saldoInicial.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-                  const limitText = acc.limite !== undefined && acc.limite > 0
-                    ? ` | Lim. Restante: R$ ${Math.max(0, acc.limite + acc.saldoInicial).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
-                    : '';
-                  return (
-                    <option key={acc.id} value={acc.id} className="bg-slate-900 text-white font-sans">
-                      {acc.nome} ({saldoText}{limitText})
-                    </option>
-                  );
-                })}
-              </select>
-              <div className="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none text-slate-400">
-                <span className="material-symbols-outlined text-lg">expand_more</span>
+          {/* Banco / Conta e Cartão de Combustível */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div className="space-y-1.5">
+              <label className="block text-xs font-semibold text-slate-300">Banco / Conta para Lançamento</label>
+              <div className="relative">
+                <select
+                  value={formBankId}
+                  onChange={(e) => {
+                    const bId = Number(e.target.value);
+                    setFormBankId(bId);
+                    if (bId > 0 && !formCartaoId) {
+                      setFormCartaoId(String(bId));
+                    }
+                  }}
+                  className="w-full bg-slate-900/60 border border-slate-800 rounded-xl px-4 h-[46px] text-xs text-white focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 outline-none appearance-none cursor-pointer"
+                >
+                  <option value={0} className="bg-slate-900 text-slate-400">-- SELECIONE UM BANCO (OPCIONAL) --</option>
+                  {bankAccounts.map((acc) => {
+                    const isNegative = acc.saldoInicial < 0;
+                    const saldoText = isNegative
+                      ? `Devedor: R$ ${Math.abs(acc.saldoInicial).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+                      : `Saldo: R$ ${acc.saldoInicial.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+                    const limitText = acc.limite !== undefined && acc.limite > 0
+                      ? ` | Lim. Restante: R$ ${Math.max(0, acc.limite + acc.saldoInicial).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+                      : '';
+                    return (
+                      <option key={acc.id} value={acc.id} className="bg-slate-900 text-white font-sans">
+                        {acc.nome} ({saldoText}{limitText})
+                      </option>
+                    );
+                  })}
+                </select>
+                <div className="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none text-slate-400">
+                  <span className="material-symbols-outlined text-lg">expand_more</span>
+                </div>
               </div>
             </div>
-            {formBankId > 0 && status !== 'PAGO' && (
+
+            {/* ID do Cartão / Conta (cartaoid) */}
+            <div className="space-y-1.5">
+              <label className="block text-xs font-semibold text-slate-300">
+                ID do Cartão / Conta (<span className="font-mono text-emerald-400">cartaoid</span>)
+              </label>
+              <div className="relative">
+                <select
+                  value={formCartaoId}
+                  onChange={(e) => setFormCartaoId(e.target.value)}
+                  className="w-full bg-slate-900/60 border border-slate-800 rounded-xl px-4 h-[46px] text-xs text-white focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 outline-none appearance-none cursor-pointer"
+                >
+                  <option value="" className="bg-slate-900 text-slate-400">-- NENHUM / ID PADRÃO --</option>
+                  {formBankId > 0 && (
+                    <option value={String(formBankId)} className="bg-slate-900 text-emerald-400 font-bold">
+                      🏦 Usar ID da Conta: {formBankId}
+                    </option>
+                  )}
+                  {creditCards && creditCards.length > 0 && (
+                    <optgroup label="Cartões de Crédito / Combustível">
+                      {creditCards.map((card) => (
+                        <option key={`card-${card.id}`} value={String(card.id)} className="bg-slate-900 text-white font-sans">
+                          💳 {card.nome} (ID: {card.id})
+                        </option>
+                      ))}
+                    </optgroup>
+                  )}
+                  {bankAccounts && bankAccounts.length > 0 && (
+                    <optgroup label="Bancos e Contas">
+                      {bankAccounts.map((acc) => (
+                        <option key={`bank-${acc.id}`} value={String(acc.id)} className="bg-slate-900 text-white font-sans">
+                          🏦 {acc.nome} (ID: {acc.id})
+                        </option>
+                      ))}
+                    </optgroup>
+                  )}
+                </select>
+                <div className="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none text-slate-400">
+                  <span className="material-symbols-outlined text-lg">expand_more</span>
+                </div>
+              </div>
+            </div>
+          </div>
+          {formBankId > 0 && status !== 'PAGO' && (
               <p className="text-[10px] text-amber-400/80 font-mono italic">
                 ℹ️ Como o status está como "{status === 'PENDENTE' ? 'Pendente' : 'Atrasado'}", o saldo da conta não será alterado até que a transação seja paga.
               </p>
@@ -2594,7 +2793,6 @@ export default function TransactionsTab({
                 ✅ O saldo da conta será atualizado automaticamente ao confirmar a transação.
               </p>
             )}
-          </div>
 
           {/* Date Picker & Status Config */}
           <div className="grid grid-cols-2 gap-4">

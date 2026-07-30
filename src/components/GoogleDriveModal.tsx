@@ -26,7 +26,10 @@ const APPS_SCRIPT_CODE = `function doPost(e) {
 
     if (action === 'syncData') {
       var txHeaders = [
-        'id', 'data', 'descricao', 'valor', 'tipo', 'categoria', 'status', 'bancoid', 'formaPagamento', 'obs', 'comprovanteUrl', 'km', 'litros', 'precoLitro', 'veiculo', 'Valor_PG', 'Completou_o_Tanque', 'KM_Percorrido', 'Media_(Km/L)', 'Nome_Posto', 'Localizacao_do_Posto', 'Motorista'
+        'Id', 'Data', 'Descrição', 'Valor', 'Valor_PG', 'Banco_Id', 'Cartão_Id', 'Forma_Pagamento',
+        'Tipo', 'Categoria', 'Status', 'KM', 'Litros', 'Preço_Litro', 'Completou_O_Tanque',
+        'KM_Percorrido', 'Média_(Km/L)', 'Veiculo', 'Descrição_Do_Veículo', 'Motorista',
+        'Nome_Posto', 'Localização_Do_Posto', 'Comprovante_Url', 'OBS'
       ];
 
       if (data.transactions && Array.isArray(data.transactions)) {
@@ -182,14 +185,33 @@ function writeArrayToSheet(ss, sheetName, items, headers) {
     return headers.map(function(h) {
       var val = item[h];
       if (val === undefined || val === null || val === '') {
+        if (h === 'Id' && (item['id'] !== undefined || item['ID'] !== undefined)) val = item['id'] !== undefined ? item['id'] : item['ID'];
+        if (h === 'Data' && item['data'] !== undefined) val = item['data'];
+        if (h === 'Descrição' && item['descricao'] !== undefined) val = item['descricao'];
+        if (h === 'Valor' && item['valor'] !== undefined) val = item['valor'];
         if ((h === 'Valor_PG' || h === 'Valor_R$') && (item['valorPg'] !== undefined || item['Valor_PG'] !== undefined)) val = item['valorPg'] !== undefined ? item['valorPg'] : item['Valor_PG'];
-        if ((h === 'bancoid' || h === 'bancoId') && (item['bancoId'] !== undefined || item['bancoid'] !== undefined)) val = item['bancoId'] !== undefined ? item['bancoId'] : item['bancoid'];
-        if (h === 'Completou_o_Tanque' && item['completouTanque'] !== undefined) val = item['completouTanque'] ? 'Sim' : 'Não';
-        if (h === 'KM_Percorrido' && item['kmPercorrido'] !== undefined) val = item['kmPercorrido'];
-        if (h === 'Media_(Km/L)' && item['mediaKmL'] !== undefined) val = item['mediaKmL'];
-        if (h === 'Nome_Posto' && item['nomePosto'] !== undefined) val = item['nomePosto'];
-        if (h === 'Localizacao_do_Posto' && item['localizacaoPosto'] !== undefined) val = item['localizacaoPosto'];
-        if (h === 'Motorista' && item['motorista'] !== undefined) val = item['motorista'];
+        if ((h === 'Banco_Id' || h === 'bancoid' || h === 'bancoId') && (item['bancoId'] !== undefined || item['bancoid'] !== undefined)) val = item['bancoId'] !== undefined ? item['bancoId'] : item['bancoid'];
+        if ((h === 'Cartão_Id' || h === 'cartaoid' || h === 'cartaoId') && (item['cartaoid'] !== undefined || item['cartaoId'] !== undefined || item['Cartão_Id'] !== undefined || item['bancoId'] !== undefined)) val = item['cartaoid'] !== undefined ? item['cartaoid'] : (item['cartaoId'] !== undefined ? item['cartaoId'] : (item['Cartão_Id'] !== undefined ? item['Cartão_Id'] : item['bancoId']));
+        if (h === 'Forma_Pagamento' && item['formaPagamento'] !== undefined) val = item['formaPagamento'];
+        if (h === 'Tipo' && item['tipo'] !== undefined) val = item['tipo'];
+        if (h === 'Categoria' && item['categoria'] !== undefined) val = item['categoria'];
+        if (h === 'Status' && item['status'] !== undefined) val = item['status'];
+        if (h === 'KM' && item['km'] !== undefined) val = item['km'];
+        if (h === 'Litros' && item['litros'] !== undefined) val = item['litros'];
+        if (h === 'Preço_Litro' && (item['precoLitro'] !== undefined || item['Preço_Litro'] !== undefined)) val = item['precoLitro'] !== undefined ? item['precoLitro'] : item['Preço_Litro'];
+        if ((h === 'Completou_O_Tanque' || h === 'Completou_o_Tanque') && (item['completouTanque'] !== undefined || item['Completou_O_Tanque'] !== undefined)) {
+          var cVal = item['completouTanque'] !== undefined ? item['completouTanque'] : item['Completou_O_Tanque'];
+          val = (cVal === true || cVal === 'Sim' || cVal === 'SIM' || cVal === 'true') ? 'Sim' : 'Não';
+        }
+        if (h === 'KM_Percorrido' && (item['kmPercorrido'] !== undefined || item['KM_Percorrido'] !== undefined)) val = item['kmPercorrido'] !== undefined ? item['kmPercorrido'] : item['KM_Percorrido'];
+        if ((h === 'Média_(Km/L)' || h === 'Media_(Km/L)') && (item['mediaKmL'] !== undefined || item['Média_(Km/L)'] !== undefined || item['Media_(Km/L)'] !== undefined)) val = item['mediaKmL'] !== undefined ? item['mediaKmL'] : (item['Média_(Km/L)'] !== undefined ? item['Média_(Km/L)'] : item['Media_(Km/L)']);
+        if (h === 'Veiculo' && (item['veiculo'] !== undefined || item['Veiculo'] !== undefined)) val = item['veiculo'] !== undefined ? item['veiculo'] : item['Veiculo'];
+        if ((h === 'Descrição_Do_Veículo' || h === 'Descrição_do_Veículo' || h === 'descricaoVeiculo') && (item['descricaoVeiculo'] !== undefined || item['Descrição_Do_Veículo'] !== undefined || item['Descrição_do_Veículo'] !== undefined || item['Descrição do Veículo'] !== undefined)) val = item['descricaoVeiculo'] !== undefined ? item['descricaoVeiculo'] : (item['Descrição_Do_Veículo'] !== undefined ? item['Descrição_Do_Veículo'] : (item['Descrição_do_Veículo'] !== undefined ? item['Descrição_do_Veículo'] : item['Descrição do Veículo']));
+        if (h === 'Motorista' && (item['motorista'] !== undefined || item['Motorista'] !== undefined)) val = item['motorista'] !== undefined ? item['motorista'] : item['Motorista'];
+        if (h === 'Nome_Posto' && (item['nomePosto'] !== undefined || item['Nome_Posto'] !== undefined || item['Nome Posto'] !== undefined)) val = item['nomePosto'] !== undefined ? item['nomePosto'] : (item['Nome_Posto'] !== undefined ? item['Nome_Posto'] : item['Nome Posto']);
+        if ((h === 'Localização_Do_Posto' || h === 'Localizacao_do_Posto') && (item['localizacaoPosto'] !== undefined || item['Localização_Do_Posto'] !== undefined || item['Localizacao_do_Posto'] !== undefined || item['Localização do Posto'] !== undefined)) val = item['localizacaoPosto'] !== undefined ? item['localizacaoPosto'] : (item['Localização_Do_Posto'] !== undefined ? item['Localização_Do_Posto'] : (item['Localizacao_do_Posto'] !== undefined ? item['Localizacao_do_Posto'] : item['Localização do Posto']));
+        if (h === 'Comprovante_Url' && (item['comprovanteUrl'] !== undefined || item['Comprovante_Url'] !== undefined)) val = item['comprovanteUrl'] !== undefined ? item['comprovanteUrl'] : item['Comprovante_Url'];
+        if (h === 'OBS' && (item['obs'] !== undefined || item['OBS'] !== undefined)) val = item['obs'] !== undefined ? item['obs'] : item['OBS'];
         if (h === 'nome' && (item['Item'] || item['nomeItem'] || item['Nome'])) val = item['Item'] || item['nomeItem'] || item['Nome'];
         if (h === 'descricao' && (item['Descrição do Serviço'] || item['Descrição'] || item['Descricao'])) val = item['Descrição do Serviço'] || item['Descrição'] || item['Descricao'];
         if (h === 'valor' && (item['Valor Pago (R$)'] || item['Valor (R$)'] || item['Valor'])) val = item['Valor Pago (R$)'] || item['Valor (R$)'] || item['Valor'];
@@ -199,10 +221,6 @@ function writeArrayToSheet(ss, sheetName, items, headers) {
         if (h === 'observacoes' && (item['Observações'] || item['Observacao'] || item['Observação'])) val = item['Observações'] || item['Observacao'] || item['Observação'];
         if (h === 'veiculoId' && (item['Veículo'] || item['veiculoDescricao'])) val = item['Veículo'] || item['veiculoDescricao'];
         if (h === 'valorEstimado' && (item['Valor Estimado (R$)'] || item['Valor Estimado'])) val = item['Valor Estimado (R$)'] || item['Valor Estimado'];
-        if (h === 'nomePosto' && (item['Nome Posto'] || item['POSTO'] || item['nomePosto'])) val = item['Nome Posto'] || item['POSTO'] || item['nomePosto'];
-        if (h === 'localizacaoPosto' && (item['Localização do Posto'] || item['LOCALIZACAO_POSTO'] || item['localizacaoPosto'])) val = item['Localização do Posto'] || item['LOCALIZACAO_POSTO'] || item['localizacaoPosto'];
-        if (h === 'motorista' && (item['Motorista'] || item['motorista'])) val = item['Motorista'] || item['motorista'];
-        if (h === 'descricaoVeiculo' && (item['Descrição do Veículo'] || item['descricaoVeiculo'])) val = item['Descrição do Veículo'] || item['descricaoVeiculo'];
       }
       return val !== undefined && val !== null ? val : '';
     });
@@ -236,6 +254,8 @@ function readSheetToArray(ss, sheetName) {
         if (normKey === 'Nome_Posto' || normKey === 'Nome Posto') normKey = 'nomePosto';
         if (normKey === 'Localizacao_do_Posto' || normKey === 'Localização do Posto') normKey = 'localizacaoPosto';
         if (normKey === 'Motorista') normKey = 'motorista';
+        if (normKey === 'cartaoid' || normKey === 'cartaoId' || normKey === 'ID do Cartão / Conta') normKey = 'cartaoid';
+        if (normKey === 'Descrição_do_Veículo' || normKey === 'Descrição do Veículo' || normKey === 'Descricao do Veiculo') normKey = 'descricaoVeiculo';
         if (normKey === 'Item' || normKey === 'Nome' || normKey === 'nomeItem') normKey = 'nome';
         if (normKey === 'Descrição do Serviço' || normKey === 'Descrição' || normKey === 'Descricao') normKey = 'descricao';
         if (normKey === 'Valor Pago (R$)' || normKey === 'Valor (R$)') normKey = 'valor';
@@ -282,6 +302,36 @@ export const GoogleDriveModal: React.FC<GoogleDriveModalProps> = ({
   const [errorMsg, setErrorMsg] = useState('');
   const [copied, setCopied] = useState(false);
 
+  const EXPENSE_CATEGORIES = [
+    'TODAS', 'ABASTECIMENTO', 'ALIMENTAÇÃO', 'CASA', 'CONSUMO',
+    'EDUCAÇÃO', 'LAZER', 'MERCADO', 'PESSOAL', 'SAÚDE',
+    'SERVIÇOS', 'TRANSPORTE', 'TRABALHO', 'OUTROS'
+  ];
+
+  const [selectedCategories, setSelectedCategories] = useState<string[]>(() => {
+    try {
+      const saved = localStorage.getItem('wealthflow_sync_categories');
+      return saved ? JSON.parse(saved) : ['TODAS'];
+    } catch {
+      return ['TODAS'];
+    }
+  });
+
+  const toggleCategory = (cat: string) => {
+    if (cat === 'TODAS') {
+      setSelectedCategories(['TODAS']);
+      return;
+    }
+    let updated = selectedCategories.filter(c => c !== 'TODAS');
+    if (updated.includes(cat)) {
+      updated = updated.filter(c => c !== cat);
+      if (updated.length === 0) updated = ['TODAS'];
+    } else {
+      updated.push(cat);
+    }
+    setSelectedCategories(updated);
+  };
+
   useEffect(() => {
     if (isOpen) {
       const saved = currentValue || 
@@ -310,6 +360,7 @@ export const GoogleDriveModal: React.FC<GoogleDriveModalProps> = ({
     try {
       setIsLoading(true);
       setErrorMsg('');
+      localStorage.setItem('wealthflow_sync_categories', JSON.stringify(selectedCategories));
       await onConnect(val);
       setIsLoading(false);
       onClose();
@@ -390,6 +441,44 @@ export const GoogleDriveModal: React.FC<GoogleDriveModalProps> = ({
                   <span className="material-symbols-outlined text-sm">cancel</span>
                 </button>
               )}
+            </div>
+          </div>
+
+          {/* Categorias de Despesas para Sincronizar */}
+          <div className="space-y-2 border-t border-slate-800/80 pt-3">
+            <div className="flex items-center justify-between">
+              <label className="block text-xs font-semibold text-slate-300 flex items-center gap-1.5">
+                <span className="material-symbols-outlined text-sm text-emerald-400">filter_alt</span>
+                Filtro de Categorias de Despesas
+              </label>
+              <span className="text-[10px] text-emerald-400 font-mono font-bold bg-emerald-500/10 px-2 py-0.5 rounded-full border border-emerald-500/20">
+                {selectedCategories.includes('TODAS') ? 'Todas as Categorias' : `${selectedCategories.length} Selecionada(s)`}
+              </span>
+            </div>
+            <p className="text-[11px] text-slate-400 leading-relaxed">
+              Escolha quais categorias de despesas serão sincronizadas com o Google Sheets:
+            </p>
+            <div className="flex flex-wrap gap-1.5 max-h-36 overflow-y-auto p-2 bg-slate-950/80 border border-slate-800 rounded-xl custom-scrollbar">
+              {EXPENSE_CATEGORIES.map((cat) => {
+                const isSelected = selectedCategories.includes(cat);
+                return (
+                  <button
+                    key={cat}
+                    type="button"
+                    onClick={() => toggleCategory(cat)}
+                    className={`px-2.5 py-1 rounded-lg text-[11px] font-semibold transition-all flex items-center gap-1.5 cursor-pointer border ${
+                      isSelected
+                        ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40 shadow-sm'
+                        : 'bg-slate-900/80 text-slate-400 border-slate-800 hover:text-slate-200 hover:border-slate-700'
+                    }`}
+                  >
+                    <span className="material-symbols-outlined text-xs">
+                      {isSelected ? 'check_circle' : 'radio_button_unchecked'}
+                    </span>
+                    {cat}
+                  </button>
+                );
+              })}
             </div>
           </div>
 

@@ -708,10 +708,54 @@ export const syncDataToSpreadsheet = async (
       console.warn('Erro ao filtrar categorias para sincronização:', e);
     }
 
+    const formattedTxs = txsToSync.map(t => {
+      const isAbast = String(t.categoria || t.Categoria || '').toUpperCase() === 'ABASTECIMENTO';
+      const cartaoVal = t.Cartão_Id !== undefined && t.Cartão_Id !== null && String(t.Cartão_Id) !== ''
+        ? String(t.Cartão_Id)
+        : (t.cartaoid !== undefined && t.cartaoid !== null && String(t.cartaoid) !== ''
+            ? String(t.cartaoid)
+            : (t.cartaoId !== undefined && t.cartaoId !== null && String(t.cartaoId) !== ''
+                ? String(t.cartaoId)
+                : (t.bancoId || t.Banco_Id ? String(t.bancoId || t.Banco_Id) : '')));
+
+      const valorPgVal = t.valorPg !== undefined ? t.valorPg : (t.Valor_PG !== undefined ? t.Valor_PG : (t.status === 'PAGO' ? t.valor : 0));
+      const compTanque = t.completouTanque !== undefined ? (t.completouTanque ? 'Sim' : 'Não') : (t.Completou_O_Tanque !== undefined ? String(t.Completou_O_Tanque) : '');
+      const mediaVal = t.mediaKmL !== undefined ? t.mediaKmL : (t['Média_(Km/L)'] !== undefined ? t['Média_(Km/L)'] : '');
+      const kmPercVal = t.kmPercorrido !== undefined ? t.kmPercorrido : (t.KM_Percorrido !== undefined ? t.KM_Percorrido : '');
+
+      return {
+        ...t,
+        Id: t.id || t.Id,
+        Data: t.data || t.Data || '',
+        Descrição: t.descricao || t.Descrição || '',
+        Valor: t.valor !== undefined ? t.valor : t.Valor,
+        Valor_PG: valorPgVal,
+        Banco_Id: t.bancoId || t.Banco_Id || '',
+        Cartão_Id: cartaoVal,
+        Forma_Pagamento: t.formaPagamento || t.Forma_Pagamento || '',
+        Tipo: t.tipo || t.Tipo || 'DESPESA',
+        Categoria: t.categoria || t.Categoria || '',
+        Status: t.status || t.Status || 'PAGO',
+        KM: isAbast ? (t.km !== undefined ? t.km : (t.KM !== undefined ? t.KM : '')) : '',
+        Litros: isAbast ? (t.litros !== undefined ? t.litros : (t.Litros !== undefined ? t.Litros : '')) : '',
+        Preço_Litro: isAbast ? (t.precoLitro !== undefined ? t.precoLitro : (t.Preço_Litro !== undefined ? t.Preço_Litro : '')) : '',
+        Completou_O_Tanque: compTanque,
+        KM_Percorrido: isAbast ? kmPercVal : '',
+        'Média_(Km/L)': isAbast ? mediaVal : '',
+        Veiculo: isAbast ? (t.veiculo || t.Veiculo || 'CARRO') : '',
+        Descrição_Do_Veículo: t.descricaoVeiculo || t.Descrição_Do_Veículo || '',
+        Motorista: t.motorista || t.Motorista || '',
+        Nome_Posto: t.nomePosto || t.Nome_Posto || '',
+        Localização_Do_Posto: t.localizacaoPosto || t.Localização_Do_Posto || '',
+        Comprovante_Url: t.comprovanteUrl || t.Comprovante_Url || '',
+        OBS: t.obs || t.OBS || ''
+      };
+    });
+
     const payload = {
       action: 'syncData',
       spreadsheetId: cleanSpreadsheetId,
-      transactions: txsToSync,
+      transactions: formattedTxs,
       infractions: Array.isArray(infractions) ? infractions : [],
       riskZones: Array.isArray(riskZones) ? riskZones : [],
       appointments: Array.isArray(appointments) ? appointments : [],
@@ -898,8 +942,10 @@ export const syncDataToSpreadsheet = async (
   });
 
   const txHeaders = [
-    "id", "data", "descricao", "valor", "tipo", "categoria", "status", "bancoid", "formaPagamento", "obs", "comprovanteUrl", "km", "litros", "precoLitro", "veiculo",
-    "Valor_PG", "Completou_o_Tanque", "KM_Percorrido", "Media_(Km/L)", "Nome_Posto", "Localizacao_do_Posto", "Motorista"
+    "Id", "Data", "Descrição", "Valor", "Valor_PG", "Banco_Id", "Cartão_Id", "Forma_Pagamento",
+    "Tipo", "Categoria", "Status", "KM", "Litros", "Preço_Litro", "Completou_O_Tanque",
+    "KM_Percorrido", "Média_(Km/L)", "Veiculo", "Descrição_Do_Veículo", "Motorista",
+    "Nome_Posto", "Localização_Do_Posto", "Comprovante_Url", "OBS"
   ];
 
   const isReceitaTx = (t: any) => {
@@ -935,9 +981,9 @@ export const syncDataToSpreadsheet = async (
   const mapTxToRow = (t: any) => {
     const isAbast = isAbastecimentoTx(t);
     const isRec = isReceitaTx(t);
-    const media = mediaMapByTxId[t.id];
-    const kmPerc = kmPercorridoByTxId[t.id];
-    const valorPgVal = t.valorPg !== undefined ? t.valorPg : (t.status === 'PAGO' ? t.valor : 0);
+    const media = t.mediaKmL !== undefined ? t.mediaKmL : (t['Média_(Km/L)'] !== undefined ? t['Média_(Km/L)'] : mediaMapByTxId[t.id]);
+    const kmPerc = t.kmPercorrido !== undefined ? t.kmPercorrido : (t.KM_Percorrido !== undefined ? t.KM_Percorrido : kmPercorridoByTxId[t.id]);
+    const valorPgVal = t.valorPg !== undefined ? t.valorPg : (t.Valor_PG !== undefined ? t.Valor_PG : (t.status === 'PAGO' ? t.valor : 0));
 
     const numValor = typeof t.valor === 'number' ? t.valor : parseFloat(String(t.valor || 0).replace(/\./g, '').replace(',', '.'));
     const safeValor = isNaN(numValor) ? 0 : numValor;
@@ -945,40 +991,69 @@ export const syncDataToSpreadsheet = async (
     const numValorPg = typeof valorPgVal === 'number' ? valorPgVal : parseFloat(String(valorPgVal || 0).replace(/\./g, '').replace(',', '.'));
     const safeValorPg = isNaN(numValorPg) ? 0 : numValorPg;
 
-    const numLitros = typeof t.litros === 'number' ? t.litros : parseFloat(String(t.litros || 0).replace(',', '.'));
-    const numPrecoLitro = typeof t.precoLitro === 'number' ? t.precoLitro : parseFloat(String(t.precoLitro || 0).replace(',', '.'));
+    const numLitros = typeof t.litros === 'number' ? t.litros : (typeof t.Litros === 'number' ? t.Litros : parseFloat(String(t.litros || t.Litros || 0).replace(',', '.')));
+    const numPrecoLitro = typeof t.precoLitro === 'number' ? t.precoLitro : (typeof t.Preço_Litro === 'number' ? t.Preço_Litro : parseFloat(String(t.precoLitro || t.Preço_Litro || 0).replace(',', '.')));
     const numMedia = typeof media === 'number' ? media : parseFloat(String(media || 0).replace(',', '.'));
 
+    const cartaoVal = t.Cartão_Id !== undefined && t.Cartão_Id !== null && String(t.Cartão_Id) !== ''
+      ? String(t.Cartão_Id)
+      : (t.cartaoid !== undefined && t.cartaoid !== null && String(t.cartaoid) !== ''
+          ? String(t.cartaoid)
+          : (t.cartaoId !== undefined && t.cartaoId !== null && String(t.cartaoId) !== ''
+              ? String(t.cartaoId)
+              : (t.bancoId || t.Banco_Id ? String(t.bancoId || t.Banco_Id) : '')));
+
+    const compTanqueBool = t.completouTanque !== undefined ? t.completouTanque : (t.Completou_O_Tanque !== undefined ? (t.Completou_O_Tanque === 'Sim' || t.Completou_O_Tanque === true) : true);
+
     return [
-      t.id,
-      t.data || '',
-      t.descricao || '',
+      t.id || t.Id,
+      t.data || t.Data || '',
+      t.descricao || t.Descrição || '',
       safeValor.toFixed(2).replace('.', ','),
-      isAbast ? (t.tipo || 'DESPESA') : (isRec ? 'RECEITA' : (t.tipo || 'DESPESA')),
-      t.categoria || '',
-      t.status || 'PAGO',
-      t.bancoId || '',
-      t.formaPagamento || '',
-      t.obs || '',
-      t.comprovanteUrl || '',
-      isAbast && t.km ? String(t.km) : '',
-      isAbast && t.litros ? (isNaN(numLitros) ? '0,00' : numLitros.toFixed(2).replace('.', ',')) : '',
-      isAbast && t.precoLitro ? (isNaN(numPrecoLitro) ? '0,000' : numPrecoLitro.toFixed(3).replace('.', ',')) : '',
-      isAbast ? (t.veiculo || 'CARRO') : (t.descricaoVeiculo || ''),
       safeValorPg.toFixed(2).replace('.', ','),
-      isAbast ? (t.completouTanque ? 'Sim' : 'Não') : '',
+      t.bancoId || t.Banco_Id || '',
+      cartaoVal,
+      t.formaPagamento || t.Forma_Pagamento || '',
+      isAbast ? (t.tipo || t.Tipo || 'DESPESA') : (isRec ? 'RECEITA' : (t.tipo || t.Tipo || 'DESPESA')),
+      t.categoria || t.Categoria || '',
+      t.status || t.Status || 'PAGO',
+      isAbast && (t.km || t.KM) ? String(t.km || t.KM) : '',
+      isAbast && (t.litros || t.Litros) ? (isNaN(numLitros) ? '0,00' : numLitros.toFixed(2).replace('.', ',')) : '',
+      isAbast && (t.precoLitro || t.Preço_Litro) ? (isNaN(numPrecoLitro) ? '0,000' : numPrecoLitro.toFixed(3).replace('.', ',')) : '',
+      isAbast ? (compTanqueBool ? 'Sim' : 'Não') : '',
       isAbast && kmPerc !== undefined ? String(kmPerc) : '',
       isAbast && media !== undefined ? (isNaN(numMedia) ? '0,00' : numMedia.toFixed(2).replace('.', ',')) : '',
-      t.nomePosto || '',
-      t.localizacaoPosto || '',
-      t.motorista || ''
+      isAbast ? (t.veiculo || t.Veiculo || 'CARRO') : '',
+      t.descricaoVeiculo || t.Descrição_Do_Veículo || '',
+      t.motorista || t.Motorista || '',
+      t.nomePosto || t.Nome_Posto || '',
+      t.localizacaoPosto || t.Localização_Do_Posto || '',
+      t.comprovanteUrl || t.Comprovante_Url || '',
+      t.obs || t.OBS || ''
     ];
+  };
+
+  // Load sync category filters if specified by user
+  let allowedCategories: string[] = [];
+  try {
+    const savedCats = typeof localStorage !== 'undefined' ? localStorage.getItem('wealthflow_sync_categories') : null;
+    if (savedCats) {
+      allowedCategories = JSON.parse(savedCats);
+    }
+  } catch (e) {}
+
+  const shouldIncludeCategory = (catName: string) => {
+    if (!allowedCategories || allowedCategories.length === 0 || allowedCategories.includes('TODAS')) {
+      return true;
+    }
+    const catUpper = String(catName || 'OUTROS').trim().toUpperCase();
+    return allowedCategories.some(c => String(c).trim().toUpperCase() === catUpper);
   };
 
   // Split transactions into Receitas, Despesas, Abastecimentos
   const receitasRows = transactions.filter(t => isReceitaTx(t)).map(mapTxToRow);
-  const abastecimentosRows = transactions.filter(t => isAbastecimentoTx(t) && !isReceitaTx(t)).map(mapTxToRow);
-  const despesasRows = transactions.filter(t => !isReceitaTx(t) && !isAbastecimentoTx(t)).map(mapTxToRow);
+  const abastecimentosRows = transactions.filter(t => isAbastecimentoTx(t) && !isReceitaTx(t) && shouldIncludeCategory(t.categoria || 'ABASTECIMENTO')).map(mapTxToRow);
+  const despesasRows = transactions.filter(t => !isReceitaTx(t) && !isAbastecimentoTx(t) && shouldIncludeCategory(t.categoria)).map(mapTxToRow);
 
   // 3. Oficina (Serviços Realizados + Serviços Agendados)
   const oficinaHeaders = [
@@ -1325,15 +1400,17 @@ export const syncTransactionsToSpreadsheet = async (
   });
 
   const headers = [
-    "id", "data", "descricao", "valor", "tipo", "categoria", "status", "bancoid", "formaPagamento", "obs", "comprovanteUrl", "km", "litros", "precoLitro", "veiculo",
-    "Valor_PG", "Completou_o_Tanque", "KM_Percorrido", "Media_(Km/L)", "Nome_Posto", "Localizacao_do_Posto", "Motorista"
+    "Id", "Data", "Descrição", "Valor", "Valor_PG", "Banco_Id", "Cartão_Id", "Forma_Pagamento",
+    "Tipo", "Categoria", "Status", "KM", "Litros", "Preço_Litro", "Completou_O_Tanque",
+    "KM_Percorrido", "Média_(Km/L)", "Veiculo", "Descrição_Do_Veículo", "Motorista",
+    "Nome_Posto", "Localização_Do_Posto", "Comprovante_Url", "OBS"
   ];
 
   const rows = transactions.map(t => {
-    const isAbastecimento = t.categoria === 'ABASTECIMENTO';
-    const media = mediaMapByTxId[t.id];
-    const kmPerc = kmPercorridoByTxId[t.id];
-    const valorPgVal = t.valorPg !== undefined ? t.valorPg : (t.status === 'PAGO' ? t.valor : 0);
+    const isAbastecimento = t.categoria === 'ABASTECIMENTO' || t.Categoria === 'ABASTECIMENTO';
+    const media = t.mediaKmL !== undefined ? t.mediaKmL : (t['Média_(Km/L)'] !== undefined ? t['Média_(Km/L)'] : mediaMapByTxId[t.id]);
+    const kmPerc = t.kmPercorrido !== undefined ? t.kmPercorrido : (t.KM_Percorrido !== undefined ? t.KM_Percorrido : kmPercorridoByTxId[t.id]);
+    const valorPgVal = t.valorPg !== undefined ? t.valorPg : (t.Valor_PG !== undefined ? t.Valor_PG : (t.status === 'PAGO' ? t.valor : 0));
 
     const numValor = typeof t.valor === 'number' ? t.valor : parseFloat(String(t.valor || 0).replace(/\./g, '').replace(',', '.'));
     const safeValor = isNaN(numValor) ? 0 : numValor;
@@ -1341,33 +1418,45 @@ export const syncTransactionsToSpreadsheet = async (
     const numValorPg = typeof valorPgVal === 'number' ? valorPgVal : parseFloat(String(valorPgVal || 0).replace(/\./g, '').replace(',', '.'));
     const safeValorPg = isNaN(numValorPg) ? 0 : numValorPg;
 
-    const numLitros = typeof t.litros === 'number' ? t.litros : parseFloat(String(t.litros || 0).replace(',', '.'));
-    const numPrecoLitro = typeof t.precoLitro === 'number' ? t.precoLitro : parseFloat(String(t.precoLitro || 0).replace(',', '.'));
+    const numLitros = typeof t.litros === 'number' ? t.litros : (typeof t.Litros === 'number' ? t.Litros : parseFloat(String(t.litros || t.Litros || 0).replace(',', '.')));
+    const numPrecoLitro = typeof t.precoLitro === 'number' ? t.precoLitro : (typeof t.Preço_Litro === 'number' ? t.Preço_Litro : parseFloat(String(t.precoLitro || t.Preço_Litro || 0).replace(',', '.')));
     const numMedia = typeof media === 'number' ? media : parseFloat(String(media || 0).replace(',', '.'));
 
+    const cartaoVal = t.Cartão_Id !== undefined && t.Cartão_Id !== null && String(t.Cartão_Id) !== ''
+      ? String(t.Cartão_Id)
+      : (t.cartaoid !== undefined && t.cartaoid !== null && String(t.cartaoid) !== ''
+          ? String(t.cartaoid)
+          : (t.cartaoId !== undefined && t.cartaoId !== null && String(t.cartaoId) !== ''
+              ? String(t.cartaoId)
+              : (t.bancoId || t.Banco_Id ? String(t.bancoId || t.Banco_Id) : '')));
+
+    const compTanqueBool = t.completouTanque !== undefined ? t.completouTanque : (t.Completou_O_Tanque !== undefined ? (t.Completou_O_Tanque === 'Sim' || t.Completou_O_Tanque === true) : true);
+
     return [
-      t.id,
-      t.data || '',
-      t.descricao || '',
+      t.id || t.Id,
+      t.data || t.Data || '',
+      t.descricao || t.Descrição || '',
       safeValor.toFixed(2).replace('.', ','),
-      isAbastecimento ? (t.tipo || 'DESPESA') : (t.tipo === 'RECEITA' ? 'RECEITA' : (t.tipo || 'DESPESA')),
-      t.categoria || '',
-      t.status || 'PAGO',
-      t.bancoId || '',
-      t.formaPagamento || '',
-      t.obs || '',
-      t.comprovanteUrl || '',
-      isAbastecimento && t.km ? String(t.km) : '',
-      isAbastecimento && t.litros ? (isNaN(numLitros) ? '0,00' : numLitros.toFixed(2).replace('.', ',')) : '',
-      isAbastecimento && t.precoLitro ? (isNaN(numPrecoLitro) ? '0,000' : numPrecoLitro.toFixed(3).replace('.', ',')) : '',
-      isAbastecimento ? (t.veiculo || 'CARRO') : (t.descricaoVeiculo || ''),
       safeValorPg.toFixed(2).replace('.', ','),
-      isAbastecimento ? (t.completouTanque ? 'Sim' : 'Não') : '',
+      t.bancoId || t.Banco_Id || '',
+      cartaoVal,
+      t.formaPagamento || t.Forma_Pagamento || '',
+      isAbastecimento ? (t.tipo || t.Tipo || 'DESPESA') : (t.tipo === 'RECEITA' ? 'RECEITA' : (t.tipo || t.Tipo || 'DESPESA')),
+      t.categoria || t.Categoria || '',
+      t.status || t.Status || 'PAGO',
+      isAbastecimento && (t.km || t.KM) ? String(t.km || t.KM) : '',
+      isAbastecimento && (t.litros || t.Litros) ? (isNaN(numLitros) ? '0,00' : numLitros.toFixed(2).replace('.', ',')) : '',
+      isAbastecimento && (t.precoLitro || t.Preço_Litro) ? (isNaN(numPrecoLitro) ? '0,000' : numPrecoLitro.toFixed(3).replace('.', ',')) : '',
+      isAbastecimento ? (compTanqueBool ? 'Sim' : 'Não') : '',
       isAbastecimento && kmPerc !== undefined ? String(kmPerc) : '',
       isAbastecimento && media !== undefined ? (isNaN(numMedia) ? '0,00' : numMedia.toFixed(2).replace('.', ',')) : '',
-      t.nomePosto || '',
-      t.localizacaoPosto || '',
-      t.motorista || ''
+      isAbastecimento ? (t.veiculo || t.Veiculo || 'CARRO') : '',
+      t.descricaoVeiculo || t.Descrição_Do_Veículo || '',
+      t.motorista || t.Motorista || '',
+      t.nomePosto || t.Nome_Posto || '',
+      t.localizacaoPosto || t.Localização_Do_Posto || '',
+      t.comprovanteUrl || t.Comprovante_Url || '',
+      t.obs || t.OBS || ''
     ];
   });
 
@@ -1453,29 +1542,30 @@ export const parseTransactionRows = (rows: any[], defaultSheetKey?: string): any
     return defaultIdx;
   };
 
-  const idxId = getColIndex(["id", "ID", "CODIGO", "CÓDIGO", "IDENTIFICADOR"], 0);
-  const idxData = getColIndex(["data", "Data", "DATE", "DIAS"], 1);
-  const idxDesc = getColIndex(["descricao", "Descrição", "DESCRICAO", "DESCRIPTION", "DESCRIÇÃO", "DESC", "DESCR", "NOME"], 2);
-  const idxValor = getColIndex(["valor", "Valor", "Valor (R$)", "VALOR", "VALUE", "PRECO", "PREÇO", "MONTANTE"], 3);
-  const idxTipo = getColIndex(["tipo", "Tipo", "TIPO", "TYPE", "COMBUSTIVEL", "COMBUSTÍVEL"], 4);
-  const idxCat = getColIndex(["categoria", "Categoria", "CATEGORIA", "CATEGORY", "CAT", "GRUPO", "CLASSIFICACAO", "CLASSIFICAÇÃO"], 5);
-  const idxStatus = getColIndex(["status", "Status", "STATUS", "SITUACAO", "SITUAÇÃO"], 6);
-  const idxBancoId = getColIndex(["bancoid", "bancoId", "BANCOID", "BANCO_ID", "BANCO"], 7);
-  const idxFormaPagamento = getColIndex(["formaPagamento", "FORMAPAGAMENTO", "FORMA_PAGAMENTO", "FORMA DE PAGAMENTO"], 8);
-  const idxObs = getColIndex(["obs", "OBS", "OBSERVAÇÕES", "OBSERVACOES", "NOTE"], 9);
-  const idxComprovanteUrl = getColIndex(["comprovanteUrl", "COMPROVANTEURL", "COMPROVANTE_URL", "COMPROVANTE"], 10);
-  const idxKm = getColIndex(["km", "KM"], 11);
-  const idxLitros = getColIndex(["litros", "Litros", "LITROS", "LITERS"], 12);
-  const idxPrecoLitro = getColIndex(["precoLitro", "Preço por Litro", "Preco por Litro", "PRECO_LITRO", "PREÇO POR LITRO"], 13);
-  const idxVeiculo = getColIndex(["veiculo", "Veículo", "Veiculo", "VEHICLE", "VEÍCULO"], 14);
-  const idxValorPg = getColIndex(["Valor_PG", "VALOR_PG", "Valor Pago", "VALOR_PAGO"], 15);
-  const idxCompletou = getColIndex(["Completou_o_Tanque", "Completou o Tanque", "Completou", "COMPLETOU_TANQUE", "COMPLETOU O TANQUE"], 16);
-  const idxKmPercorrido = getColIndex(["KM_Percorrido", "KM Percorrido", "KM_PERCORRIDO"], 17);
-  const idxMediaKmL = getColIndex(["Media_(Km/L)", "Media (Km/L)", "Média (Km/L)", "MEDIA_KML"], 18);
-  const idxNomePosto = getColIndex(["Nome_Posto", "Nome Posto", "POSTO", "GAS_STATION", "NOME POSTO"], 19);
-  const idxLocalPosto = getColIndex(["Localizacao_do_Posto", "Localização do Posto", "LOCALIZACAO_POSTO", "LOCALIZAÇÃO DO POSTO"], 20);
-  const idxMotorista = getColIndex(["Motorista", "MOTORISTA", "DRIVER"], 21);
-  const idxDescricaoVeiculo = getColIndex(["Descrição do Veículo", "Descricao do Veiculo", "DESCRIÇÃO DO VEÍCULO", "DESCRICAO_VEICULO", "DESCRIÇÃO VEÍCULO", "DESCRICAO VEICULO"], 14);
+  const idxId = getColIndex(["Id", "id", "ID", "CODIGO", "CÓDIGO", "IDENTIFICADOR"], 0);
+  const idxData = getColIndex(["Data", "data", "DATE", "DIAS"], 1);
+  const idxDesc = getColIndex(["Descrição", "descricao", "DESCRICAO", "DESCRIPTION", "DESCRIÇÃO", "DESC", "DESCR", "NOME"], 2);
+  const idxValor = getColIndex(["Valor", "valor", "Valor (R$)", "VALOR", "VALUE", "PRECO", "PREÇO", "MONTANTE"], 3);
+  const idxValorPg = getColIndex(["Valor_PG", "valorPg", "VALOR_PG", "Valor Pago", "VALOR_PAGO"], 4);
+  const idxBancoId = getColIndex(["Banco_Id", "bancoid", "bancoId", "BANCOID", "BANCO_ID", "BANCO"], 5);
+  const idxCartaoId = getColIndex(["Cartão_Id", "cartaoid", "cartaoId", "CARTAO_ID", "ID do Cartão / Conta"], 6);
+  const idxFormaPagamento = getColIndex(["Forma_Pagamento", "formaPagamento", "FORMAPAGAMENTO", "FORMA_PAGAMENTO", "FORMA DE PAGAMENTO"], 7);
+  const idxTipo = getColIndex(["Tipo", "tipo", "TIPO", "TYPE", "COMBUSTIVEL", "COMBUSTÍVEL"], 8);
+  const idxCat = getColIndex(["Categoria", "categoria", "CATEGORIA", "CATEGORY", "CAT", "GRUPO", "CLASSIFICACAO", "CLASSIFICAÇÃO"], 9);
+  const idxStatus = getColIndex(["Status", "status", "STATUS", "SITUACAO", "SITUAÇÃO"], 10);
+  const idxKm = getColIndex(["KM", "km"], 11);
+  const idxLitros = getColIndex(["Litros", "litros", "LITROS", "LITERS"], 12);
+  const idxPrecoLitro = getColIndex(["Preço_Litro", "precoLitro", "Preço por Litro", "Preco por Litro", "PRECO_LITRO", "PREÇO POR LITRO"], 13);
+  const idxCompletou = getColIndex(["Completou_O_Tanque", "Completou_o_Tanque", "completouTanque", "Completou o Tanque", "Completou", "COMPLETOU_TANQUE", "COMPLETOU O TANQUE"], 14);
+  const idxKmPercorrido = getColIndex(["KM_Percorrido", "kmPercorrido", "KM Percorrido", "KM_PERCORRIDO"], 15);
+  const idxMediaKmL = getColIndex(["Média_(Km/L)", "Media_(Km/L)", "mediaKmL", "Media (Km/L)", "Média (Km/L)", "MEDIA_KML"], 16);
+  const idxVeiculo = getColIndex(["Veiculo", "veiculo", "Veículo", "VEHICLE", "VEÍCULO"], 17);
+  const idxDescricaoVeiculo = getColIndex(["Descrição_Do_Veículo", "Descrição_do_Veículo", "descricaoVeiculo", "Descrição do Veículo", "Descricao do Veiculo", "DESCRIÇÃO DO VEÍCULO", "DESCRICAO_VEICULO"], 18);
+  const idxMotorista = getColIndex(["Motorista", "motorista", "MOTORISTA", "DRIVER"], 19);
+  const idxNomePosto = getColIndex(["Nome_Posto", "nomePosto", "Nome Posto", "POSTO", "GAS_STATION", "NOME POSTO"], 20);
+  const idxLocalPosto = getColIndex(["Localização_Do_Posto", "Localizacao_do_Posto", "localizacaoPosto", "Localização do Posto", "LOCALIZACAO_POSTO", "LOCALIZAÇÃO DO POSTO"], 21);
+  const idxComprovanteUrl = getColIndex(["Comprovante_Url", "comprovanteUrl", "COMPROVANTEURL", "COMPROVANTE_URL", "COMPROVANTE"], 22);
+  const idxObs = getColIndex(["OBS", "obs", "Observação", "Observações", "OBSERVACOES", "NOTE"], 23);
 
   const parseBrazilianOrRawNumber = (valStr: string): number => {
     let clean = String(valStr || '').trim().toUpperCase().replace(/\s/g, '').replace('R$', '');
