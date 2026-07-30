@@ -1,5 +1,5 @@
 export const DEFAULT_SPREADSHEET_ID = '1JL1LlHmBtXj_dvWXvaedlDTWrSfptXzbhYlMJH1RNO4';
-export const DEFAULT_SPREADSHEET_URL = 'https://docs.google.com/spreadsheets/d/1JL1LlHmBtXj_dvWXvaedlDTWrSfptXzbhYlMJH1RNO4/edit?gid=2004093988#gid=2004093988';
+export const DEFAULT_SPREADSHEET_URL = 'https://docs.google.com/spreadsheets/d/1JL1LlHmBtXj_dvWXvaedlDTWrSfptXzbhYlMJH1RNO4/edit';
 export const DEFAULT_APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzsC73N1O1vU2oN4lD0HneqWLM964XXkqHNDbeC8MH0uy5HUFIEaCZVQ7lX5sSma4LZGg/exec';
 
 export interface User {
@@ -833,7 +833,14 @@ export const syncDataToSpreadsheet = async (
   // Procurar correspondentes para as abas exatas
   const matchReceitas = normalizedExisting.find(item => item.normalized === 'RECEITAS');
   const matchDespesas = normalizedExisting.find(item => item.normalized === 'DESPESAS');
-  const matchAbastecimentos = normalizedExisting.find(item => item.normalized === 'ABASTECIMENTOS');
+  const matchAbastecimentos = normalizedExisting.find(item => 
+    item.normalized === 'ABASTECIMENTO' || 
+    item.normalized === 'ABASTECIMENTOS' ||
+    item.normalized === 'COMBUSTIVEL' ||
+    item.normalized === 'TRANSACOES' ||
+    item.normalized === 'TRANSACAO' ||
+    item.normalized === 'LANCAMENTOS'
+  );
   const matchOficina = normalizedExisting.find(item => item.normalized === 'OFICINA');
   const matchAgenda = normalizedExisting.find(item => item.normalized === 'AGENDA');
   const matchZonaRisco = normalizedExisting.find(item => 
@@ -1364,8 +1371,28 @@ export const syncTransactionsToSpreadsheet = async (
   spreadsheetId: string,
   transactions: any[]
 ): Promise<string> => {
-  // Limpar dados anteriores para evitar que sobrem linhas velhas se a nova lista for menor
-  const clearRes = await googleApiFetch(`https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/A1:Z1000:clear`, accessToken, {
+  // Determine target sheet title (e.g. Abastecimento / Abastecimentos / Transações)
+  let targetSheetTitle = 'Abastecimento';
+  try {
+    const metaRes = await googleApiFetch(`https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}?fields=sheets.properties`, accessToken);
+    if (metaRes.ok) {
+      const metaData = await metaRes.json();
+      const existingSheetTitles: string[] = (metaData.sheets || []).map((s: any) => s.properties.title);
+      const match = existingSheetTitles.find(t => {
+        const norm = t.trim().toUpperCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^A-Z0-9]/g, "");
+        return norm === 'ABASTECIMENTO' || norm === 'ABASTECIMENTOS' || norm.includes('ABASTEC') || norm.includes('TRANSAC');
+      });
+      if (match) {
+        targetSheetTitle = match;
+      }
+    }
+  } catch (e) {
+    console.warn("Aviso ao determinar aba para transações:", e);
+  }
+
+  // Clear ONLY the specific target tab's range to avoid touching other tabs
+  const targetRangeClear = encodeURIComponent(`'${targetSheetTitle}'!A1:X2000`);
+  const clearRes = await googleApiFetch(`https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/${targetRangeClear}:clear`, accessToken, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json'
@@ -1373,7 +1400,7 @@ export const syncTransactionsToSpreadsheet = async (
   });
   
   if (!clearRes.ok) {
-    console.warn("Aviso ao limpar planilha:", await clearRes.text());
+    console.warn("Aviso ao limpar aba da planilha:", await clearRes.text());
   }
 
   // Order transactions by date (ascending) to calculate KM differences for fuel efficiency
@@ -1466,12 +1493,13 @@ export const syncTransactionsToSpreadsheet = async (
   });
 
   const body = {
-    range: 'A1',
+    range: `'${targetSheetTitle}'!A1`,
     majorDimension: 'ROWS',
     values: [headers, ...rows]
   };
 
-  const writeUrl = `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/A1?valueInputOption=USER_ENTERED`;
+  const writeTargetRange = encodeURIComponent(`'${targetSheetTitle}'!A1`);
+  const writeUrl = `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/${writeTargetRange}?valueInputOption=USER_ENTERED`;
   const writeRes = await googleApiFetch(writeUrl, accessToken, {
     method: 'PUT',
     headers: {

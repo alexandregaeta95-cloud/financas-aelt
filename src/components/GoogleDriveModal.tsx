@@ -190,13 +190,32 @@ function doGet(e) {
   }
 }
 
-function writeArrayToSheet(ss, sheetName, items, headers) {
-  var sheet = ss.getSheetByName(sheetName);
-  if (!sheet) {
-    sheet = ss.insertSheet(sheetName);
-  } else {
-    sheet.clearContents();
+function findSheetByNameFuzzy(ss, sheetName) {
+  if (!ss) return null;
+  var sheets = ss.getSheets();
+  var normTarget = String(sheetName || '').trim().toUpperCase().replace(/[^A-Z0-9]/g, '');
+  for (var i = 0; i < sheets.length; i++) {
+    var title = sheets[i].getName();
+    var normTitle = String(title).trim().toUpperCase().replace(/[^A-Z0-9]/g, '');
+    if (normTitle === normTarget) return sheets[i];
+    if (normTarget.indexOf('ABASTEC') === 0 && normTitle.indexOf('ABASTEC') === 0) return sheets[i];
+    if (normTarget.indexOf('TRANSAC') === 0 && normTitle.indexOf('TRANSAC') === 0) return sheets[i];
+    if (normTarget.indexOf('RECEIT') === 0 && normTitle.indexOf('RECEIT') === 0) return sheets[i];
+    if (normTarget.indexOf('DESPES') === 0 && normTitle.indexOf('DESPES') === 0) return sheets[i];
   }
+  return null;
+}
+
+function writeArrayToSheet(ss, sheetName, items, headers) {
+  var sheet = findSheetByNameFuzzy(ss, sheetName);
+  if (!sheet) {
+    sheet = ss.getSheetByName(sheetName);
+    if (!sheet) {
+      sheet = ss.insertSheet(sheetName);
+    }
+  }
+  // Clear ONLY this specific sheet tab's contents. NEVER touch other tabs!
+  sheet.clearContents();
   sheet.appendRow(headers);
   if (!items || items.length === 0) return;
 
@@ -249,7 +268,8 @@ function writeArrayToSheet(ss, sheetName, items, headers) {
 }
 
 function readSheetToArray(ss, sheetName) {
-  var sheet = ss.getSheetByName(sheetName);
+  var sheet = findSheetByNameFuzzy(ss, sheetName);
+  if (!sheet) sheet = ss.getSheetByName(sheetName);
   if (!sheet) return [];
   var data = sheet.getDataRange().getValues();
   if (data.length <= 1) return [];
