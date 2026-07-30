@@ -16,6 +16,73 @@ import { Transaction, Infraction, RegisteredVehicle, BankAccount, CreditCard } f
 import { DateComboInput } from '../../../components/DateComboInput';
 import { TransactionAuditLog } from './TransactionAuditLog';
 
+export function formatDateForInput(dateVal: any): string {
+  if (!dateVal) {
+    return new Date().toISOString().split('T')[0];
+  }
+  let str = String(dateVal).trim();
+  if (str.includes('T')) {
+    str = str.split('T')[0];
+  }
+  if (str.includes(' ')) {
+    str = str.split(' ')[0];
+  }
+
+  if (str.includes('/')) {
+    const parts = str.split('/');
+    if (parts.length === 3) {
+      if (parts[0].length === 4) {
+        // YYYY/MM/DD
+        const y = parts[0];
+        const m = parts[1].padStart(2, '0');
+        const d = parts[2].padStart(2, '0');
+        return `${y}-${m}-${d}`;
+      } else {
+        // DD/MM/YYYY or D/M/YYYY
+        const d = parts[0].padStart(2, '0');
+        const m = parts[1].padStart(2, '0');
+        let y = parts[2];
+        if (y.length === 2) y = `20${y}`;
+        return `${y}-${m}-${d}`;
+      }
+    }
+  }
+
+  if (str.includes('-')) {
+    const parts = str.split('-');
+    if (parts.length === 3) {
+      if (parts[0].length === 4) {
+        // YYYY-MM-DD
+        const y = parts[0];
+        const m = parts[1].padStart(2, '0');
+        const d = parts[2].padStart(2, '0');
+        return `${y}-${m}-${d}`;
+      } else if (parts[2].length === 4 || parts[2].length === 2) {
+        // DD-MM-YYYY
+        const d = parts[0].padStart(2, '0');
+        const m = parts[1].padStart(2, '0');
+        let y = parts[2];
+        if (y.length === 2) y = `20${y}`;
+        return `${y}-${m}-${d}`;
+      }
+    }
+  }
+
+  try {
+    const d = new Date(dateVal);
+    if (!isNaN(d.getTime())) {
+      const year = d.getFullYear();
+      const month = String(d.getMonth() + 1).padStart(2, '0');
+      const day = String(d.getDate()).padStart(2, '0');
+      return `${year}-${month}-${day}`;
+    }
+  } catch (e) {
+    // ignore
+  }
+
+  return new Date().toISOString().split('T')[0];
+}
+
 const containerVariants = {
   hidden: { opacity: 0 },
   show: {
@@ -728,7 +795,7 @@ export default function TransactionsTab({
   const [amountStr, setAmountStr] = useState<string>(() => localStorage.getItem('draft_amountStr') || '0,00');
   const [category, setCategory] = useState<string>(() => localStorage.getItem('draft_category') || 'ABASTECIMENTO');
   const [newCategoryName, setNewCategoryName] = useState<string>(() => localStorage.getItem('draft_newCategoryName') || '');
-  const [date, setDate] = useState<string>(() => localStorage.getItem('draft_date') || new Date().toISOString().split('T')[0]);
+  const [date, setDate] = useState<string>(() => formatDateForInput(localStorage.getItem('draft_date') || new Date()));
   const [desc, setDesc] = useState<string>(() => localStorage.getItem('draft_desc') || '');
   const [status, setStatus] = useState<string>(() => localStorage.getItem('draft_status') || 'PAGO');
   const [formBankId, setFormBankId] = useState<number>(() => {
@@ -736,6 +803,8 @@ export default function TransactionsTab({
     return saved ? Number(saved) : 0;
   });
   const [formCartaoId, setFormCartaoId] = useState<string>(() => localStorage.getItem('draft_formCartaoId') || '');
+  const [formaPagamento, setFormaPagamento] = useState<string>(() => localStorage.getItem('draft_formaPagamento') || '');
+  const [comprovanteUrl, setComprovanteUrl] = useState<string>(() => localStorage.getItem('draft_comprovanteUrl') || '');
 
   // Installments states
   const [installments, setInstallments] = useState<string>('1');
@@ -764,7 +833,7 @@ export default function TransactionsTab({
   const availableDrivers = useMemo(() => {
     const driversSet = new Set<string>();
 
-    // 1. From registeredVehicles
+    // 1. From registeredVehicles prop
     if (Array.isArray(registeredVehicles)) {
       registeredVehicles.forEach(v => {
         if (v && v.motorista && String(v.motorista).trim()) {
@@ -783,13 +852,30 @@ export default function TransactionsTab({
       });
     }
 
-    // 3. Fallback defaults if list is empty
+    // 3. From localStorage registered vehicles
+    try {
+      const savedVehiclesStr = localStorage.getItem('wealthflow_registered_vehicles');
+      if (savedVehiclesStr) {
+        const savedVehs = JSON.parse(savedVehiclesStr);
+        if (Array.isArray(savedVehs)) {
+          savedVehs.forEach(v => {
+            if (v && v.motorista && String(v.motorista).trim()) {
+              driversSet.add(String(v.motorista).trim().toUpperCase());
+            }
+          });
+        }
+      }
+    } catch (e) {
+      // ignore
+    }
+
+    // 4. Fallback defaults if list is empty
     if (driversSet.size === 0) {
       driversSet.add('ALEXANDRE');
       driversSet.add('MOTORISTA 1');
     }
 
-    // 4. Current motorista state if set
+    // 5. Current motorista state if set
     if (motorista && motorista.trim()) {
       driversSet.add(motorista.trim().toUpperCase());
     }
@@ -1125,6 +1211,8 @@ export default function TransactionsTab({
       localStorage.setItem('draft_nomePosto', nomePosto);
       localStorage.setItem('draft_localizacaoPosto', localizacaoPosto);
       localStorage.setItem('draft_motorista', motorista);
+      localStorage.setItem('draft_formaPagamento', formaPagamento);
+      localStorage.setItem('draft_comprovanteUrl', comprovanteUrl);
       localStorage.setItem('draft_manualKmPercorrido', manualKmPercorrido);
       localStorage.setItem('draft_manualMediaKmL', manualMediaKmL);
       localStorage.setItem('draft_obs', obs);
@@ -1153,6 +1241,8 @@ export default function TransactionsTab({
     nomePosto,
     localizacaoPosto,
     motorista,
+    formaPagamento,
+    comprovanteUrl,
     manualKmPercorrido,
     manualMediaKmL,
     obs,
@@ -1167,7 +1257,8 @@ export default function TransactionsTab({
       'draft_fuelType', 'draft_km', 'draft_litros', 'draft_precoLitro',
       'draft_veiculo', 'draft_descricaoVeiculo', 'draft_valorPgStr',
       'draft_completouTanque', 'draft_nomePosto', 'draft_localizacaoPosto',
-      'draft_motorista', 'draft_manualKmPercorrido', 'draft_manualMediaKmL',
+      'draft_motorista', 'draft_formaPagamento', 'draft_comprovanteUrl',
+      'draft_manualKmPercorrido', 'draft_manualMediaKmL',
       'draft_obs', 'draft_formBankId', 'draft_formCartaoId'
     ];
     keys.forEach(k => localStorage.removeItem(k));
@@ -1179,7 +1270,7 @@ export default function TransactionsTab({
     setAmountStr(localStorage.getItem('draft_amountStr') || '0,00');
     setCategory(localStorage.getItem('draft_category') || 'ABASTECIMENTO');
     setNewCategoryName(localStorage.getItem('draft_newCategoryName') || '');
-    setDate(localStorage.getItem('draft_date') || new Date().toISOString().split('T')[0]);
+    setDate(formatDateForInput(localStorage.getItem('draft_date') || new Date()));
     setDesc(localStorage.getItem('draft_desc') || '');
     setStatus(localStorage.getItem('draft_status') || 'PAGO');
     setFuelType(localStorage.getItem('draft_fuelType') || 'ETANOL');
@@ -1193,6 +1284,8 @@ export default function TransactionsTab({
     setNomePosto(localStorage.getItem('draft_nomePosto') || '');
     setLocalizacaoPosto(localStorage.getItem('draft_localizacaoPosto') || '');
     setMotorista(localStorage.getItem('draft_motorista') || '');
+    setFormaPagamento(localStorage.getItem('draft_formaPagamento') || '');
+    setComprovanteUrl(localStorage.getItem('draft_comprovanteUrl') || '');
     setManualKmPercorrido(localStorage.getItem('draft_manualKmPercorrido') || '');
     setManualMediaKmL(localStorage.getItem('draft_manualMediaKmL') || '');
     setObs(localStorage.getItem('draft_obs') || '');
@@ -1452,52 +1545,17 @@ export default function TransactionsTab({
       setNewCategoryName('');
       
       // 1. Convert Data property to 'YYYY-MM-DD' string for HTML <input type="date">
-      let rawDate = String(tx.data || tx.Data || '').trim();
-      if (rawDate.includes('T')) {
-        rawDate = rawDate.split('T')[0];
-      }
-      if (rawDate.includes(' ')) {
-        rawDate = rawDate.split(' ')[0];
-      }
-
-      if (rawDate.includes('/')) {
-        const parts = rawDate.split('/');
-        if (parts.length === 3) {
-          if (parts[0].length === 4) {
-            // YYYY/MM/DD
-            setDate(`${parts[0]}-${parts[1].padStart(2, '0')}-${parts[2].padStart(2, '0')}`);
-          } else {
-            // DD/MM/YYYY
-            const d = parts[0].padStart(2, '0');
-            const m = parts[1].padStart(2, '0');
-            const y = parts[2];
-            setDate(`${y}-${m}-${d}`);
-          }
-        } else {
-          setDate(new Date().toISOString().split('T')[0]);
-        }
-      } else if (rawDate.includes('-')) {
-        const dashParts = rawDate.split('-');
-        if (dashParts.length === 3) {
-          if (dashParts[0].length === 4) {
-            // YYYY-MM-DD
-            setDate(`${dashParts[0]}-${dashParts[1].padStart(2, '0')}-${dashParts[2].padStart(2, '0')}`);
-          } else if (dashParts[2].length === 4) {
-            // DD-MM-YYYY
-            setDate(`${dashParts[2]}-${dashParts[1].padStart(2, '0')}-${dashParts[0].padStart(2, '0')}`);
-          } else {
-            setDate(rawDate);
-          }
-        } else {
-          setDate(rawDate);
-        }
-      } else {
-        setDate(new Date().toISOString().split('T')[0]);
-      }
+      setDate(formatDateForInput(tx.data || tx.Data));
       
       setDesc(tx.descricao || tx.Descrição || (tx as any)['Descricao'] || '');
       setStatus(tx.status || tx.Status || 'PAGO');
       setObs(tx.obs || tx.OBS || '');
+
+      const rawForma = tx.formaPagamento || tx.Forma_Pagamento || (tx as any)['Forma_pagamento'] || (tx as any)['Forma de Pagamento'] || '';
+      setFormaPagamento(String(rawForma || '').trim().toUpperCase());
+
+      const rawComprovante = tx.comprovanteUrl || tx.Comprovante_Url || (tx as any)['comprovante'] || (tx as any)['Comprovante_url'] || '';
+      setComprovanteUrl(String(rawComprovante || '').trim());
 
       // 3. Mapping of all 24 columns for Fuel / Abastecimento
       const isAbastCat = safeCategory === 'ABASTECIMENTO' || forcedFilter === 'ABASTECIMENTO' || tx.km !== undefined || tx.KM !== undefined || tx.litros !== undefined || tx.Litros !== undefined || tx.veiculo !== undefined || tx.Veiculo !== undefined;
@@ -1537,7 +1595,7 @@ export default function TransactionsTab({
         
         setNomePosto(tx.nomePosto || tx.Nome_Posto || '');
         setLocalizacaoPosto(tx.localizacaoPosto || tx.Localização_Do_Posto || (tx as any)['Localizacao_do_Posto'] || (tx as any)['Localização_do_Posto'] || '');
-        setMotorista(tx.motorista || tx.Motorista || '');
+        setMotorista(tx.motorista || tx.Motorista ? String(tx.motorista || tx.Motorista).trim().toUpperCase() : '');
         
         const rawKmPerc = tx.kmPercorrido !== undefined ? tx.kmPercorrido : (tx.KM_Percorrido !== undefined ? tx.KM_Percorrido : ((tx as any)['Km_Percorrido'] !== undefined ? (tx as any)['Km_Percorrido'] : null));
         setManualKmPercorrido(rawKmPerc !== undefined && rawKmPerc !== null && rawKmPerc !== '' ? String(rawKmPerc) : '');
@@ -1582,10 +1640,12 @@ export default function TransactionsTab({
     setNewCategoryName('');
     setTxType('DESPESA');
     setNewTypeName('');
-    setDate(new Date().toISOString().split('T')[0]);
+    setDate(formatDateForInput(new Date()));
     setStatus('PAGO');
     setFormBankId(0);
     setFormCartaoId('');
+    setFormaPagamento('');
+    setComprovanteUrl('');
     setInstallments('1');
     setComoDividir('DIVIDIR_TOTAL');
     setFuelType('ETANOL');
@@ -1700,6 +1760,8 @@ export default function TransactionsTab({
         descricao: finalDesc,
         categoria: finalCategory,
         status: status,
+        formaPagamento: formaPagamento ? formaPagamento.trim() : undefined,
+        comprovanteUrl: comprovanteUrl ? comprovanteUrl.trim() : undefined,
         obs: obs.trim() ? obs : undefined,
         bancoId: formBankId > 0 ? formBankId : undefined,
         bancoNome: bancoNome,
@@ -1739,7 +1801,7 @@ export default function TransactionsTab({
         Valor_PG: finalValorPg !== undefined ? finalValorPg : (status === 'PAGO' ? numericAmount : 0),
         Banco_Id: formBankId > 0 ? formBankId : '',
         Cartão_Id: parsedCartaoVal !== undefined ? parsedCartaoVal : '',
-        Forma_Pagamento: '',
+        Forma_Pagamento: formaPagamento || '',
         Tipo: isAbastecimento ? fuelType : finalType,
         Categoria: finalCategory,
         Status: status,
@@ -1754,7 +1816,7 @@ export default function TransactionsTab({
         Motorista: motorista || '',
         Nome_Posto: nomePosto || '',
         Localização_Do_Posto: localizacaoPosto || '',
-        Comprovante_Url: '',
+        Comprovante_Url: comprovanteUrl || '',
         OBS: obs.trim() || ''
       };
 
@@ -1869,6 +1931,8 @@ export default function TransactionsTab({
           descricao: installmentDesc,
           categoria: finalCategory,
           status: installmentStatus,
+          formaPagamento: formaPagamento ? formaPagamento.trim() : undefined,
+          comprovanteUrl: comprovanteUrl ? comprovanteUrl.trim() : undefined,
           obs: obs.trim() ? obs : undefined,
           bancoId: formBankId > 0 ? formBankId : undefined,
           bancoNome: bancoNome,
@@ -1908,7 +1972,7 @@ export default function TransactionsTab({
           Valor_PG: finalValorPgInst !== undefined ? finalValorPgInst : (installmentStatus === 'PAGO' ? finalAmount : 0),
           Banco_Id: formBankId > 0 ? formBankId : '',
           Cartão_Id: parsedCartaoVal !== undefined ? parsedCartaoVal : '',
-          Forma_Pagamento: '',
+          Forma_Pagamento: formaPagamento || '',
           Tipo: isAbastecimento ? fuelType : finalType,
           Categoria: finalCategory,
           Status: installmentStatus,
@@ -1923,7 +1987,7 @@ export default function TransactionsTab({
           Motorista: motorista || '',
           Nome_Posto: nomePosto || '',
           Localização_Do_Posto: localizacaoPosto || '',
-          Comprovante_Url: '',
+          Comprovante_Url: comprovanteUrl || '',
           OBS: obs.trim() || ''
         };
         payloads.push(payload);
@@ -2935,6 +2999,42 @@ export default function TransactionsTab({
                 ✅ O saldo da conta será atualizado automaticamente ao confirmar a transação.
               </p>
             )}
+
+          {/* Forma de Pagamento e Link do Comprovante */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div className="space-y-1.5">
+              <label className="block text-xs font-semibold text-slate-300">Forma de Pagamento</label>
+              <div className="relative">
+                <select
+                  value={formaPagamento}
+                  onChange={(e) => setFormaPagamento(e.target.value)}
+                  className="w-full bg-slate-900/60 border border-slate-800 rounded-xl px-4 h-[46px] text-xs text-white focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 outline-none appearance-none cursor-pointer font-sans"
+                >
+                  <option value="" className="bg-slate-900 text-slate-400">-- SELECIONE FORMA DE PAGAMENTO --</option>
+                  <option value="PIX" className="bg-slate-900 text-white">PIX</option>
+                  <option value="DINHEIRO" className="bg-slate-900 text-white">DINHEIRO</option>
+                  <option value="CARTÃO DE CRÉDITO" className="bg-slate-900 text-white">CARTÃO DE CRÉDITO</option>
+                  <option value="CARTÃO DE DÉBITO" className="bg-slate-900 text-white">CARTÃO DE DÉBITO</option>
+                  <option value="BOLETO" className="bg-slate-900 text-white">BOLETO</option>
+                  <option value="TRANSFERÊNCIA" className="bg-slate-900 text-white">TRANSFERÊNCIA</option>
+                </select>
+                <div className="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none text-slate-400">
+                  <span className="material-symbols-outlined text-lg">expand_more</span>
+                </div>
+              </div>
+            </div>
+
+            <div className="space-y-1.5">
+              <label className="block text-xs font-semibold text-slate-300">Link do Comprovante</label>
+              <input
+                type="url"
+                value={comprovanteUrl}
+                onChange={(e) => setComprovanteUrl(e.target.value)}
+                className="w-full bg-slate-900/60 border border-slate-800 rounded-xl px-4 h-[46px] text-xs text-white focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 outline-none font-sans"
+                placeholder="https://..."
+              />
+            </div>
+          </div>
 
           {/* Date Picker & Status Config */}
           <div className="grid grid-cols-2 gap-4">
