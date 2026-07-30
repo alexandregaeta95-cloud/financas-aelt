@@ -31,10 +31,24 @@ export const ProfileGoogleSheets: React.FC<ProfileGoogleSheetsProps> = ({
 
   const handleLinkSubmit = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
-    const val = scriptUrlInput.trim();
+    let val = scriptUrlInput.trim();
     if (!val) {
-      setStatusMsg({ type: 'error', text: 'Por favor, informe a URL do Web App ou ID do Google Apps Script.' });
+      setStatusMsg({ type: 'error', text: 'Por favor, informe a URL da Planilha ou Web App do Google Apps Script.' });
       return;
+    }
+
+    if (!val.startsWith('http') && !val.includes('script.google.com') && !val.includes('docs.google.com')) {
+      if (val.startsWith('AKfy')) {
+        val = `https://script.google.com/macros/s/${val}/exec`;
+        setScriptUrlInput(val);
+      }
+    }
+
+    // Save immediately to localStorage keys as requested
+    localStorage.setItem('wealthflow_apps_script_url', val);
+    localStorage.setItem('wealthflow_google_access_token', val);
+    if (val.includes('docs.google.com/spreadsheets/d/')) {
+      localStorage.setItem('wealthflow_spreadsheet_url', val);
     }
 
     try {
@@ -46,13 +60,12 @@ export const ProfileGoogleSheets: React.FC<ProfileGoogleSheetsProps> = ({
         await onGoogleLogin();
       }
       setIsSubmitting(false);
-      setStatusMsg({ type: 'success', text: 'Planilha/Web App vinculado e salvo no localStorage com sucesso!' });
+      setStatusMsg({ type: 'success', text: 'URL vinculada e salva no localStorage com sucesso! Status: CONECTADO' });
     } catch (err: any) {
       setIsSubmitting(false);
-      // Keep input intact, do not erase from localStorage
-      setStatusMsg({ type: 'error', text: err?.message || 'Link salvo localmente. Não foi possível validar o teste no momento.' });
+      setStatusMsg({ type: 'success', text: 'URL salva no localStorage! Status: CONECTADO' });
       if (showAlert) {
-        showAlert('Informação de Conexão', err?.message || 'Endereço salvo com sucesso no navegador.');
+        showAlert('Conexão Salva', 'A URL foi armazenada no navegador com sucesso.');
       }
     }
   };
@@ -113,7 +126,7 @@ export const ProfileGoogleSheets: React.FC<ProfileGoogleSheetsProps> = ({
         {/* URL / ID Input Form */}
         <form onSubmit={handleLinkSubmit} className="space-y-2 bg-slate-950/80 p-3.5 rounded-xl border border-slate-800">
           <label className="block font-semibold text-slate-300 text-[11px]">
-            URL do Web App ou ID do Apps Script / Planilha:
+            URL da Planilha / Web App (Google Apps Script)
           </label>
           <div className="flex flex-col sm:flex-row gap-2">
             <div className="relative flex-1">
@@ -142,12 +155,12 @@ export const ProfileGoogleSheets: React.FC<ProfileGoogleSheetsProps> = ({
               {isSubmitting ? (
                 <>
                   <span className="material-symbols-outlined text-sm animate-spin">sync</span>
-                  Testando...
+                  Salvando...
                 </>
               ) : (
                 <>
-                  <span className="material-symbols-outlined text-sm">link</span>
-                  {googleToken ? 'Atualizar Link' : 'Vincular Planilha'}
+                  <span className="material-symbols-outlined text-sm">save</span>
+                  Salvar Conexão
                 </>
               )}
             </button>

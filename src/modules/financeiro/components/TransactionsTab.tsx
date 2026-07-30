@@ -70,11 +70,12 @@ interface TransactionsTabProps {
   syncError?: string | null;
   lastSyncedTime?: string;
   autoSync?: boolean;
-  onGoogleLogin?: () => Promise<void>;
-  onGoogleLogout?: () => Promise<void>;
+  onGoogleLogin?: () => Promise<void> | void;
+  onGoogleLogout?: () => Promise<void> | void;
   onToggleAutoSync?: (checked: boolean) => void;
-  onTriggerSync?: (token?: string) => Promise<void>;
-  onTriggerImport?: () => Promise<void>;
+  onTriggerSync?: (token?: string) => Promise<void> | void;
+  onTriggerImport?: () => Promise<void> | void;
+  onConnectGoogleDrive?: (urlOrToken: string) => Promise<void> | void;
 
   registeredVehicles?: RegisteredVehicle[];
   setRegisteredVehicles?: React.Dispatch<React.SetStateAction<RegisteredVehicle[]>>;
