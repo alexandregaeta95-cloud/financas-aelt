@@ -76,7 +76,7 @@ import {
 import { sheetsService } from './services/sheets';
 import { authService } from './services/auth';
 
-import { normalizeTransactionObject } from './lib/googleAuth';
+import { normalizeTransactionObject, DEFAULT_SPREADSHEET_ID, DEFAULT_SPREADSHEET_URL, DEFAULT_APPS_SCRIPT_URL } from './lib/googleAuth';
 
 // Helper to deduplicate transactions securely (checks IDs and normalizes properties)
 function cleanDuplicateTransactions(txs: any[]): Transaction[] {
@@ -954,12 +954,12 @@ export default function App() {
     return localStorage.getItem('wealthflow_apps_script_url') || 
            localStorage.getItem('wealthflow_spreadsheet_url') || 
            localStorage.getItem('wealthflow_google_access_token') || 
-           null;
+           DEFAULT_APPS_SCRIPT_URL;
   });
   const [isSyncing, setIsSyncing] = useState<boolean>(false);
   const [isImporting, setIsImporting] = useState<boolean>(false);
   const [spreadsheetUrl, setSpreadsheetUrl] = useState<string>(() => {
-    return localStorage.getItem('wealthflow_spreadsheet_url') || '';
+    return localStorage.getItem('wealthflow_spreadsheet_url') || DEFAULT_SPREADSHEET_URL;
   });
   const [syncError, setSyncError] = useState<string | null>(null);
   const [lastSyncedTime, setLastSyncedTime] = useState<string>(() => {
@@ -1040,17 +1040,17 @@ export default function App() {
       setIsDbLoaded(true);
       isDbLoadedRef.current = true;
 
-      // 2. Perform optional remote Google Sheets fetch if token and sheet ID exist
+      // 2. Perform remote Google Sheets fetch using default or configured connection
       let loadedFromSheets = false;
-      const activeToken = googleToken;
+      const activeToken = googleToken || DEFAULT_APPS_SCRIPT_URL;
       
-      if (activeToken) {
-        try {
-          const sheetId = await sheetsService.obterOuCriarPlanilha(activeToken);
-          if (!sheetId || sheetId === 'active_sheet' || sheetId.trim() === '') {
-            console.warn("ID da planilha não configurado ou 'active_sheet'. Mantendo dados do banco de dados local.");
-          } else {
-            const sheetData = await sheetsService.buscarTodosDados(activeToken, sheetId);
+      try {
+        let sheetId = await sheetsService.obterOuCriarPlanilha(activeToken);
+        if (!sheetId || sheetId === 'active_sheet' || sheetId.trim() === '') {
+          sheetId = DEFAULT_SPREADSHEET_ID;
+        }
+        
+        const sheetData = await sheetsService.buscarTodosDados(activeToken, sheetId);
             
             const sdAny = sheetData as any;
             const rawTxs = Array.isArray(sdAny?.data?.transactions)
@@ -1112,11 +1112,9 @@ export default function App() {
               localStorage.setItem('wealthflow_grocery_items', JSON.stringify(sheetData.groceryItems));
             }
             loadedFromSheets = true;
-          }
         } catch (e) {
           console.warn("Falha ao buscar dados da planilha, utilizando cache local:", e);
         }
-      }
       
       if (showToast) {
         if (loadedFromSheets) {
@@ -2542,21 +2540,9 @@ export default function App() {
       setSyncError(null);
     }
     try {
-      const sheetId = await sheetsService.obterOuCriarPlanilha(activeToken);
-      
-      // Validation: Interrupt sync if sheet ID is 'active_sheet', empty, or undefined
+      let sheetId = await sheetsService.obterOuCriarPlanilha(activeToken);
       if (!sheetId || sheetId === 'active_sheet' || sheetId.trim() === '') {
-        setIsSyncing(false);
-        syncLockRef.current = false;
-        if (!isBackground) {
-          showAlert(
-            "Configuração da Planilha Necessária 📊",
-            "A URL ou ID da sua planilha do Google Sheets não está configurada ou é inválida. Por favor, acesse o menu de integração com o Google Drive para inserir a URL ou ID válida da sua planilha antes de iniciar a sincronização."
-          );
-        } else {
-          console.warn("Sincronização interrompida: ID da planilha é inválido, vazio ou 'active_sheet'. Configure a URL/ID da planilha.");
-        }
-        return;
+        sheetId = DEFAULT_SPREADSHEET_ID;
       }
       
       // 1. Always fetch current spreadsheet data to ensure two-way sync (what was edited on spreadsheet comes straight to phone)

@@ -1,3 +1,7 @@
+export const DEFAULT_SPREADSHEET_ID = '1JL1LlHmBtXj_dvWXvaedlDTWrSfptXzbhYlMJH1RNO4';
+export const DEFAULT_SPREADSHEET_URL = 'https://docs.google.com/spreadsheets/d/1JL1LlHmBtXj_dvWXvaedlDTWrSfptXzbhYlMJH1RNO4/edit?gid=2004093988#gid=2004093988';
+export const DEFAULT_APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzsC73N1O1vU2oN4lD0HneqWLM964XXkqHNDbeC8MH0uy5HUFIEaCZVQ7lX5sSma4LZGg/exec';
+
 export interface User {
   uid: string;
   displayName?: string | null;
@@ -57,7 +61,8 @@ export const initAuth = (
     cachedAccessToken || 
     localStorage.getItem('wealthflow_apps_script_url') || 
     localStorage.getItem('wealthflow_spreadsheet_url') ||
-    localStorage.getItem('wealthflow_google_access_token')
+    localStorage.getItem('wealthflow_google_access_token') ||
+    DEFAULT_APPS_SCRIPT_URL
   );
   if (token) {
     const isScript = token.includes('script.google.com');
@@ -83,7 +88,8 @@ export const googleSignIn = async (providedTokenOrUrl?: any): Promise<{ user: Us
       localStorage.getItem('wealthflow_apps_script_url') || 
       localStorage.getItem('wealthflow_spreadsheet_url') ||
       localStorage.getItem('wealthflow_google_access_token') || 
-      sessionStorage.getItem('wealthflow_google_access_token')
+      sessionStorage.getItem('wealthflow_google_access_token') ||
+      DEFAULT_APPS_SCRIPT_URL
     );
   }
 
@@ -133,19 +139,16 @@ export const callAppsScript = async (
   payloadOrAction: any,
   method: 'GET' | 'POST' = 'POST'
 ): Promise<any> => {
-  const cleanUrl = toSafeString(scriptUrl).trim();
-  if (!cleanUrl) {
-    return { status: 'error', error: 'URL do Google Apps Script não configurada' };
-  }
+  const cleanUrl = toSafeString(scriptUrl).trim() || DEFAULT_APPS_SCRIPT_URL;
 
   // Extract safe spreadsheet ID if available (never 'active_sheet')
   const savedSheetId = typeof localStorage !== 'undefined' ? toSafeString(localStorage.getItem('wealthflow_sheet_id')) : '';
   const paramSheetId = typeof payloadOrAction === 'object' && payloadOrAction?.spreadsheetId ? toSafeString(payloadOrAction.spreadsheetId) : '';
   const candidateId = paramSheetId || savedSheetId;
-  const cleanSheetId = (candidateId && candidateId !== 'active_sheet' && !candidateId.startsWith('http') && !candidateId.includes('script.google.com')) ? candidateId : '';
+  const cleanSheetId = (candidateId && candidateId !== 'active_sheet' && !candidateId.startsWith('http') && !candidateId.includes('script.google.com')) ? candidateId : DEFAULT_SPREADSHEET_ID;
 
   if (method === 'POST' && typeof payloadOrAction === 'object' && payloadOrAction !== null) {
-    if (payloadOrAction.spreadsheetId === 'active_sheet') {
+    if (!payloadOrAction.spreadsheetId || payloadOrAction.spreadsheetId === 'active_sheet') {
       payloadOrAction.spreadsheetId = cleanSheetId;
     }
   }
@@ -449,20 +452,21 @@ const findOrCreateFolder = async (accessToken: string, folderName: string, paren
  */
 export const findOrCreateSpreadsheet = async (accessToken: any): Promise<string> => {
   const tokenStr = toSafeString(accessToken).trim();
+  const savedSheetId = typeof localStorage !== 'undefined' ? toSafeString(localStorage.getItem('wealthflow_sheet_id')) : '';
+  const cleanSaved = (savedSheetId && !savedSheetId.startsWith('http') && savedSheetId !== 'active_sheet') ? savedSheetId : DEFAULT_SPREADSHEET_ID;
+
   if (!tokenStr) {
-    throw new Error("Token de acesso ou URL não configurado.");
+    return DEFAULT_SPREADSHEET_ID;
   }
 
   // Google Apps Script Web App
   if (tokenStr.includes('script.google.com') || tokenStr.startsWith('http')) {
-    const savedSheetId = typeof localStorage !== 'undefined' ? toSafeString(localStorage.getItem('wealthflow_sheet_id')) : '';
-    return (savedSheetId && !savedSheetId.startsWith('http') && savedSheetId !== 'active_sheet') ? savedSheetId : '';
+    return cleanSaved;
   }
 
   // Direct sheets mode
   if (tokenStr === 'wealthflow_direct_sheets_connected' || tokenStr.startsWith('wealthflow_')) {
-    const savedSheetId = typeof localStorage !== 'undefined' ? toSafeString(localStorage.getItem('wealthflow_sheet_id')) : '';
-    return (savedSheetId && savedSheetId !== 'active_sheet') ? savedSheetId : '';
+    return cleanSaved;
   }
 
   // Google Sheet URL
@@ -679,13 +683,14 @@ export const syncDataToSpreadsheet = async (
       ? storedAppsScriptUrl
       : (sheetIdStr && (sheetIdStr.includes('script.google.com') || sheetIdStr.startsWith('http')))
         ? sheetIdStr
-        : null;
+        : DEFAULT_APPS_SCRIPT_URL;
 
   // If using Google Apps Script Web App
   if (effectiveAppsScriptUrl) {
-    const cleanSpreadsheetId = (sheetIdStr && !sheetIdStr.startsWith('http') && !sheetIdStr.includes('script.google.com'))
+    const cleanSpreadsheetId = (sheetIdStr && !sheetIdStr.startsWith('http') && !sheetIdStr.includes('script.google.com') && sheetIdStr !== 'active_sheet')
       ? sheetIdStr
-      : (typeof localStorage !== 'undefined' ? toSafeString(localStorage.getItem('wealthflow_sheet_id')) || '' : '');
+      : (typeof localStorage !== 'undefined' ? toSafeString(localStorage.getItem('wealthflow_sheet_id')) || DEFAULT_SPREADSHEET_ID : DEFAULT_SPREADSHEET_ID);
+    const safeSheetId = (cleanSpreadsheetId && cleanSpreadsheetId !== 'active_sheet') ? cleanSpreadsheetId : DEFAULT_SPREADSHEET_ID;
 
     // Apply expense category filter from localStorage if defined
     let txsToSync = Array.isArray(transactions) ? transactions : [];
@@ -1899,13 +1904,13 @@ export const fetchTransactionsFromSpreadsheet = async (
       ? storedAppsScriptUrl
       : (sheetIdStr && (sheetIdStr.includes('script.google.com') || sheetIdStr.startsWith('http')))
         ? sheetIdStr
-        : null;
+        : DEFAULT_APPS_SCRIPT_URL;
 
   if (effectiveAppsScriptUrl) {
     const cleanSpreadsheetId = (sheetIdStr && !sheetIdStr.startsWith('http') && !sheetIdStr.includes('script.google.com') && sheetIdStr !== 'active_sheet')
       ? sheetIdStr
-      : (typeof localStorage !== 'undefined' ? toSafeString(localStorage.getItem('wealthflow_sheet_id')) || '' : '');
-    const safeSheetId = (cleanSpreadsheetId !== 'active_sheet') ? cleanSpreadsheetId : '';
+      : (typeof localStorage !== 'undefined' ? toSafeString(localStorage.getItem('wealthflow_sheet_id')) || DEFAULT_SPREADSHEET_ID : DEFAULT_SPREADSHEET_ID);
+    const safeSheetId = (cleanSpreadsheetId && cleanSpreadsheetId !== 'active_sheet') ? cleanSpreadsheetId : DEFAULT_SPREADSHEET_ID;
 
     try {
       const res = await callAppsScript(effectiveAppsScriptUrl, { action: 'fetchTransactions', spreadsheetId: safeSheetId }, 'GET');
@@ -2320,13 +2325,13 @@ export const fetchAllDataFromSpreadsheet = async (
       ? storedAppsScriptUrl
       : (sheetIdStr && (sheetIdStr.includes('script.google.com') || sheetIdStr.startsWith('http')))
         ? sheetIdStr
-        : null;
+        : DEFAULT_APPS_SCRIPT_URL;
 
   if (effectiveAppsScriptUrl) {
     const cleanSpreadsheetId = (sheetIdStr && !sheetIdStr.startsWith('http') && !sheetIdStr.includes('script.google.com') && sheetIdStr !== 'active_sheet')
       ? sheetIdStr
-      : (typeof localStorage !== 'undefined' ? toSafeString(localStorage.getItem('wealthflow_sheet_id')) || '' : '');
-    const safeSheetId = (cleanSpreadsheetId !== 'active_sheet') ? cleanSpreadsheetId : '';
+      : (typeof localStorage !== 'undefined' ? toSafeString(localStorage.getItem('wealthflow_sheet_id')) || DEFAULT_SPREADSHEET_ID : DEFAULT_SPREADSHEET_ID);
+    const safeSheetId = (cleanSpreadsheetId && cleanSpreadsheetId !== 'active_sheet') ? cleanSpreadsheetId : DEFAULT_SPREADSHEET_ID;
 
     try {
       const res = await callAppsScript(effectiveAppsScriptUrl, { action: 'fetchAllData', spreadsheetId: safeSheetId }, 'GET');

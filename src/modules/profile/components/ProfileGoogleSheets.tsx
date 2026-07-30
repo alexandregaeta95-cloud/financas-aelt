@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { DEFAULT_APPS_SCRIPT_URL } from '../../../lib/googleAuth';
 
 interface ProfileGoogleSheetsProps {
   googleToken?: string | null;
@@ -52,7 +53,7 @@ export const ProfileGoogleSheets: React.FC<ProfileGoogleSheetsProps> = ({
     const savedUrl = localStorage.getItem('wealthflow_apps_script_url') ||
                      localStorage.getItem('wealthflow_google_access_token') ||
                      localStorage.getItem('wealthflow_spreadsheet_url') ||
-                     '';
+                     DEFAULT_APPS_SCRIPT_URL;
     setScriptUrlInput(savedUrl);
 
     // Merge custom categories from localStorage if present

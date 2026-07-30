@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { DEFAULT_APPS_SCRIPT_URL, DEFAULT_SPREADSHEET_ID } from '../lib/googleAuth';
 
 interface GoogleDriveModalProps {
   isOpen: boolean;
@@ -14,14 +15,23 @@ const APPS_SCRIPT_CODE = `function doPost(e) {
     var action = data.action || 'syncData';
     var ssId = (data && data.spreadsheetId) || (e && e.parameter && e.parameter.spreadsheetId);
     var ss;
+    var defaultSsId = '1JL1LlHmBtXj_dvWXvaedlDTWrSfptXzbhYlMJH1RNO4';
     if (ssId && String(ssId).trim() !== '' && ssId !== 'active_sheet') {
       try {
         ss = SpreadsheetApp.openById(ssId);
       } catch (errOpen) {
-        ss = SpreadsheetApp.getActiveSpreadsheet();
+        try {
+          ss = SpreadsheetApp.openById(defaultSsId);
+        } catch (e2) {
+          ss = SpreadsheetApp.getActiveSpreadsheet();
+        }
       }
     } else {
-      ss = SpreadsheetApp.getActiveSpreadsheet();
+      try {
+        ss = SpreadsheetApp.openById(defaultSsId);
+      } catch (e2) {
+        ss = SpreadsheetApp.getActiveSpreadsheet();
+      }
     }
 
     if (action === 'syncData') {
@@ -106,14 +116,23 @@ function doGet(e) {
     var action = (e && e.parameter && e.parameter.action) || 'fetchAllData';
     var ssId = (e && e.parameter && e.parameter.spreadsheetId) ? e.parameter.spreadsheetId : null;
     var ss;
+    var defaultSsId = '1JL1LlHmBtXj_dvWXvaedlDTWrSfptXzbhYlMJH1RNO4';
     if (ssId && String(ssId).trim() !== '' && ssId !== 'active_sheet') {
       try {
         ss = SpreadsheetApp.openById(ssId);
       } catch (errOpen) {
-        ss = SpreadsheetApp.getActiveSpreadsheet();
+        try {
+          ss = SpreadsheetApp.openById(defaultSsId);
+        } catch (e2) {
+          ss = SpreadsheetApp.getActiveSpreadsheet();
+        }
       }
     } else {
-      ss = SpreadsheetApp.getActiveSpreadsheet();
+      try {
+        ss = SpreadsheetApp.openById(defaultSsId);
+      } catch (e2) {
+        ss = SpreadsheetApp.getActiveSpreadsheet();
+      }
     }
 
     if (action === 'fetchAllData' || action === 'fetchTransactions') {
@@ -345,7 +364,7 @@ export const GoogleDriveModal: React.FC<GoogleDriveModalProps> = ({
       const saved = currentValue || 
                     localStorage.getItem('wealthflow_apps_script_url') || 
                     localStorage.getItem('wealthflow_google_access_token') || 
-                    '';
+                    DEFAULT_APPS_SCRIPT_URL;
       setLinkInput(saved);
       setErrorMsg('');
       setIsLoading(false);
