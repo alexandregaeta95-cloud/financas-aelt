@@ -687,10 +687,31 @@ export const syncDataToSpreadsheet = async (
       ? sheetIdStr
       : (typeof localStorage !== 'undefined' ? toSafeString(localStorage.getItem('wealthflow_sheet_id')) || '' : '');
 
+    // Apply expense category filter from localStorage if defined
+    let txsToSync = Array.isArray(transactions) ? transactions : [];
+    try {
+      const syncCatsJson = typeof localStorage !== 'undefined' ? localStorage.getItem('wealthflow_sync_categories') : null;
+      if (syncCatsJson) {
+        const allowedCats: string[] = JSON.parse(syncCatsJson);
+        if (Array.isArray(allowedCats)) {
+          const allowedUpper = new Set(allowedCats.map(c => String(c).trim().toUpperCase()));
+          txsToSync = txsToSync.filter(tx => {
+            const tipo = String(tx.tipo || '').toUpperCase();
+            // Always keep RECEITA or filter expense transactions by category
+            if (tipo === 'RECEITA') return true;
+            const cat = String(tx.categoria || 'OUTROS').trim().toUpperCase();
+            return allowedUpper.has(cat);
+          });
+        }
+      }
+    } catch (e) {
+      console.warn('Erro ao filtrar categorias para sincronização:', e);
+    }
+
     const payload = {
       action: 'syncData',
       spreadsheetId: cleanSpreadsheetId,
-      transactions: Array.isArray(transactions) ? transactions : [],
+      transactions: txsToSync,
       infractions: Array.isArray(infractions) ? infractions : [],
       riskZones: Array.isArray(riskZones) ? riskZones : [],
       appointments: Array.isArray(appointments) ? appointments : [],
@@ -1304,8 +1325,8 @@ export const syncTransactionsToSpreadsheet = async (
   });
 
   const headers = [
-    "id", "data", "descricao", "valor", "tipo", "categoria", "status", "bancoId", "formaPagamento", "obs", "comprovanteUrl", "km", "litros", "precoLitro", "veiculo",
-    "Valor_R$", "Completou_o_Tanque", "KM_Percorrido", "Media_(Km/L)", "Nome_Posto", "Localizacao_do_Posto", "Motorista"
+    "id", "data", "descricao", "valor", "tipo", "categoria", "status", "bancoid", "formaPagamento", "obs", "comprovanteUrl", "km", "litros", "precoLitro", "veiculo",
+    "Valor_PG", "Completou_o_Tanque", "KM_Percorrido", "Media_(Km/L)", "Nome_Posto", "Localizacao_do_Posto", "Motorista"
   ];
 
   const rows = transactions.map(t => {

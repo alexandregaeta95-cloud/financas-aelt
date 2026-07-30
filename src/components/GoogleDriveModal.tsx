@@ -26,7 +26,7 @@ const APPS_SCRIPT_CODE = `function doPost(e) {
 
     if (action === 'syncData') {
       var txHeaders = [
-        'id', 'data', 'descricao', 'valor', 'tipo', 'categoria', 'status', 'bancoId', 'formaPagamento', 'obs', 'comprovanteUrl', 'km', 'litros', 'precoLitro', 'veiculo', 'Valor_R$', 'Completou_o_Tanque', 'KM_Percorrido', 'Media_(Km/L)', 'Nome_Posto', 'Localizacao_do_Posto', 'Motorista'
+        'id', 'data', 'descricao', 'valor', 'tipo', 'categoria', 'status', 'bancoid', 'formaPagamento', 'obs', 'comprovanteUrl', 'km', 'litros', 'precoLitro', 'veiculo', 'Valor_PG', 'Completou_o_Tanque', 'KM_Percorrido', 'Media_(Km/L)', 'Nome_Posto', 'Localizacao_do_Posto', 'Motorista'
       ];
 
       if (data.transactions && Array.isArray(data.transactions)) {
@@ -182,8 +182,8 @@ function writeArrayToSheet(ss, sheetName, items, headers) {
     return headers.map(function(h) {
       var val = item[h];
       if (val === undefined || val === null || val === '') {
-        if (h === 'Valor_R$' && (item['valorPg'] !== undefined || item['Valor_PG'] !== undefined)) val = item['valorPg'] !== undefined ? item['valorPg'] : item['Valor_PG'];
-        if (h === 'bancoId' && item['bancoid'] !== undefined) val = item['bancoid'];
+        if ((h === 'Valor_PG' || h === 'Valor_R$') && (item['valorPg'] !== undefined || item['Valor_PG'] !== undefined)) val = item['valorPg'] !== undefined ? item['valorPg'] : item['Valor_PG'];
+        if ((h === 'bancoid' || h === 'bancoId') && (item['bancoId'] !== undefined || item['bancoid'] !== undefined)) val = item['bancoId'] !== undefined ? item['bancoId'] : item['bancoid'];
         if (h === 'Completou_o_Tanque' && item['completouTanque'] !== undefined) val = item['completouTanque'] ? 'Sim' : 'Não';
         if (h === 'KM_Percorrido' && item['kmPercorrido'] !== undefined) val = item['kmPercorrido'];
         if (h === 'Media_(Km/L)' && item['mediaKmL'] !== undefined) val = item['mediaKmL'];
