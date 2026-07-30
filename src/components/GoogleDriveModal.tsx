@@ -247,32 +247,40 @@ function readSheetToArray(ss, sheetName) {
         
         var normKey = key;
         if (normKey === 'Valor_R$' || normKey === 'Valor_PG' || normKey === 'Valor Pago (R$)') normKey = 'valorPg';
-        if (normKey === 'bancoid' || normKey === 'bancoId') normKey = 'bancoId';
-        if (normKey === 'Completou_o_Tanque' || normKey === 'Completou o Tanque') normKey = 'completouTanque';
+        if (normKey === 'Banco_Id' || normKey === 'bancoid' || normKey === 'bancoId') normKey = 'bancoId';
+        if (normKey === 'Cartão_Id' || normKey === 'cartaoid' || normKey === 'cartaoId' || normKey === 'ID do Cartão / Conta') normKey = 'cartaoid';
+        if (normKey === 'Forma_Pagamento') normKey = 'formaPagamento';
+        if (normKey === 'Litros') normKey = 'litros';
+        if (normKey === 'Preço_Litro' || normKey === 'Preco_Litro') normKey = 'precoLitro';
+        if (normKey === 'Completou_O_Tanque' || normKey === 'Completou_o_Tanque' || normKey === 'Completou o Tanque') normKey = 'completouTanque';
         if (normKey === 'KM_Percorrido' || normKey === 'KM Percorrido') normKey = 'kmPercorrido';
-        if (normKey === 'Media_(Km/L)' || normKey === 'Média (Km/L)') normKey = 'mediaKmL';
+        if (normKey === 'Média_(Km/L)' || normKey === 'Media_(Km/L)' || normKey === 'Média (Km/L)') normKey = 'mediaKmL';
+        if (normKey === 'Descrição_Do_Veículo' || normKey === 'Descrição_do_Veículo' || normKey === 'Descrição do Veículo' || normKey === 'Descricao do Veiculo') normKey = 'descricaoVeiculo';
         if (normKey === 'Nome_Posto' || normKey === 'Nome Posto') normKey = 'nomePosto';
-        if (normKey === 'Localizacao_do_Posto' || normKey === 'Localização do Posto') normKey = 'localizacaoPosto';
+        if (normKey === 'Localização_Do_Posto' || normKey === 'Localizacao_do_Posto' || normKey === 'Localização do Posto') normKey = 'localizacaoPosto';
+        if (normKey === 'Comprovante_Url') normKey = 'comprovanteUrl';
+        if (normKey === 'OBS' || normKey === 'Obs' || normKey === 'Observações' || normKey === 'Observacao') normKey = 'obs';
+        if (normKey === 'Veiculo' || normKey === 'Veículo') normKey = 'veiculo';
         if (normKey === 'Motorista') normKey = 'motorista';
-        if (normKey === 'cartaoid' || normKey === 'cartaoId' || normKey === 'ID do Cartão / Conta') normKey = 'cartaoid';
-        if (normKey === 'Descrição_do_Veículo' || normKey === 'Descrição do Veículo' || normKey === 'Descricao do Veiculo') normKey = 'descricaoVeiculo';
+        if (normKey === 'Status') normKey = 'status';
+        if (normKey === 'Categoria') normKey = 'categoria';
+        if (normKey === 'Tipo') normKey = 'tipo';
         if (normKey === 'Item' || normKey === 'Nome' || normKey === 'nomeItem') normKey = 'nome';
         if (normKey === 'Descrição do Serviço' || normKey === 'Descrição' || normKey === 'Descricao') normKey = 'descricao';
-        if (normKey === 'Valor Pago (R$)' || normKey === 'Valor (R$)') normKey = 'valor';
+        if (normKey === 'Valor Pago (R$)' || normKey === 'Valor (R$)' || normKey === 'Valor') normKey = 'valor';
         if (normKey === 'Valor Estimado (R$)' || normKey === 'Valor Estimado') normKey = 'valorEstimado';
         if (normKey === 'Quilometragem (KM)' || normKey === 'KM') normKey = 'km';
         if (normKey === 'Data Realização' || normKey === 'Data') normKey = 'data';
         if (normKey === 'Oficina/Estabelecimento' || normKey === 'Oficina') normKey = 'oficinaNome';
-        if (normKey === 'Observações' || normKey === 'Observação' || normKey === 'Obs') normKey = 'observacao';
         if (normKey === 'Veículo' || normKey === 'veiculoDescricao') normKey = 'veiculoId';
         if (normKey === 'Comprado') normKey = 'comprado';
         if (normKey === 'Quantidade' || normKey === 'Qtd') normKey = 'quantidade';
         if (normKey === 'ID' || normKey === 'Id') normKey = 'id';
 
-        if (normKey === 'id' || normKey === 'valor' || normKey === 'saldoInicial' || normKey === 'limite' || normKey === 'km' || normKey === 'litros' || normKey === 'precoLitro' || normKey === 'kmAtual' || normKey === 'latitude' || normKey === 'longitude' || normKey === 'raioMetros' || normKey === 'quantidade' || normKey === 'valorEstimado') {
-          obj[normKey] = val !== '' && !isNaN(val) ? Number(val) : val;
-        } else if (normKey === 'concluido' || normKey === 'ativo' || normKey === 'comprado') {
-          obj[normKey] = val === true || val === 'true' || String(val).toUpperCase() === 'SIM';
+        if (normKey === 'id' || normKey === 'valor' || normKey === 'valorPg' || normKey === 'bancoId' || normKey === 'saldoInicial' || normKey === 'limite' || normKey === 'km' || normKey === 'litros' || normKey === 'precoLitro' || normKey === 'kmPercorrido' || normKey === 'mediaKmL' || normKey === 'kmAtual' || normKey === 'latitude' || normKey === 'longitude' || normKey === 'raioMetros' || normKey === 'quantidade' || normKey === 'valorEstimado') {
+          obj[normKey] = val !== '' && val !== null && !isNaN(val) ? Number(val) : val;
+        } else if (normKey === 'completouTanque' || normKey === 'concluido' || normKey === 'ativo' || normKey === 'comprado') {
+          obj[normKey] = val === true || val === 'true' || String(val).toUpperCase() === 'SIM' || String(val).toUpperCase() === 'TRUE';
         } else {
           obj[normKey] = val;
         }

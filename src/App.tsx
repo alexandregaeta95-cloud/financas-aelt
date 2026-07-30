@@ -104,18 +104,44 @@ function cleanDuplicateTransactions(txs: any[]): Transaction[] {
     seenIds.add(idNum);
 
     // Sanitize string and numeric fields to ensure non-null types
-    t.data = String(t.data || new Date().toLocaleDateString('pt-BR'));
-    t.descricao = String(t.descricao || 'LANÇAMENTO');
-    t.categoria = String(t.categoria || 'OUTROS').toUpperCase();
-    t.tipo = String(t.tipo || 'DESPESA').toUpperCase();
-    t.status = String(t.status || 'PAGO').toUpperCase();
-    t.valor = typeof t.valor === 'number' && !isNaN(t.valor) ? t.valor : (parseFloat(String(t.valor || 0).replace(',', '.')) || 0);
+    t.data = String(t.data || t.Data || new Date().toLocaleDateString('pt-BR'));
+    t.descricao = String(t.descricao || t.Descrição || 'LANÇAMENTO');
+    t.categoria = String(t.categoria || t.Categoria || 'OUTROS').toUpperCase();
+    t.tipo = String(t.tipo || t.Tipo || 'DESPESA').toUpperCase();
+    t.status = String(t.status || t.Status || 'PAGO').toUpperCase();
+    t.valor = typeof t.valor === 'number' && !isNaN(t.valor) ? t.valor : (parseFloat(String(t.valor || t.Valor || 0).replace(',', '.')) || 0);
 
-    if (t.veiculo) t.veiculo = String(t.veiculo || '').toUpperCase();
-    if (t.descricaoVeiculo) t.descricaoVeiculo = String(t.descricaoVeiculo || '').toUpperCase();
-    if (t.nomePosto) t.nomePosto = String(t.nomePosto || '').toUpperCase();
-    if (t.localizacaoPosto) t.localizacaoPosto = String(t.localizacaoPosto || '').toUpperCase();
-    if (t.motorista) t.motorista = String(t.motorista || '').toUpperCase();
+    const isAbast = t.categoria === 'ABASTECIMENTO';
+    if (t.veiculo || t.Veiculo) t.veiculo = String(t.veiculo || t.Veiculo || '').toUpperCase();
+    if (t.descricaoVeiculo || t['Descrição_Do_Veículo'] || t['Descrição_do_Veículo']) t.descricaoVeiculo = String(t.descricaoVeiculo || t['Descrição_Do_Veículo'] || t['Descrição_do_Veículo'] || '').toUpperCase();
+    if (t.nomePosto || t.Nome_Posto) t.nomePosto = String(t.nomePosto || t.Nome_Posto || '').toUpperCase();
+    if (t.localizacaoPosto || t['Localização_Do_Posto'] || t['Localizacao_do_Posto']) t.localizacaoPosto = String(t.localizacaoPosto || t['Localização_Do_Posto'] || t['Localizacao_do_Posto'] || '').toUpperCase();
+    if (t.motorista || t.Motorista) t.motorista = String(t.motorista || t.Motorista || '').toUpperCase();
+
+    // Attach explicit 24 column keys
+    t.Data = t.data;
+    t['Descrição'] = t.descricao;
+    t.Valor = t.valor;
+    t.Valor_PG = t.valorPg !== undefined ? t.valorPg : (t.Valor_PG !== undefined ? t.Valor_PG : t.valor);
+    t.Banco_Id = t.bancoId !== undefined ? t.bancoId : (t.Banco_Id !== undefined ? t.Banco_Id : '');
+    t['Cartão_Id'] = t.cartaoid !== undefined ? t.cartaoid : (t.cartaoId !== undefined ? t.cartaoId : (t['Cartão_Id'] !== undefined ? t['Cartão_Id'] : ''));
+    t.Forma_Pagamento = t.formaPagamento || t.Forma_Pagamento || '';
+    t.Tipo = t.tipo;
+    t.Categoria = t.categoria;
+    t.Status = t.status;
+    t.KM = isAbast ? (t.km !== undefined ? t.km : (t.KM !== undefined ? t.KM : '')) : '';
+    t.Litros = isAbast ? (t.litros !== undefined ? t.litros : (t.Litros !== undefined ? t.Litros : '')) : '';
+    t['Preço_Litro'] = isAbast ? (t.precoLitro !== undefined ? t.precoLitro : (t['Preço_Litro'] !== undefined ? t['Preço_Litro'] : '')) : '';
+    t.Completou_O_Tanque = isAbast ? ((t.completouTanque === true || t.completouTanque === 'Sim' || t.Completou_O_Tanque === 'Sim' || t.Completou_O_Tanque === true) ? 'Sim' : 'Não') : '';
+    t.KM_Percorrido = isAbast ? (t.kmPercorrido !== undefined ? t.kmPercorrido : (t.KM_Percorrido !== undefined ? t.KM_Percorrido : '')) : '';
+    t['Média_(Km/L)'] = isAbast ? (t.mediaKmL !== undefined ? t.mediaKmL : (t['Média_(Km/L)'] !== undefined ? t['Média_(Km/L)'] : (t['Media_(Km/L)'] !== undefined ? t['Media_(Km/L)'] : ''))) : '';
+    t.Veiculo = isAbast ? (t.veiculo || 'CARRO') : '';
+    t['Descrição_Do_Veículo'] = t.descricaoVeiculo || '';
+    t.Motorista = t.motorista || '';
+    t.Nome_Posto = t.nomePosto || '';
+    t['Localização_Do_Posto'] = t.localizacaoPosto || '';
+    t.Comprovante_Url = t.comprovanteUrl || t.Comprovante_Url || '';
+    t.OBS = t.obs || t.OBS || '';
 
     uniqueTxs.push(t as Transaction);
   });

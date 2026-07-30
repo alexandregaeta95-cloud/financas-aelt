@@ -1135,6 +1135,27 @@ export default function TransactionsTab({
     setFormCartaoId(localStorage.getItem('draft_formCartaoId') || '');
   };
 
+  const handleOpenAddForm = () => {
+    try {
+      setEditingTx(null);
+      loadDraft();
+      if (forcedFilter === 'ABASTECIMENTO') {
+        setCategory('ABASTECIMENTO');
+        setTxType('DESPESA');
+      } else if (forcedFilter === 'RECEITA') {
+        setTxType('RECEITA');
+        setCategory('RECEITA');
+      } else if (forcedFilter === 'DESPESA') {
+        setTxType('DESPESA');
+      }
+      setShowAddForm(true);
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    } catch (err) {
+      console.error("Erro ao abrir formulário de inclusão:", err);
+      if (showAlert) showAlert("Erro", "Não foi possível abrir o formulário. Tente novamente.");
+    }
+  };
+
   const [isFetchingLocation, setIsFetchingLocation] = useState<boolean>(false);
   const [locationError, setLocationError] = useState<string | null>(null);
 
@@ -1349,82 +1370,108 @@ export default function TransactionsTab({
   }, [transactions, editingTx, forcedFilter]);
 
   const handleStartEdit = (tx: Transaction) => {
-    setEditingTx(tx);
-    setShowAddForm(true);
-    window.scrollTo({ top: 0, behavior: 'smooth' });
-    
-    const safeTipo = (tx.tipo || '').toUpperCase();
-    const safeCategory = (tx.categoria || '').toUpperCase();
-
-    setTxType(safeTipo || 'DESPESA');
-    setNewTypeName('');
-    setAmountStr((tx.valor || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }));
-    
-    setCategory(safeCategory);
-    setNewCategoryName('');
-    
-    // Convert DD/MM/YYYY to YYYY-MM-DD
-    const parts = (tx.data || '').split('/');
-    if (parts.length === 3) {
-      setDate(`${parts[2]}-${parts[1]}-${parts[0]}`);
-    } else {
-      setDate(new Date().toISOString().split('T')[0]);
-    }
-    
-    setDesc(tx.descricao || '');
-    setStatus(tx.status || 'PAGO');
-    setObs(tx.obs || '');
-
-    // Set fuel fields if category is Abastecimento
-    if (safeCategory === 'ABASTECIMENTO') {
-      setFuelType(tx.tipo || 'ETANOL');
-      setKm(tx.km ? String(tx.km) : '');
-      setLitros(tx.litros ? tx.litros.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '0,00');
-      setPrecoLitro(tx.precoLitro ? tx.precoLitro.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '0,00');
+    try {
+      setEditingTx(tx);
+      setShowAddForm(true);
+      window.scrollTo({ top: 0, behavior: 'smooth' });
       
-      const rawVehicle = (tx.veiculo || '').trim().toUpperCase();
-      let mappedVehicle = 'CARRO';
-      let mappedDescVehicle = tx.descricaoVeiculo || '';
-      if (rawVehicle === 'MOTO' || rawVehicle === 'CARRO') {
-        mappedVehicle = rawVehicle;
-      } else if (rawVehicle) {
-        mappedVehicle = 'CARRO';
-        if (!mappedDescVehicle) {
-          mappedDescVehicle = rawVehicle;
-        }
+      const safeTipo = String(tx.tipo || tx.Tipo || '').toUpperCase();
+      const safeCategory = String(tx.categoria || tx.Categoria || '').toUpperCase();
+      const rawValor = tx.valor !== undefined ? tx.valor : (tx.Valor !== undefined ? tx.Valor : 0);
+
+      setTxType(safeTipo || 'DESPESA');
+      setNewTypeName('');
+      setAmountStr(typeof rawValor === 'number' ? rawValor.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : String(rawValor || '0,00'));
+      
+      setCategory(safeCategory);
+      setNewCategoryName('');
+      
+      // Convert DD/MM/YYYY or YYYY-MM-DD
+      const rawDate = String(tx.data || tx.Data || '');
+      const parts = rawDate.split('/');
+      if (parts.length === 3) {
+        setDate(`${parts[2]}-${parts[1]}-${parts[0]}`);
+      } else if (rawDate.includes('-')) {
+        setDate(rawDate);
+      } else {
+        setDate(new Date().toISOString().split('T')[0]);
       }
-      setVeiculo(mappedVehicle);
-      setDescricaoVeiculo(mappedDescVehicle);
       
-      setValorPgStr(tx.valorPg !== undefined ? tx.valorPg.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : (tx.valor || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }));
-      setCompletouTanque(tx.completouTanque !== undefined ? tx.completouTanque : true);
-      setNomePosto(tx.nomePosto || '');
-      setLocalizacaoPosto(tx.localizacaoPosto || '');
-      setMotorista(tx.motorista || '');
-      setManualKmPercorrido(tx.kmPercorrido !== undefined && tx.kmPercorrido !== null ? String(tx.kmPercorrido) : '');
-      setManualMediaKmL(tx.mediaKmL !== undefined && tx.mediaKmL !== null ? tx.mediaKmL.toFixed(2).replace('.', ',') : '');
-    } else {
-      setFuelType('ETANOL');
-      setKm('');
-      setLitros('0,00');
-      setPrecoLitro('0,00');
-      setVeiculo('CARRO');
-      setDescricaoVeiculo('');
-      setValorPgStr('0,00');
-      setCompletouTanque(true);
-      setNomePosto('');
-      setLocalizacaoPosto('');
-      setMotorista('');
-      setManualKmPercorrido('');
-      setManualMediaKmL('');
+      setDesc(tx.descricao || tx.Descrição || '');
+      setStatus(tx.status || tx.Status || 'PAGO');
+      setObs(tx.obs || tx.OBS || '');
+
+      // Set fuel fields if category is Abastecimento
+      if (safeCategory === 'ABASTECIMENTO') {
+        const fuelTypeVal = tx.tipo || tx.Tipo || 'ETANOL';
+        setFuelType(fuelTypeVal);
+        
+        const rawKm = tx.km !== undefined ? tx.km : (tx.KM !== undefined ? tx.KM : '');
+        setKm(rawKm !== undefined && rawKm !== null ? String(rawKm) : '');
+        
+        const rawLitros = tx.litros !== undefined ? tx.litros : (tx.Litros !== undefined ? tx.Litros : 0);
+        setLitros(typeof rawLitros === 'number' ? rawLitros.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : String(rawLitros || '0,00'));
+        
+        const rawPrecoLitro = tx.precoLitro !== undefined ? tx.precoLitro : (tx.Preço_Litro !== undefined ? tx.Preço_Litro : 0);
+        setPrecoLitro(typeof rawPrecoLitro === 'number' ? rawPrecoLitro.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : String(rawPrecoLitro || '0,00'));
+        
+        const rawVehicle = String(tx.veiculo || tx.Veiculo || '').trim().toUpperCase();
+        let mappedVehicle = 'CARRO';
+        let mappedDescVehicle = tx.descricaoVeiculo || tx.Descrição_Do_Veículo || (tx as any)['Descrição_do_Veículo'] || '';
+        if (rawVehicle === 'MOTO' || rawVehicle === 'CARRO') {
+          mappedVehicle = rawVehicle;
+        } else if (rawVehicle) {
+          mappedVehicle = 'CARRO';
+          if (!mappedDescVehicle) {
+            mappedDescVehicle = rawVehicle;
+          }
+        }
+        setVeiculo(mappedVehicle);
+        setDescricaoVeiculo(mappedDescVehicle);
+        
+        const rawValorPg = tx.valorPg !== undefined ? tx.valorPg : (tx.Valor_PG !== undefined ? tx.Valor_PG : rawValor);
+        setValorPgStr(typeof rawValorPg === 'number' ? rawValorPg.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : String(rawValorPg || '0,00'));
+        
+        const rawCompTanque = tx.completouTanque !== undefined ? tx.completouTanque : (tx.Completou_O_Tanque !== undefined ? (tx.Completou_O_Tanque === 'Sim' || tx.Completou_O_Tanque === true) : true);
+        setCompletouTanque(Boolean(rawCompTanque));
+        
+        setNomePosto(tx.nomePosto || tx.Nome_Posto || '');
+        setLocalizacaoPosto(tx.localizacaoPosto || tx.Localização_Do_Posto || (tx as any)['Localizacao_do_Posto'] || '');
+        setMotorista(tx.motorista || tx.Motorista || '');
+        
+        const rawKmPerc = tx.kmPercorrido !== undefined ? tx.kmPercorrido : (tx.KM_Percorrido !== undefined ? tx.KM_Percorrido : null);
+        setManualKmPercorrido(rawKmPerc !== undefined && rawKmPerc !== null ? String(rawKmPerc) : '');
+        
+        const rawMedia = tx.mediaKmL !== undefined ? tx.mediaKmL : (tx['Média_(Km/L)'] !== undefined ? tx['Média_(Km/L)'] : (tx['Media_(Km/L)'] !== undefined ? tx['Media_(Km/L)'] : null));
+        setManualMediaKmL(typeof rawMedia === 'number' ? rawMedia.toFixed(2).replace('.', ',') : (rawMedia ? String(rawMedia) : ''));
+      } else {
+        setFuelType('ETANOL');
+        setKm('');
+        setLitros('0,00');
+        setPrecoLitro('0,00');
+        setVeiculo('CARRO');
+        setDescricaoVeiculo('');
+        setValorPgStr('0,00');
+        setCompletouTanque(true);
+        setNomePosto('');
+        setLocalizacaoPosto('');
+        setMotorista('');
+        setManualKmPercorrido('');
+        setManualMediaKmL('');
+      }
+      
+      setInstallments('1');
+      setComoDividir('DIVIDIR_TOTAL');
+      const rawBank = tx.bancoId !== undefined ? tx.bancoId : (tx.Banco_Id !== undefined ? tx.Banco_Id : 0);
+      setFormBankId(Number(rawBank) || 0);
+      
+      const rawCard = tx.cartaoid !== undefined && tx.cartaoid !== null ? tx.cartaoid : (tx.cartaoId !== undefined && tx.cartaoId !== null ? tx.cartaoId : (tx.Cartão_Id !== undefined && tx.Cartão_Id !== null ? tx.Cartão_Id : rawBank));
+      setFormCartaoId(String(rawCard || ''));
+      setShowAddForm(true);
+    } catch (err) {
+      console.error("Erro ao iniciar edição de lançamento:", err);
+      if (showAlert) showAlert("Erro", "Não foi possível carregar os dados para edição.");
     }
-    
-    setInstallments('1');
-    setComoDividir('DIVIDIR_TOTAL');
-    setFormBankId(tx.bancoId || 0);
-    const initialCartaoId = tx.cartaoid !== undefined && tx.cartaoid !== null ? String(tx.cartaoid) : (tx.cartaoId !== undefined && tx.cartaoId !== null ? String(tx.cartaoId) : (tx.bancoId ? String(tx.bancoId) : ''));
-    setFormCartaoId(initialCartaoId);
-    setShowAddForm(true);
   };
 
   const handleCancel = () => {
@@ -2970,13 +3017,12 @@ export default function TransactionsTab({
             </button>
           )}
           <button
-            onClick={() => {
-              loadDraft();
-              setShowAddForm(true);
-            }}
-            className="bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 border border-emerald-500/25 px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1 transition-colors cursor-pointer"
+            onClick={handleOpenAddForm}
+            className="bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold px-3.5 py-1.5 rounded-lg text-xs flex items-center gap-1.5 transition-all shadow-md cursor-pointer active:scale-95"
+            title="Incluir novo lançamento ou abastecimento"
           >
-            <span className="material-symbols-outlined text-[16px]">add</span> Adicionar
+            <span className="material-symbols-outlined text-[16px]">add_circle</span>
+            {forcedFilter === 'ABASTECIMENTO' ? 'Incluir Abastecimento' : 'Incluir Lançamento'}
           </button>
         </div>
       </div>
@@ -3970,24 +4016,44 @@ export default function TransactionsTab({
                     <p className="text-[10px] text-slate-400 font-mono mt-1 truncate">
                       {tx.data} • {tx.categoria} • {tx.tipo}{tx.bancoNome ? ` • 🏦 ${String(tx.bancoNome).toUpperCase()}` : ''}
                     </p>
-                    {String(tx.categoria || '').toUpperCase() === 'ABASTECIMENTO' && (tx.km || tx.litros || tx.veiculo || tx.descricaoVeiculo || tx.valorPg !== undefined || tx.completouTanque !== undefined || tx.nomePosto || tx.localizacaoPosto || tx.motorista) && (
+                    {String(tx.categoria || '').toUpperCase() === 'ABASTECIMENTO' && (
                       <div className="flex flex-wrap gap-x-2 gap-y-1 text-[9px] font-semibold text-emerald-400 font-mono mt-1 uppercase">
-                        {tx.veiculo && (
+                        {(tx.veiculo || tx.Veiculo) && (
                           <span>
-                            {String(tx.veiculo || '').toUpperCase() === 'MOTO' ? '🏍️' : '🚗'} {tx.veiculo}
-                            {tx.descricaoVeiculo ? ` (${tx.descricaoVeiculo})` : ''}
+                            {String(tx.veiculo || tx.Veiculo || '').toUpperCase() === 'MOTO' ? '🏍️' : '🚗'} {tx.veiculo || tx.Veiculo}
+                            {(tx.descricaoVeiculo || tx.Descrição_Do_Veículo) ? ` (${tx.descricaoVeiculo || tx.Descrição_Do_Veículo})` : ''}
                           </span>
                         )}
-                        {typeof tx.km === 'number' && !isNaN(tx.km) && <span>📍 {tx.km.toLocaleString('pt-BR')} KM</span>}
-                        {typeof tx.litros === 'number' && !isNaN(tx.litros) && <span>⛽ {tx.litros.toLocaleString('pt-BR')} L</span>}
-                        {typeof tx.precoLitro === 'number' && !isNaN(tx.precoLitro) && <span>💸 R$ {tx.precoLitro.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}/L</span>}
-                        {typeof tx.valorPg === 'number' && !isNaN(tx.valorPg) && <span>💰 PG: R$ {tx.valorPg.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>}
-                        {tx.completouTanque !== undefined && <span>🔋 TANQUE CHEIO: {tx.completouTanque ? 'SIM' : 'NÃO'}</span>}
-                        {typeof tx.kmPercorrido === 'number' && !isNaN(tx.kmPercorrido) && <span>🛣️ +{tx.kmPercorrido.toLocaleString('pt-BR')} KM</span>}
-                        {typeof tx.mediaKmL === 'number' && !isNaN(tx.mediaKmL) && <span>📈 {tx.mediaKmL.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} KM/L</span>}
-                        {tx.nomePosto && <span>🏪 {tx.nomePosto}</span>}
-                        {tx.localizacaoPosto && <span>🗺️ {tx.localizacaoPosto}</span>}
-                        {tx.motorista && <span>👤 {tx.motorista}</span>}
+                        {(() => {
+                          const kmVal = tx.km !== undefined && (tx.km as any) !== '' ? Number(tx.km) : (tx.KM !== undefined && (tx.KM as any) !== '' ? Number(tx.KM) : NaN);
+                          return !isNaN(kmVal) ? <span>📍 {kmVal.toLocaleString('pt-BR')} KM</span> : null;
+                        })()}
+                        {(() => {
+                          const litVal = tx.litros !== undefined && (tx.litros as any) !== '' ? Number(tx.litros) : (tx.Litros !== undefined && (tx.Litros as any) !== '' ? Number(tx.Litros) : NaN);
+                          return !isNaN(litVal) ? <span>⛽ {litVal.toLocaleString('pt-BR')} L</span> : null;
+                        })()}
+                        {(() => {
+                          const prVal = tx.precoLitro !== undefined && (tx.precoLitro as any) !== '' ? Number(tx.precoLitro) : (tx['Preço_Litro'] !== undefined && (tx['Preço_Litro'] as any) !== '' ? Number(tx['Preço_Litro']) : NaN);
+                          return !isNaN(prVal) ? <span>💸 R$ {prVal.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}/L</span> : null;
+                        })()}
+                        {(() => {
+                          const pgVal = tx.valorPg !== undefined && (tx.valorPg as any) !== '' ? Number(tx.valorPg) : (tx.Valor_PG !== undefined && (tx.Valor_PG as any) !== '' ? Number(tx.Valor_PG) : NaN);
+                          return !isNaN(pgVal) ? <span>💰 PG: R$ {pgVal.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span> : null;
+                        })()}
+                        {(tx.completouTanque !== undefined || tx.Completou_O_Tanque !== undefined) && (
+                          <span>🔋 TANQUE CHEIO: {(tx.completouTanque === true || (tx.completouTanque as any) === 'Sim' || tx.Completou_O_Tanque === 'Sim' || (tx.Completou_O_Tanque as any) === true) ? 'SIM' : 'NÃO'}</span>
+                        )}
+                        {(() => {
+                          const kmPercVal = tx.kmPercorrido !== undefined && (tx.kmPercorrido as any) !== '' ? Number(tx.kmPercorrido) : (tx.KM_Percorrido !== undefined && (tx.KM_Percorrido as any) !== '' ? Number(tx.KM_Percorrido) : NaN);
+                          return !isNaN(kmPercVal) && kmPercVal > 0 ? <span>🛣️ +{kmPercVal.toLocaleString('pt-BR')} KM</span> : null;
+                        })()}
+                        {(() => {
+                          const medVal = tx.mediaKmL !== undefined && (tx.mediaKmL as any) !== '' ? Number(tx.mediaKmL) : (tx['Média_(Km/L)'] !== undefined && (tx['Média_(Km/L)'] as any) !== '' ? Number(tx['Média_(Km/L)']) : NaN);
+                          return !isNaN(medVal) && medVal > 0 ? <span>📈 {medVal.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} KM/L</span> : null;
+                        })()}
+                        {(tx.nomePosto || tx.Nome_Posto) && <span>🏪 {tx.nomePosto || tx.Nome_Posto}</span>}
+                        {(tx.localizacaoPosto || tx.Localização_Do_Posto) && <span>🗺️ {tx.localizacaoPosto || tx.Localização_Do_Posto}</span>}
+                        {(tx.motorista || tx.Motorista) && <span>👤 {tx.motorista || tx.Motorista}</span>}
                       </div>
                     )}
 
