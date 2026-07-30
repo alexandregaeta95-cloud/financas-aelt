@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
@@ -760,6 +760,43 @@ export default function TransactionsTab({
   const [manualMediaKmL, setManualMediaKmL] = useState<string>(() => localStorage.getItem('draft_manualMediaKmL') || '');
   const [obs, setObs] = useState<string>(() => localStorage.getItem('draft_obs') || '');
 
+  // Motoristas Memo Hook for combo population (registeredVehicles + transactions history + fallback)
+  const availableDrivers = useMemo(() => {
+    const driversSet = new Set<string>();
+
+    // 1. From registeredVehicles
+    if (Array.isArray(registeredVehicles)) {
+      registeredVehicles.forEach(v => {
+        if (v && v.motorista && String(v.motorista).trim()) {
+          driversSet.add(String(v.motorista).trim().toUpperCase());
+        }
+      });
+    }
+
+    // 2. From transactions history (IndexedDB / state)
+    if (Array.isArray(transactions)) {
+      transactions.forEach(tx => {
+        const d = tx.motorista || tx.Motorista;
+        if (d && String(d).trim()) {
+          driversSet.add(String(d).trim().toUpperCase());
+        }
+      });
+    }
+
+    // 3. Fallback defaults if list is empty
+    if (driversSet.size === 0) {
+      driversSet.add('ALEXANDRE');
+      driversSet.add('MOTORISTA 1');
+    }
+
+    // 4. Current motorista state if set
+    if (motorista && motorista.trim()) {
+      driversSet.add(motorista.trim().toUpperCase());
+    }
+
+    return Array.from(driversSet).sort();
+  }, [registeredVehicles, transactions, motorista]);
+
   // Calculadora de Consumo Médio (KM/L) States
   const [showFuelCalcTool, setShowFuelCalcTool] = useState<boolean>(true);
   const [calcVehicle, setCalcVehicle] = useState<string>('');
@@ -1414,38 +1451,73 @@ export default function TransactionsTab({
       setCategory(safeCategory);
       setNewCategoryName('');
       
-      // Convert DD/MM/YYYY or YYYY-MM-DD
-      const rawDate = String(tx.data || tx.Data || '');
-      const parts = rawDate.split('/');
-      if (parts.length === 3) {
-        setDate(`${parts[2]}-${parts[1]}-${parts[0]}`);
+      // 1. Convert Data property to 'YYYY-MM-DD' string for HTML <input type="date">
+      let rawDate = String(tx.data || tx.Data || '').trim();
+      if (rawDate.includes('T')) {
+        rawDate = rawDate.split('T')[0];
+      }
+      if (rawDate.includes(' ')) {
+        rawDate = rawDate.split(' ')[0];
+      }
+
+      if (rawDate.includes('/')) {
+        const parts = rawDate.split('/');
+        if (parts.length === 3) {
+          if (parts[0].length === 4) {
+            // YYYY/MM/DD
+            setDate(`${parts[0]}-${parts[1].padStart(2, '0')}-${parts[2].padStart(2, '0')}`);
+          } else {
+            // DD/MM/YYYY
+            const d = parts[0].padStart(2, '0');
+            const m = parts[1].padStart(2, '0');
+            const y = parts[2];
+            setDate(`${y}-${m}-${d}`);
+          }
+        } else {
+          setDate(new Date().toISOString().split('T')[0]);
+        }
       } else if (rawDate.includes('-')) {
-        setDate(rawDate);
+        const dashParts = rawDate.split('-');
+        if (dashParts.length === 3) {
+          if (dashParts[0].length === 4) {
+            // YYYY-MM-DD
+            setDate(`${dashParts[0]}-${dashParts[1].padStart(2, '0')}-${dashParts[2].padStart(2, '0')}`);
+          } else if (dashParts[2].length === 4) {
+            // DD-MM-YYYY
+            setDate(`${dashParts[2]}-${dashParts[1].padStart(2, '0')}-${dashParts[0].padStart(2, '0')}`);
+          } else {
+            setDate(rawDate);
+          }
+        } else {
+          setDate(rawDate);
+        }
       } else {
         setDate(new Date().toISOString().split('T')[0]);
       }
       
-      setDesc(tx.descricao || tx.Descrição || '');
+      setDesc(tx.descricao || tx.Descrição || (tx as any)['Descricao'] || '');
       setStatus(tx.status || tx.Status || 'PAGO');
       setObs(tx.obs || tx.OBS || '');
 
-      // Set fuel fields if category is Abastecimento
-      if (safeCategory === 'ABASTECIMENTO') {
+      // 3. Mapping of all 24 columns for Fuel / Abastecimento
+      const isAbastCat = safeCategory === 'ABASTECIMENTO' || forcedFilter === 'ABASTECIMENTO' || tx.km !== undefined || tx.KM !== undefined || tx.litros !== undefined || tx.Litros !== undefined || tx.veiculo !== undefined || tx.Veiculo !== undefined;
+
+      if (isAbastCat) {
         const fuelTypeVal = tx.tipo || tx.Tipo || 'ETANOL';
         setFuelType(fuelTypeVal);
         
         const rawKm = tx.km !== undefined ? tx.km : (tx.KM !== undefined ? tx.KM : '');
-        setKm(rawKm !== undefined && rawKm !== null ? String(rawKm) : '');
+        setKm(rawKm !== undefined && rawKm !== null && rawKm !== '' ? String(rawKm) : '');
         
         const rawLitros = tx.litros !== undefined ? tx.litros : (tx.Litros !== undefined ? tx.Litros : 0);
         setLitros(typeof rawLitros === 'number' ? rawLitros.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : String(rawLitros || '0,00'));
         
-        const rawPrecoLitro = tx.precoLitro !== undefined ? tx.precoLitro : (tx.Preço_Litro !== undefined ? tx.Preço_Litro : 0);
+        const rawPrecoLitro = tx.precoLitro !== undefined ? tx.precoLitro : (tx.Preço_Litro !== undefined ? tx.Preço_Litro : ((tx as any)['Preco_Litro'] !== undefined ? (tx as any)['Preco_Litro'] : 0));
         setPrecoLitro(typeof rawPrecoLitro === 'number' ? rawPrecoLitro.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : String(rawPrecoLitro || '0,00'));
         
         const rawVehicle = String(tx.veiculo || tx.Veiculo || '').trim().toUpperCase();
         let mappedVehicle = 'CARRO';
-        let mappedDescVehicle = tx.descricaoVeiculo || tx.Descrição_Do_Veículo || (tx as any)['Descrição_do_Veículo'] || '';
+        let mappedDescVehicle = tx.descricaoVeiculo || tx.Descrição_Do_Veículo || (tx as any)['Descrição_do_Veículo'] || (tx as any)['Descricao_Do_Veiculo'] || '';
         if (rawVehicle === 'MOTO' || rawVehicle === 'CARRO') {
           mappedVehicle = rawVehicle;
         } else if (rawVehicle) {
@@ -1457,21 +1529,21 @@ export default function TransactionsTab({
         setVeiculo(mappedVehicle);
         setDescricaoVeiculo(mappedDescVehicle);
         
-        const rawValorPg = tx.valorPg !== undefined ? tx.valorPg : (tx.Valor_PG !== undefined ? tx.Valor_PG : rawValor);
+        const rawValorPg = tx.valorPg !== undefined ? tx.valorPg : (tx.Valor_PG !== undefined ? tx.Valor_PG : ((tx as any)['Valor_pg'] !== undefined ? (tx as any)['Valor_pg'] : rawValor));
         setValorPgStr(typeof rawValorPg === 'number' ? rawValorPg.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : String(rawValorPg || '0,00'));
         
-        const rawCompTanque = tx.completouTanque !== undefined ? tx.completouTanque : (tx.Completou_O_Tanque !== undefined ? (tx.Completou_O_Tanque === 'Sim' || tx.Completou_O_Tanque === true) : true);
+        const rawCompTanque = tx.completouTanque !== undefined ? tx.completouTanque : (tx.Completou_O_Tanque !== undefined ? (tx.Completou_O_Tanque === 'Sim' || tx.Completou_O_Tanque === true) : ((tx as any)['Completou_o_Tanque'] !== undefined ? ((tx as any)['Completou_o_Tanque'] === 'Sim' || (tx as any)['Completou_o_Tanque'] === true) : true));
         setCompletouTanque(Boolean(rawCompTanque));
         
         setNomePosto(tx.nomePosto || tx.Nome_Posto || '');
-        setLocalizacaoPosto(tx.localizacaoPosto || tx.Localização_Do_Posto || (tx as any)['Localizacao_do_Posto'] || '');
+        setLocalizacaoPosto(tx.localizacaoPosto || tx.Localização_Do_Posto || (tx as any)['Localizacao_do_Posto'] || (tx as any)['Localização_do_Posto'] || '');
         setMotorista(tx.motorista || tx.Motorista || '');
         
-        const rawKmPerc = tx.kmPercorrido !== undefined ? tx.kmPercorrido : (tx.KM_Percorrido !== undefined ? tx.KM_Percorrido : null);
-        setManualKmPercorrido(rawKmPerc !== undefined && rawKmPerc !== null ? String(rawKmPerc) : '');
+        const rawKmPerc = tx.kmPercorrido !== undefined ? tx.kmPercorrido : (tx.KM_Percorrido !== undefined ? tx.KM_Percorrido : ((tx as any)['Km_Percorrido'] !== undefined ? (tx as any)['Km_Percorrido'] : null));
+        setManualKmPercorrido(rawKmPerc !== undefined && rawKmPerc !== null && rawKmPerc !== '' ? String(rawKmPerc) : '');
         
-        const rawMedia = tx.mediaKmL !== undefined ? tx.mediaKmL : (tx['Média_(Km/L)'] !== undefined ? tx['Média_(Km/L)'] : (tx['Media_(Km/L)'] !== undefined ? tx['Media_(Km/L)'] : null));
-        setManualMediaKmL(typeof rawMedia === 'number' ? rawMedia.toFixed(2).replace('.', ',') : (rawMedia ? String(rawMedia) : ''));
+        const rawMedia = tx.mediaKmL !== undefined ? tx.mediaKmL : (tx['Média_(Km/L)'] !== undefined ? tx['Média_(Km/L)'] : (tx['Media_(Km/L)'] !== undefined ? tx['Media_(Km/L)'] : ((tx as any)['Media_(KM/L)'] !== undefined ? (tx as any)['Media_(KM/L)'] : null)));
+        setManualMediaKmL(typeof rawMedia === 'number' ? rawMedia.toFixed(2).replace('.', ',') : (rawMedia !== null && rawMedia !== undefined ? String(rawMedia) : ''));
       } else {
         setFuelType('ETANOL');
         setKm('');
@@ -2737,16 +2809,11 @@ export default function TransactionsTab({
                     className="w-full bg-slate-900/60 border border-slate-800 rounded-xl px-3 py-2 text-xs text-white focus:border-emerald-500 outline-none appearance-none cursor-pointer font-sans"
                   >
                     <option value="" className="bg-slate-900 text-slate-400 font-sans">-- SELECIONE O MOTORISTA --</option>
-                    {Array.from(new Set((registeredVehicles || []).map(v => v?.motorista))).filter(Boolean).map(driver => (
-                      <option key={String(driver)} value={String(driver)} className="bg-slate-900 text-white font-sans">
-                        {String(driver)}
+                    {availableDrivers.map(driver => (
+                      <option key={driver} value={driver} className="bg-slate-900 text-white font-sans">
+                        {driver}
                       </option>
                     ))}
-                    {motorista && !(registeredVehicles || []).some(v => v && v.motorista === motorista) && (
-                      <option value={motorista} className="bg-slate-900 text-white font-sans">
-                        {motorista}
-                      </option>
-                    )}
                     <option value="CUSTOM_ACTION" className="bg-slate-900 text-emerald-400 font-sans font-bold">+ NOVO MOTORISTA (Cadastrar na aba Perfil)</option>
                   </select>
                   <div className="absolute inset-y-0 right-0 flex items-center pr-2 pointer-events-none text-slate-400">
