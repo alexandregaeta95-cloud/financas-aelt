@@ -178,12 +178,16 @@ export const callAppsScript = async (
 
     const directRes = await fetch(fetchUrl, fetchOptions);
     if (directRes.ok) {
-      const text = await directRes.text();
       let parsed: any = null;
       try {
-        parsed = JSON.parse(text);
+        parsed = await directRes.json();
       } catch (e) {
-        console.warn("Resposta do Apps Script não é JSON estrito:", text.slice(0, 100));
+        try {
+          const text = await directRes.text();
+          parsed = JSON.parse(text);
+        } catch (pErr) {
+          console.warn("Resposta do Apps Script não é JSON estrito");
+        }
       }
 
       if (parsed) {
