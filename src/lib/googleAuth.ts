@@ -1,6 +1,7 @@
 export const DEFAULT_SPREADSHEET_ID = '1JL1LlHmBtXj_dvWXvaedlDTWrSfptXzbhYlMJH1RNO4';
 export const DEFAULT_SPREADSHEET_URL = 'https://docs.google.com/spreadsheets/d/1JL1LlHmBtXj_dvWXvaedlDTWrSfptXzbhYlMJH1RNO4/edit';
 export const DEFAULT_APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzsC73N1O1vU2oN4lD0HneqWLM964XXkqHNDbeC8MH0uy5HUFIEaCZVQ7lX5sSma4LZGg/exec';
+export const DEFAULT_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzsC73N1O1vU2oN4lD0HneqWLM964XXkqHNDbeC8MH0uy5HUFIEaCZVQ7lX5sSma4LZGg/exec';
 
 export interface User {
   uid: string;
@@ -447,7 +448,7 @@ const findOrCreateFolder = async (accessToken: string, folderName: string, paren
 };
 
 /**
- * Encontra ou cria uma planilha com o nome 'Finanças Gaeta' (ou 'WealthFlow Finance Data' como fallback) no Google Drive do usuário.
+ * Encontra ou cria uma planilha com o nome 'Finanças Gaeta' no Google Drive do usuário.
  * A planilha é criada ou mantida na pasta 'appsheet/Data'.
  */
 export const findOrCreateSpreadsheet = async (accessToken: any): Promise<string> => {
@@ -488,8 +489,8 @@ export const findOrCreateSpreadsheet = async (accessToken: any): Promise<string>
   // 2. Garantir que a pasta 'Data' exista dentro de 'appsheet'
   const dataFolderId = await findOrCreateFolder(tokenStr, 'Data', appsheetFolderId);
 
-  // 3. Procurar se a planilha 'Finanças Gaeta' ou 'WealthFlow Finance Data' já existe dentro de 'appsheet/Data'
-  const queryInFolder = `(name = 'Finanças Gaeta' or name = 'WealthFlow Finance Data') and mimeType = 'application/vnd.google-apps.spreadsheet' and '${dataFolderId}' in parents and trashed = false`;
+  // 3. Procurar se a planilha 'Finanças Gaeta' já existe dentro de 'appsheet/Data'
+  const queryInFolder = `name = 'Finanças Gaeta' and mimeType = 'application/vnd.google-apps.spreadsheet' and '${dataFolderId}' in parents and trashed = false`;
   const searchInFolderUrl = `https://www.googleapis.com/drive/v3/files?q=${encodeURIComponent(queryInFolder)}&fields=files(id,name,parents)`;
   
   const searchInFolderRes = await googleApiFetch(searchInFolderUrl, accessToken);
@@ -505,7 +506,7 @@ export const findOrCreateSpreadsheet = async (accessToken: any): Promise<string>
   }
 
   // 4. Se não estiver em 'appsheet/Data', procurar globalmente para ver se ela existe em outro local
-  const queryGlobal = `(name = 'Finanças Gaeta' or name = 'WealthFlow Finance Data') and mimeType = 'application/vnd.google-apps.spreadsheet' and trashed = false`;
+  const queryGlobal = `name = 'Finanças Gaeta' and mimeType = 'application/vnd.google-apps.spreadsheet' and trashed = false`;
   const searchGlobalUrl = `https://www.googleapis.com/drive/v3/files?q=${encodeURIComponent(queryGlobal)}&fields=files(id,name,parents)`;
   
   const searchGlobalRes = await googleApiFetch(searchGlobalUrl, accessToken);
@@ -766,8 +767,8 @@ export const syncDataToSpreadsheet = async (
         formaPagamento: t.formaPagamento || t.Forma_Pagamento || '',
         Forma_Pagamento: t.formaPagamento || t.Forma_Pagamento || '',
         // 9. Tipo
-        tipo: t.tipo || t.Tipo || 'DESPESA',
-        Tipo: t.tipo || t.Tipo || 'DESPESA',
+        tipo: isAbast ? 'DESPESA' : ((t.tipo === 'RECEITA' || t.Tipo === 'RECEITA' || t.categoria === 'RECEITA' || t.Categoria === 'RECEITA') ? 'RECEITA' : 'DESPESA'),
+        Tipo: isAbast ? 'DESPESA' : ((t.tipo === 'RECEITA' || t.Tipo === 'RECEITA' || t.categoria === 'RECEITA' || t.Categoria === 'RECEITA') ? 'RECEITA' : 'DESPESA'),
         // 10. Categoria
         categoria: t.categoria || t.Categoria || '',
         Categoria: t.categoria || t.Categoria || '',
@@ -1087,7 +1088,7 @@ export const syncDataToSpreadsheet = async (
       t.bancoId || t.Banco_Id || '',
       cartaoVal,
       t.formaPagamento || t.Forma_Pagamento || '',
-      isAbast ? (t.tipo || t.Tipo || 'DESPESA') : (isRec ? 'RECEITA' : (t.tipo || t.Tipo || 'DESPESA')),
+      isAbast ? 'DESPESA' : (isRec ? 'RECEITA' : (t.tipo === 'RECEITA' || t.Tipo === 'RECEITA' ? 'RECEITA' : 'DESPESA')),
       t.categoria || t.Categoria || '',
       t.status || t.Status || 'PAGO',
       isAbast && (t.km || t.KM) ? String(t.km || t.KM) : '',
@@ -1534,7 +1535,7 @@ export const syncTransactionsToSpreadsheet = async (
       t.bancoId || t.Banco_Id || '',
       cartaoVal,
       t.formaPagamento || t.Forma_Pagamento || '',
-      isAbastecimento ? (t.tipo || t.Tipo || 'DESPESA') : (t.tipo === 'RECEITA' ? 'RECEITA' : (t.tipo || t.Tipo || 'DESPESA')),
+      isAbastecimento ? 'DESPESA' : (t.tipo === 'RECEITA' || t.Tipo === 'RECEITA' || t.categoria === 'RECEITA' ? 'RECEITA' : 'DESPESA'),
       t.categoria || t.Categoria || '',
       t.status || t.Status || 'PAGO',
       isAbastecimento && (t.km || t.KM) ? String(t.km || t.KM) : '',

@@ -4571,7 +4571,7 @@ export default function App() {
                   </div>
                   <p className="text-[10px] text-slate-400 leading-relaxed mb-3">
                     {isOnline 
-                      ? 'Seu aplicativo está conectado à planilha WealthFlow Finance Data no Google Drive. Modificações são salvas e sincronizadas instantaneamente.' 
+                      ? `Seu aplicativo está conectado à planilha "Finanças Gaeta" (ID: ${DEFAULT_SPREADSHEET_ID}) no Google Drive. Modificações são salvas e sincronizadas instantaneamente.` 
                       : 'Você está offline. Alterações pendentes serão salvas com segurança no seu navegador e sincronizadas de forma automática assim que a internet voltar.'}
                   </p>
                   <button

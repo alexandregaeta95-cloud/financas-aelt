@@ -1677,10 +1677,33 @@ export default function TransactionsTab({
       return;
     }
 
-    const finalCategory = category === 'NOVA_CATEGORIA' ? String(newCategoryName || '').trim().toUpperCase() : String(category || '').toUpperCase();
+    const rawCategory = category === 'NOVA_CATEGORIA' ? String(newCategoryName || '').trim().toUpperCase() : String(category || '').toUpperCase();
     if (category === 'NOVA_CATEGORIA' && !newCategoryName.trim()) {
       alertUser("Campo Obrigatório", "Por favor, insira o nome da nova categoria.");
       return;
+    }
+
+    const rawType = txType === 'NOVO_TIPO' ? String(newTypeName || '').trim().toUpperCase() : String(txType || '').toUpperCase();
+    if (txType === 'NOVO_TIPO' && !newTypeName.trim()) {
+      alertUser("Campo Obrigatório", "Por favor, insira o nome do novo tipo.");
+      return;
+    }
+
+    let finalType = 'DESPESA';
+    let finalCategory = rawCategory || 'OUTROS';
+
+    if (rawType === 'RECEITA' || rawCategory === 'RECEITA') {
+      finalType = 'RECEITA';
+      if (finalCategory === 'ABASTECIMENTO' || !finalCategory) {
+        finalCategory = 'RECEITA';
+      }
+    } else if (rawCategory === 'ABASTECIMENTO') {
+      finalType = 'DESPESA';
+      finalCategory = 'ABASTECIMENTO';
+    } else if (rawType === 'DESPESA') {
+      finalType = 'DESPESA';
+    } else if (rawType) {
+      finalType = rawType;
     }
 
     const isAbastecimento = finalCategory === 'ABASTECIMENTO';
@@ -1693,12 +1716,6 @@ export default function TransactionsTab({
         alertUser("Campo Obrigatório", "Por favor, insira uma descrição para a transação.");
         return;
       }
-    }
-
-    const finalType = txType === 'NOVO_TIPO' ? String(newTypeName || '').trim().toUpperCase() : String(txType || '').toUpperCase();
-    if (txType === 'NOVO_TIPO' && !newTypeName.trim()) {
-      alertUser("Campo Obrigatório", "Por favor, insira o nome do novo tipo.");
-      return;
     }
 
     const parsedKm = isAbastecimento && km ? parseInt(km, 10) : undefined;
@@ -1756,7 +1773,7 @@ export default function TransactionsTab({
       const payload = {
         data: formattedDate, // format as DD/MM/YYYY
         valor: numericAmount,
-        tipo: isAbastecimento ? fuelType : finalType,
+        tipo: finalType,
         descricao: finalDesc,
         categoria: finalCategory,
         status: status,
@@ -1802,7 +1819,7 @@ export default function TransactionsTab({
         Banco_Id: formBankId > 0 ? formBankId : '',
         Cartão_Id: parsedCartaoVal !== undefined ? parsedCartaoVal : '',
         Forma_Pagamento: formaPagamento || '',
-        Tipo: isAbastecimento ? fuelType : finalType,
+        Tipo: finalType,
         Categoria: finalCategory,
         Status: status,
         KM: isAbastCat && !isNaN(parsedKm as number) ? parsedKm : '',
@@ -1826,7 +1843,7 @@ export default function TransactionsTab({
           const originalBankId = editingTx.bancoId || 0;
           const originalVal = editingTx.valorPg !== undefined ? editingTx.valorPg : editingTx.valor;
           const newVal = isAbastecimento && parsedValorPg !== undefined ? parsedValorPg : numericAmount;
-          const isReceita = (isAbastecimento ? fuelType : finalType) === 'RECEITA';
+          const isReceita = finalType === 'RECEITA';
 
           let newAccounts = [...bankAccounts];
 
@@ -1834,7 +1851,7 @@ export default function TransactionsTab({
           if (originalWasPago && originalBankId > 0) {
             newAccounts = newAccounts.map(b => {
               if (b.id === originalBankId) {
-                const originalIsReceita = editingTx.tipo === 'RECEITA';
+                const originalIsReceita = editingTx.tipo === 'RECEITA' || editingTx.categoria === 'RECEITA';
                 const novoSaldo = originalIsReceita
                   ? b.saldoInicial - originalVal
                   : b.saldoInicial + originalVal;
@@ -1864,7 +1881,7 @@ export default function TransactionsTab({
       } else {
         if (onUpdateBankAccounts && formBankId > 0 && status === 'PAGO') {
           const val = isAbastecimento && parsedValorPg !== undefined ? parsedValorPg : numericAmount;
-          const isReceita = (isAbastecimento ? fuelType : finalType) === 'RECEITA';
+          const isReceita = finalType === 'RECEITA';
           const updatedAccounts = bankAccounts.map(b => {
             if (b.id === formBankId) {
               const novoSaldo = isReceita
@@ -1927,7 +1944,7 @@ export default function TransactionsTab({
         const payload = {
           data: installmentDateStr,
           valor: finalAmount,
-          tipo: isAbastecimento ? fuelType : finalType,
+          tipo: finalType,
           descricao: installmentDesc,
           categoria: finalCategory,
           status: installmentStatus,
@@ -2395,10 +2412,20 @@ export default function TransactionsTab({
                 <select
                   value={txType}
                   onChange={(e) => {
-                    setTxType(e.target.value);
-                    if (e.target.value !== 'NOVO_TIPO') {
+                    const selectedVal = e.target.value;
+                    setTxType(selectedVal);
+                    if (selectedVal !== 'NOVO_TIPO') {
                       setNewTypeName('');
-                      setFuelType(e.target.value);
+                      setFuelType(selectedVal);
+                    }
+                    if (selectedVal === 'RECEITA') {
+                      if (category === 'ABASTECIMENTO' || !category) {
+                        setCategory('RECEITA');
+                      }
+                    } else if (selectedVal === 'DESPESA') {
+                      if (category === 'RECEITA') {
+                        setCategory('OUTROS');
+                      }
                     }
                   }}
                   className="w-full bg-slate-900/60 border border-slate-800 rounded-xl px-4 py-3 text-sm text-white focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 outline-none appearance-none cursor-pointer font-sans"
@@ -2479,9 +2506,14 @@ export default function TransactionsTab({
                   setCategory(val);
                   if (val !== 'NOVA_CATEGORIA') {
                     setNewCategoryName('');
-                    if (String(val || '').toUpperCase() === 'ABASTECIMENTO') {
+                    const upperVal = String(val || '').toUpperCase();
+                    if (upperVal === 'ABASTECIMENTO') {
                       setFuelType('ETANOL');
-                      setTxType('ETANOL');
+                      setTxType('DESPESA');
+                    } else if (upperVal === 'RECEITA') {
+                      setTxType('RECEITA');
+                    } else if (txType === 'RECEITA' && upperVal !== 'RECEITA') {
+                      setTxType('DESPESA');
                     }
                   }
                 }}

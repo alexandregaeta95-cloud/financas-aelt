@@ -101,11 +101,9 @@ export const TransactionAuditLog: React.FC<TransactionAuditLogProps> = ({
       ) : (
         <div className="space-y-3">
           {displayList.map((tx, idx) => {
-            const safeTipoUpper = (tx.tipo || '').toString().toUpperCase();
-            const isReceita =
-              safeTipoUpper === 'RECEITA' ||
-              safeTipoUpper === 'PAGO' ||
-              tx.valor > 0;
+            const safeTipoUpper = String(tx.tipo || tx.Tipo || '').trim().toUpperCase();
+            const safeCatUpper = String(tx.categoria || tx.Categoria || '').trim().toUpperCase();
+            const isReceita = safeTipoUpper === 'RECEITA' || (safeTipoUpper !== 'DESPESA' && safeCatUpper === 'RECEITA');
 
             const userWho = tx.motorista || 'Usuário';
             const whenFormatted = formatTimestamp(tx.updatedAt);
@@ -173,11 +171,9 @@ export const TransactionAuditLog: React.FC<TransactionAuditLogProps> = ({
                   >
                     {formatCurrency(tx.valor)}
                   </span>
-                  {tx.tipo && (
-                    <div className="text-[10px] text-slate-400 font-medium uppercase tracking-wider">
-                      {tx.tipo}
-                    </div>
-                  )}
+                  <div className={`text-[10px] font-medium uppercase tracking-wider ${isReceita ? 'text-emerald-600' : 'text-slate-400'}`}>
+                    {isReceita ? 'RECEITA' : (safeCatUpper === 'ABASTECIMENTO' ? 'ABASTECIMENTO' : 'DESPESA')}
+                  </div>
                 </div>
               </motion.div>
             );
