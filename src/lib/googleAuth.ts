@@ -1794,33 +1794,76 @@ export const parseTransactionRows = (rows: any[], defaultSheetKey?: string): any
       finalTipo = rawTipo || (isDespesasSheet ? 'DESPESA' : 'DESPESA');
     }
 
-    let dataStr = String(row[idxData] || '').trim();
+    let rawDataVal = row[idxData];
+    let dataStr = '';
+    if (rawDataVal instanceof Date) {
+      const y = rawDataVal.getFullYear();
+      const m = ('0' + (rawDataVal.getMonth() + 1)).slice(-2);
+      const d = ('0' + rawDataVal.getDate()).slice(-2);
+      dataStr = `${d}/${m}/${y}`;
+    } else {
+      dataStr = String(rawDataVal || '').trim();
+    }
     if (!dataStr || dataStr === 'undefined' || dataStr === 'null') {
       dataStr = new Date().toLocaleDateString('pt-BR');
     }
 
+    const cartaoVal = row[idxCartaoId] ? String(row[idxCartaoId]).trim() : undefined;
+    const kmPercVal = row[idxKmPercorrido] !== undefined && row[idxKmPercorrido] !== null && String(row[idxKmPercorrido]).trim() !== '' ? parseBrazilianOrRawNumber(row[idxKmPercorrido]) : undefined;
+    const mediaKmLVal = row[idxMediaKmL] !== undefined && row[idxMediaKmL] !== null && String(row[idxMediaKmL]).trim() !== '' ? parseBrazilianOrRawNumber(row[idxMediaKmL]) : undefined;
+
     const tx = {
       id: parsedId,
+      Id: parsedId,
       data: dataStr,
+      Data: dataStr,
       descricao: (finalDesc || '').toUpperCase(),
+      Descrição: (finalDesc || '').toUpperCase(),
       categoria: category,
+      Categoria: category,
       valor,
+      Valor: valor,
       tipo: finalTipo,
+      Tipo: finalTipo,
       status: String(row[idxStatus] || 'PENDENTE').toUpperCase(),
+      Status: String(row[idxStatus] || 'PENDENTE').toUpperCase(),
       bancoId: row[idxBancoId] ? String(row[idxBancoId]).trim() : undefined,
+      Banco_Id: row[idxBancoId] ? String(row[idxBancoId]).trim() : undefined,
+      cartaoId: cartaoVal,
+      cartaoid: cartaoVal,
+      Cartão_Id: cartaoVal,
       formaPagamento: row[idxFormaPagamento] ? String(row[idxFormaPagamento]).trim() : undefined,
+      Forma_Pagamento: row[idxFormaPagamento] ? String(row[idxFormaPagamento]).trim() : undefined,
       comprovanteUrl: row[idxComprovanteUrl] ? String(row[idxComprovanteUrl]).trim() : undefined,
+      Comprovante_Url: row[idxComprovanteUrl] ? String(row[idxComprovanteUrl]).trim() : undefined,
       valorPg: valorPgVal !== undefined && isNaN(valorPgVal) ? undefined : valorPgVal,
+      Valor_PG: valorPgVal !== undefined && isNaN(valorPgVal) ? undefined : valorPgVal,
       km: km !== undefined && isNaN(km) ? undefined : km,
+      KM: km !== undefined && isNaN(km) ? undefined : km,
       litros: litros !== undefined && isNaN(litros) ? undefined : litros,
+      Litros: litros !== undefined && isNaN(litros) ? undefined : litros,
       precoLitro: precoLitro !== undefined && isNaN(precoLitro) ? undefined : precoLitro,
+      Preço_Litro: precoLitro !== undefined && isNaN(precoLitro) ? undefined : precoLitro,
+      kmPercorrido: kmPercVal,
+      KM_Percorrido: kmPercVal,
+      mediaKmL: mediaKmLVal,
+      'Média_(Km/L)': mediaKmLVal,
       veiculo: rawVeiculo ? String(rawVeiculo || '').toUpperCase() : undefined,
+      Veiculo: rawVeiculo ? String(rawVeiculo || '').toUpperCase() : undefined,
       descricaoVeiculo: row[idxDescricaoVeiculo] ? String(row[idxDescricaoVeiculo] || '').trim() : undefined,
+      descricaoDoVeiculo: row[idxDescricaoVeiculo] ? String(row[idxDescricaoVeiculo] || '').trim() : undefined,
+      Descrição_Do_Veículo: row[idxDescricaoVeiculo] ? String(row[idxDescricaoVeiculo] || '').trim() : undefined,
       completouTanque,
+      completouOTanque: completouTanque ? 'Sim' : 'Não',
+      Completou_O_Tanque: completouTanque ? 'Sim' : 'Não',
       nomePosto: rawPosto ? String(rawPosto || '').toUpperCase() : undefined,
+      Nome_Posto: rawPosto ? String(rawPosto || '').toUpperCase() : undefined,
       localizacaoPosto: row[idxLocalPosto] ? String(row[idxLocalPosto]).trim().toUpperCase() : undefined,
+      Localização_Do_Posto: row[idxLocalPosto] ? String(row[idxLocalPosto]).trim().toUpperCase() : undefined,
       motorista: row[idxMotorista] ? String(row[idxMotorista]).trim().toUpperCase() : undefined,
-      obs: row[idxObs] ? String(row[idxObs]).trim() : undefined
+      Motorista: row[idxMotorista] ? String(row[idxMotorista]).trim().toUpperCase() : undefined,
+      obs: row[idxObs] ? String(row[idxObs]).trim() : undefined,
+      OBS: row[idxObs] ? String(row[idxObs]).trim() : undefined
     };
 
     transactions.push(tx);
