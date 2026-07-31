@@ -229,7 +229,7 @@ function writeArrayToSheet(ss, sheetName, items, headers) {
         if (h === 'Valor' && item['valor'] !== undefined) val = item['valor'];
         if ((h === 'Valor_PG' || h === 'Valor_R$') && (item['valorPg'] !== undefined || item['Valor_PG'] !== undefined)) val = item['valorPg'] !== undefined ? item['valorPg'] : item['Valor_PG'];
         if ((h === 'Banco_Id' || h === 'bancoid' || h === 'bancoId') && (item['bancoId'] !== undefined || item['bancoid'] !== undefined)) val = item['bancoId'] !== undefined ? item['bancoId'] : item['bancoid'];
-        if ((h === 'Cartão_Id' || h === 'cartaoid' || h === 'cartaoId') && (item['cartaoid'] !== undefined || item['cartaoId'] !== undefined || item['Cartão_Id'] !== undefined || item['bancoId'] !== undefined)) val = item['cartaoid'] !== undefined ? item['cartaoid'] : (item['cartaoId'] !== undefined ? item['cartaoId'] : (item['Cartão_Id'] !== undefined ? item['Cartão_Id'] : item['bancoId']));
+        if ((h === 'Cartão_Id' || h === 'cartaoid' || h === 'cartaoId') && (item['cartaoid'] !== undefined || item['cartaoId'] !== undefined || item['Cartão_Id'] !== undefined)) val = item['cartaoid'] !== undefined ? item['cartaoid'] : (item['cartaoId'] !== undefined ? item['cartaoId'] : item['Cartão_Id']);
         if (h === 'Forma_Pagamento' && item['formaPagamento'] !== undefined) val = item['formaPagamento'];
         if (h === 'Tipo' && item['tipo'] !== undefined) val = item['tipo'];
         if (h === 'Categoria' && item['categoria'] !== undefined) val = item['categoria'];
