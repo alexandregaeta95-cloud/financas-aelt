@@ -1456,7 +1456,7 @@ export const syncTransactionsToSpreadsheet = async (
     console.warn("Aviso ao determinar aba para transações:", e);
   }
 
-  // Clear ONLY the specific target tab's range to avoid touching other tabs
+  // Clear ONLY the specific target tab'range to avoid touching other tabs
   const targetRangeClear = encodeURIComponent(`'${targetSheetTitle}'!A1:X2000`);
   const clearRes = await googleApiFetch(`https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/${targetRangeClear}:clear`, accessToken, {
     method: 'POST',
