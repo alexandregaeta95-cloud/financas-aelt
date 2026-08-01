@@ -28,6 +28,18 @@
  * V: Localização_Do_Posto
  * W: Comprovante_Url
  * X: OBS
+ *
+ * Mapeamento da Aba 'ZonasDeRisco' (Colunas A a J):
+ * A: ID
+ * B: Tipo_Registro
+ * C: Nome_Título
+ * D: Nível_De_Risco
+ * E: Latitude
+ * F: Longitude
+ * G: Raio (m)
+ * H: Ativo
+ * I: Mensagem_De_Alerta
+ * J: Data_Registro
  */
 
 var txHeaders = [
@@ -276,13 +288,84 @@ function fetchTransactionsFromSheet() {
   return allTx;
 }
 
+function readRiskZonesSheet(ss) {
+  var targetSheet = ss.getSheetByName('ZonasDeRisco');
+  if (!targetSheet) targetSheet = ss.getSheetByName('ZonaDeRisco');
+  if (!targetSheet) targetSheet = ss.getSheetByName('Zona de risco');
+  if (!targetSheet) return [];
+
+  var data = targetSheet.getDataRange().getValues();
+  if (!data || data.length <= 1) return [];
+
+  var items = [];
+  for (var i = 1; i < data.length; i++) {
+    var row = data[i];
+    if (!row || row.length === 0 || row[0] === '' || row[0] === null) continue;
+
+    var id = row[0] !== undefined ? row[0] : '';
+    var tipoRegistro = row[1] !== undefined ? String(row[1]).trim() : '';
+    var nomeTitulo = row[2] !== undefined ? String(row[2]).trim() : '';
+    var nivelDeRisco = row[3] !== undefined ? String(row[3]).trim() : '';
+    var lat = (row[4] !== undefined && row[4] !== '') ? Number(row[4]) : '';
+    var lng = (row[5] !== undefined && row[5] !== '') ? Number(row[5]) : '';
+    var raio = (row[6] !== undefined && row[6] !== '') ? Number(row[6]) : '';
+    var ativoVal = row[7];
+    var ativoBool = (ativoVal === true || String(ativoVal).toUpperCase() === 'SIM' || String(ativoVal).toUpperCase() === 'TRUE' || ativoVal === 1);
+    var mensagemDeAlerta = row[8] !== undefined ? String(row[8]).trim() : '';
+
+    var dataReg = row[9];
+    if (dataReg instanceof Date) {
+      var y = dataReg.getFullYear();
+      var m = ('0' + (dataReg.getMonth() + 1)).slice(-2);
+      var d = ('0' + dataReg.getDate()).slice(-2);
+      dataReg = d + '/' + m + '/' + y;
+    } else {
+      dataReg = dataReg !== undefined ? String(dataReg).trim() : '';
+    }
+
+    var locStr = (lat !== '' && lng !== '') ? (lat + ', ' + lng) : '';
+
+    items.push({
+      id: id,
+      tipoRegistro: tipoRegistro,
+      Tipo_Registro: tipoRegistro,
+      nomeTitulo: nomeTitulo,
+      titulo: nomeTitulo,
+      nomeLocal: nomeTitulo,
+      Nome_Título: nomeTitulo,
+      nivelDeRisco: nivelDeRisco,
+      nivel: nivelDeRisco,
+      nivelRisco: nivelDeRisco,
+      Nível_De_Risco: nivelDeRisco,
+      latitude: lat,
+      Latitude: lat,
+      longitude: lng,
+      Longitude: lng,
+      raio: raio,
+      raioMetros: raio,
+      'Raio (m)': raio,
+      ativo: ativoBool,
+      Ativo: ativoBool ? 'SIM' : 'NÃO',
+      mensagemDeAlerta: mensagemDeAlerta,
+      mensagem: mensagemDeAlerta,
+      Mensagem_De_Alerta: mensagemDeAlerta,
+      dataRegistro: dataReg,
+      data: dataReg,
+      dataHora: dataReg,
+      Data_Registro: dataReg,
+      localizacao: locStr
+    });
+  }
+  return items;
+}
+
 function fetchAllDataFromSheet() {
   var transactions = fetchTransactionsFromSheet();
   var ss = SpreadsheetApp.getActiveSpreadsheet();
 
   return {
     transactions: transactions,
-    riskZones: readGenericSheet(ss, 'ZonasDeRisco', ['id', 'titulo', 'descricao', 'nivel', 'localizacao', 'data']),
+    riskZones: readRiskZonesSheet(ss),
     appointments: readGenericSheet(ss, 'ConsultasMedicas', ['id', 'especialidade', 'medico', 'data', 'horario', 'local', 'valor', 'status', 'obs']),
     prescriptions: readGenericSheet(ss, 'ReceitasMedicas', ['id', 'medicamento', 'dosagem', 'frequencia', 'medico', 'dataEmissao', 'obs']),
     compromissos: readGenericSheet(ss, 'Agenda', ['id', 'titulo', 'data', 'horario', 'categoria', 'status', 'lembreteAtivo', 'obs']),
@@ -445,11 +528,31 @@ function saveAllDataToSheet(payload) {
   upsertArrayToSheet(ss, 'Despesas', txHeaders, despesas);
   upsertArrayToSheet(ss, 'Abastecimentos', txHeaders, abastecimentos);
 
-  // Gravar Zonas de Risco
+  // Gravar Zonas de Risco (10 Colunas: A até J)
   var zList = payload.riskZones || [];
-  writeRowsToSheet(ss, 'ZonasDeRisco', ['ID', 'Título', 'Descrição', 'Nível', 'Localização', 'Data'], zList.map(function(z) {
-    return [z.id, z.titulo, z.descricao, z.nivel, z.localizacao, z.data];
-  }));
+  var riskHeaders = ['ID', 'Tipo_Registro', 'Nome_Título', 'Nível_De_Risco', 'Latitude', 'Longitude', 'Raio (m)', 'Ativo', 'Mensagem_De_Alerta', 'Data_Registro'];
+  var riskRows = zList.map(function(z) {
+    if (!z) return ['', '', '', '', '', '', '', '', '', ''];
+    var id = z.id !== undefined ? z.id : (z.ID !== undefined ? z.ID : '');
+    var tipo = z.tipoRegistro !== undefined ? z.tipoRegistro : (z.Tipo_Registro !== undefined ? z.Tipo_Registro : (z.tipo || 'LOCAL'));
+    var nome = z.nomeTitulo !== undefined ? z.nomeTitulo : (z.Nome_Título !== undefined ? z.Nome_Título : (z.titulo || z.nomeLocal || ''));
+    var nivel = z.nivelDeRisco !== undefined ? z.nivelDeRisco : (z.Nível_De_Risco !== undefined ? z.Nível_De_Risco : (z.nivel || z.nivelRisco || 'MÉDIO'));
+    var lat = z.latitude !== undefined ? z.latitude : (z.Latitude !== undefined ? z.Latitude : '');
+    var lng = z.longitude !== undefined ? z.longitude : (z.Longitude !== undefined ? z.Longitude : '');
+    var raio = z.raio !== undefined ? z.raio : (z.raioMetros !== undefined ? z.raioMetros : (z['Raio (m)'] !== undefined ? z['Raio (m)'] : 500));
+    var ativoVal = z.ativo !== undefined ? z.ativo : (z.Ativo !== undefined ? z.Ativo : true);
+    var ativoStr = (ativoVal === true || String(ativoVal).toUpperCase() === 'SIM' || String(ativoVal).toUpperCase() === 'TRUE' || ativoVal === 1) ? 'SIM' : 'NÃO';
+    var msg = z.mensagemDeAlerta !== undefined ? z.mensagemDeAlerta : (z.Mensagem_De_Alerta !== undefined ? z.Mensagem_De_Alerta : (z.mensagem || ''));
+    var dt = z.dataRegistro !== undefined ? z.dataRegistro : (z.Data_Registro !== undefined ? z.Data_Registro : (z.data || z.dataHora || ''));
+    if (dt instanceof Date) {
+      var y = dt.getFullYear();
+      var m = ('0' + (dt.getMonth() + 1)).slice(-2);
+      var d = ('0' + dt.getDate()).slice(-2);
+      dt = d + '/' + m + '/' + y;
+    }
+    return [id, tipo, nome, nivel, lat, lng, raio, ativoStr, msg, dt];
+  });
+  writeRowsToSheet(ss, 'ZonasDeRisco', riskHeaders, riskRows);
 
   // Gravar Consultas Médicas
   var cList = payload.appointments || [];
