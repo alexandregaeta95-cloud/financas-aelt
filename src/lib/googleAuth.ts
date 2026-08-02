@@ -83,41 +83,52 @@ export const syncDataToSpreadsheet = async (
   accessToken: any,
   spreadsheetId: any,
   transactions: any[] = [],
+  infractions: any[] = [],
   riskZones: any[] = [],
   appointments: any[] = [],
   prescriptions: any[] = [],
-  groceryItems: any[] = [],
+  compromissos: any[] = [],
   registeredVehicles: any[] = [],
   performedServices: any[] = [],
   scheduledServices: any[] = [],
-  scheduledMaintenance: any[] = [],
-  agenda: any[] = [],
-  workshop: any[] = [],
   bankAccounts: any[] = [],
   creditCards: any[] = [],
-  analysis: any[] = [],
-  profile: any[] = []
+  categoryBudgets: any = {},
+  customCategories: any = [],
+  groceryItems: any[] = []
 ): Promise<string> => {
   const cleanSheetId = toSafeString(spreadsheetId) || DEFAULT_SPREADSHEET_ID;
+
+  const mappedRiskZones = (Array.isArray(riskZones) ? riskZones : []).map((item: any) => ({
+    id: String(item.id || item.ID || Date.now()),
+    descricao: item.descricao || item.nomeLocal || item.nome || item.Descrição || 'ZONA DE RISCO',
+    nivelDeRisco: item.nivelDeRisco || item.nivelRisco || 'BAIXO',
+    latitudi: item.latitudi || item.latitude || item.Latitudi || '',
+    longitude: item.longitude || item.Longitude || '',
+    raioM: Number(item.raioM || item.raioMetros || item['Raio_(M)'] || 100),
+    ativo: (item.ativo === true || String(item.ativo).toUpperCase() === 'SIM' || String(item.ativo) === 'TRUE') ? 'SIM' : 'NÃO',
+    mensagemDeAlerta: item.mensagemDeAlerta || item.mensagem || item.Mensagem_De_Alerta || '',
+    dataRegistro: item.dataRegistro || item.Data_Registro || new Date().toLocaleDateString('pt-BR'),
+    obs: item.obs || item.OBS || item.som || ''
+  }));
 
   const payload = {
     action: 'syncData',
     spreadsheetId: cleanSheetId,
     transactions,
-    riskZones,
+    infractions,
+    riskZones: mappedRiskZones,
     appointments,
     prescriptions,
-    groceryItems,
+    compromissos,
     registeredVehicles,
     performedServices,
     scheduledServices,
-    scheduledMaintenance,
-    agenda,
-    workshop,
     bankAccounts,
     creditCards,
-    analysis,
-    profile
+    categoryBudgets,
+    customCategories,
+    groceryItems
   };
 
   const res = await callAppsScript(DEFAULT_APPS_SCRIPT_URL, payload, 'POST');

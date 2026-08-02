@@ -1213,10 +1213,19 @@ export default function RiskZonesTab({
   // Searching and Filtering
   const filteredZones = (riskZones || []).filter(z => {
     if (!z) return false;
-    const query = String(searchTerm || '').toLowerCase();
-    const matchesSearch = String(z.nomeLocal || '').toLowerCase().includes(query) || String(z.localizacao || '').toLowerCase().includes(query);
-    const matchesLevel = filterLevel === 'todos' || z.nivelRisco === filterLevel;
-    const matchesActive = !hideInactive || z.ativo;
+    const query = String(searchTerm || '').toLowerCase().trim();
+    const matchesLevel = filterLevel === 'todos' || (z.nivelRisco || z.nivelDeRisco) === filterLevel;
+    const matchesActive = !hideInactive || (z.ativo === true || String(z.ativo).toUpperCase() === 'SIM' || String(z.ativo) === 'TRUE');
+
+    if (!query) return matchesLevel && matchesActive;
+
+    const matchesSearch = 
+      String(z.descricao || '').toLowerCase().includes(query) ||
+      String(z.nomeLocal || '').toLowerCase().includes(query) ||
+      String(z.mensagemDeAlerta || z.mensagem || '').toLowerCase().includes(query) ||
+      String(z.obs || '').toLowerCase().includes(query) ||
+      String(z.localizacao || '').toLowerCase().includes(query);
+
     return matchesSearch && matchesLevel && matchesActive;
   });
 
