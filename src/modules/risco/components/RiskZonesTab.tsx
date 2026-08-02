@@ -10,6 +10,7 @@ import {
   BellRing, 
   Info, 
   ShieldAlert, 
+  AlertTriangle,
   CheckCircle2, 
   PlayCircle, 
   Volume2, 
@@ -220,6 +221,9 @@ export default function RiskZonesTab({
   // Form states to add new risk zone
   const [showAddForm, setShowAddForm] = useState<boolean>(false);
   const [name, setName] = useState<string>(() => localStorage.getItem('draft_zone_name') || '');
+  const [descricao, setDescricao] = useState<string>(() => localStorage.getItem('draft_zone_descricao') || '');
+  const [mensagemDeAlerta, setMensagemDeAlerta] = useState<string>(() => localStorage.getItem('draft_zone_mensagem') || '');
+  const [obs, setObs] = useState<string>(() => localStorage.getItem('draft_zone_obs') || '');
   const [lat, setLat] = useState<number>(() => {
     const val = localStorage.getItem('draft_zone_lat');
     return val !== null ? parseFloat(val) : -22.89676;
@@ -241,6 +245,9 @@ export default function RiskZonesTab({
   const [isFetchingFormLocation, setIsFetchingFormLocation] = useState<boolean>(false);
   const [editingZone, setEditingZone] = useState<RiskZone | null>(null);
   const [editName, setEditName] = useState<string>('');
+  const [editDescricao, setEditDescricao] = useState<string>('');
+  const [editMensagemDeAlerta, setEditMensagemDeAlerta] = useState<string>('');
+  const [editObs, setEditObs] = useState<string>('');
   const [editLat, setEditLat] = useState<number>(-22.90);
   const [editLng, setEditLng] = useState<number>(-47.05);
   const [editRadius, setEditRadius] = useState<number>(300);
@@ -250,15 +257,21 @@ export default function RiskZonesTab({
   useEffect(() => {
     if (showAddForm) {
       localStorage.setItem('draft_zone_name', name);
+      localStorage.setItem('draft_zone_descricao', descricao);
+      localStorage.setItem('draft_zone_mensagem', mensagemDeAlerta);
+      localStorage.setItem('draft_zone_obs', obs);
       localStorage.setItem('draft_zone_lat', String(lat));
       localStorage.setItem('draft_zone_lng', String(lng));
       localStorage.setItem('draft_zone_radius', String(radius));
       localStorage.setItem('draft_zone_level', level);
     }
-  }, [showAddForm, name, lat, lng, radius, level]);
+  }, [showAddForm, name, descricao, mensagemDeAlerta, obs, lat, lng, radius, level]);
 
   const clearZoneDraftFromStorage = () => {
     localStorage.removeItem('draft_zone_name');
+    localStorage.removeItem('draft_zone_descricao');
+    localStorage.removeItem('draft_zone_mensagem');
+    localStorage.removeItem('draft_zone_obs');
     localStorage.removeItem('draft_zone_lat');
     localStorage.removeItem('draft_zone_lng');
     localStorage.removeItem('draft_zone_radius');
@@ -379,6 +392,9 @@ export default function RiskZonesTab({
 
   const loadZoneDraft = () => {
     setName(localStorage.getItem('draft_zone_name') || '');
+    setDescricao(localStorage.getItem('draft_zone_descricao') || '');
+    setMensagemDeAlerta(localStorage.getItem('draft_zone_mensagem') || '');
+    setObs(localStorage.getItem('draft_zone_obs') || '');
     setLat(parseFloat(localStorage.getItem('draft_zone_lat') || String(vehicleLat)));
     setLng(parseFloat(localStorage.getItem('draft_zone_lng') || String(vehicleLng)));
     setRadius(parseInt(localStorage.getItem('draft_zone_radius') || '300', 10));
@@ -1076,26 +1092,41 @@ export default function RiskZonesTab({
   // Submit new risk zone
   const handleAddSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!name.trim()) {
-      alert("Por favor, digite o nome do local de risco.");
+    const finalTitle = (name || descricao).trim();
+    if (!finalTitle && !descricao.trim()) {
+      alert("Por favor, digite o nome / descrição do local de risco.");
       return;
     }
 
-    onAddRiskZone({
+    const uniqueId = Math.floor(Date.now() + Math.random() * 1000);
+    const itemObj: any = {
+      id: uniqueId,
       localizacao: `${lat.toFixed(5)}, ${lng.toFixed(5)}`,
       latitude: lat,
+      latitudi: lat,
       longitude: lng,
       dataRegistro: new Date().toLocaleDateString('pt-BR'),
       dataHora: `${new Date().toLocaleDateString('pt-BR')} ${new Date().toLocaleTimeString('pt-BR')}`,
       status: level === 'ALTO' ? '⚠️ EM ÁREA DE RISCO!' : '✅ Seguro',
-      nomeLocal: String(name || '').toUpperCase(),
-      raioMetros: radius,
+      nomeLocal: String(finalTitle || descricao).toUpperCase(),
+      descricao: descricao || finalTitle,
+      raioMetros: radius || 100,
+      raioM: radius || 100,
       nivelRisco: level,
+      nivelDeRisco: level || 'BAIXO',
       statusGeral: level === 'ALTO' ? 'DISPARAR' : 'VAZIO',
-      ativo: true
-    });
+      ativo: true,
+      mensagemDeAlerta: mensagemDeAlerta || '',
+      mensagem: mensagemDeAlerta || '',
+      obs: obs || ''
+    };
+
+    onAddRiskZone(itemObj);
 
     setName('');
+    setDescricao('');
+    setMensagemDeAlerta('');
+    setObs('');
     clearZoneDraftFromStorage();
     setShowAddForm(false);
   };
@@ -1103,36 +1134,50 @@ export default function RiskZonesTab({
   // Edit existing risk zone
   const handleStartEdit = (zone: RiskZone) => {
     setEditingZone(zone);
-    setEditName(zone.nomeLocal);
-    setEditLat(zone.latitude);
-    setEditLng(zone.longitude);
-    setEditRadius(zone.raioMetros);
-    setEditLevel(zone.nivelRisco);
+    setEditName(zone.nomeLocal || zone.descricao || '');
+    setEditDescricao(zone.descricao || zone.nomeLocal || '');
+    setEditMensagemDeAlerta(zone.mensagemDeAlerta || zone.mensagem || '');
+    setEditObs(zone.obs || '');
+    setEditLat(zone.latitude || Number(zone.latitudi) || -22.90);
+    setEditLng(zone.longitude || -47.05);
+    setEditRadius(zone.raioMetros || zone.raioM || 300);
+    setEditLevel((zone.nivelRisco || zone.nivelDeRisco || 'ALTO') as any);
     setShowAddForm(false); // Close add form if open
   };
 
   const handleEditSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!editingZone) return;
-    if (!editName.trim()) {
+    const finalTitle = (editName || editDescricao).trim();
+    if (!finalTitle && !editDescricao.trim()) {
       if (showAlert) {
-        showAlert("Campo Obrigatório", "Por favor, digite o nome do local de risco.");
+        showAlert("Campo Obrigatório", "Por favor, digite o nome / descrição do local de risco.");
       } else {
-        alert("Por favor, digite o nome do local de risco.");
+        alert("Por favor, digite o nome / descrição do local de risco.");
       }
       return;
     }
 
-    onEditRiskZone(editingZone.id, {
+    const updatedObj: any = {
+      id: editingZone.id || Date.now(),
       localizacao: `${editLat.toFixed(5)}, ${editLng.toFixed(5)}`,
       latitude: editLat,
+      latitudi: editLat,
       longitude: editLng,
       status: editLevel === 'ALTO' ? '⚠️ EM ÁREA DE RISCO!' : '✅ Seguro',
-      nomeLocal: String(editName || '').toUpperCase(),
-      raioMetros: editRadius,
+      nomeLocal: String(finalTitle || editDescricao).toUpperCase(),
+      descricao: editDescricao || finalTitle,
+      raioMetros: editRadius || 100,
+      raioM: editRadius || 100,
       nivelRisco: editLevel,
-      statusGeral: editLevel === 'ALTO' ? 'DISPARAR' : 'VAZIO'
-    });
+      nivelDeRisco: editLevel || 'BAIXO',
+      statusGeral: editLevel === 'ALTO' ? 'DISPARAR' : 'VAZIO',
+      mensagemDeAlerta: editMensagemDeAlerta || '',
+      mensagem: editMensagemDeAlerta || '',
+      obs: editObs || ''
+    };
+
+    onEditRiskZone(editingZone.id, updatedObj);
 
     setEditingZone(null);
     if (showAlert) {
@@ -1624,17 +1669,61 @@ export default function RiskZonesTab({
                 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div className="space-y-1.5">
-                    <label className="block text-xs font-semibold text-slate-300">Nome da Zona / Local</label>
+                    <label className="block text-xs font-semibold text-slate-300">Nome / Título da Zona</label>
                     <input
                       type="text"
                       required
                       value={name}
-                      onChange={(e) => setName(String(e.target.value || '').toUpperCase())}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        setName(val.toUpperCase());
+                        if (!descricao) setDescricao(val);
+                      }}
                       placeholder="Ex: CD VALINHOS, RUA DA SAÚDE..."
                       className="w-full bg-slate-900 border border-slate-800 rounded-xl px-3 py-2.5 text-xs text-white focus:border-emerald-500 outline-none"
                     />
                   </div>
 
+                  <div className="space-y-1.5">
+                    <label className="block text-xs font-semibold text-slate-300">Descrição Detalhada</label>
+                    <input
+                      type="text"
+                      value={descricao}
+                      onChange={(e) => {
+                        setDescricao(e.target.value);
+                        if (!name) setName(e.target.value.toUpperCase());
+                      }}
+                      placeholder="Ex: Ponto crítico de assalto próximo ao semáforo..."
+                      className="w-full bg-slate-900 border border-slate-800 rounded-xl px-3 py-2.5 text-xs text-white focus:border-emerald-500 outline-none"
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="space-y-1.5">
+                    <label className="block text-xs font-semibold text-slate-300">Mensagem de Alerta</label>
+                    <input
+                      type="text"
+                      value={mensagemDeAlerta}
+                      onChange={(e) => setMensagemDeAlerta(e.target.value)}
+                      placeholder="Ex: Atenção! Área com alto índice de furtos."
+                      className="w-full bg-slate-900 border border-slate-800 rounded-xl px-3 py-2.5 text-xs text-white focus:border-emerald-500 outline-none"
+                    />
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <label className="block text-xs font-semibold text-slate-300">Observação / Som / Alerta</label>
+                    <input
+                      type="text"
+                      value={obs}
+                      onChange={(e) => setObs(e.target.value)}
+                      placeholder="Ex: Evite paradas à noite / som habilitado..."
+                      className="w-full bg-slate-900 border border-slate-800 rounded-xl px-3 py-2.5 text-xs text-white focus:border-emerald-500 outline-none"
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
                   <div className="space-y-1.5">
                     <label className="block text-xs font-semibold text-slate-300">Nível de Risco</label>
                     <select
@@ -1642,14 +1731,12 @@ export default function RiskZonesTab({
                       onChange={(e) => setLevel(e.target.value as any)}
                       className="w-full bg-slate-900 border border-slate-800 rounded-xl px-3 py-2.5 text-xs text-white focus:border-emerald-500 cursor-pointer outline-none"
                     >
-                      <option value="ALTO">Alto Risco (Gera Alertas de Disparo)</option>
+                      <option value="ALTO">Alto Risco</option>
                       <option value="MEDIO">Médio Risco</option>
-                      <option value="BAIXO">Baixo Risco (Monitoramento de Segurança)</option>
+                      <option value="BAIXO">Baixo Risco</option>
                     </select>
                   </div>
-                </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                   <div className="space-y-1.5">
                     <label className="block text-xs font-semibold text-slate-300">Latitude</label>
                     <input
@@ -2208,17 +2295,61 @@ export default function RiskZonesTab({
           
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="space-y-1.5">
-              <label className="block text-xs font-semibold text-slate-300">Nome da Zona / Local</label>
+              <label className="block text-xs font-semibold text-slate-300">Nome / Título da Zona</label>
               <input
                 type="text"
                 required
                 value={editName}
-                onChange={(e) => setEditName(String(e.target.value || '').toUpperCase())}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  setEditName(val.toUpperCase());
+                  if (!editDescricao) setEditDescricao(val);
+                }}
                 placeholder="Ex: CD VALINHOS, RUA DA SAÚDE..."
                 className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2.5 text-xs text-white focus:border-emerald-500 outline-none"
               />
             </div>
 
+            <div className="space-y-1.5">
+              <label className="block text-xs font-semibold text-slate-300">Descrição Detalhada</label>
+              <input
+                type="text"
+                value={editDescricao}
+                onChange={(e) => {
+                  setEditDescricao(e.target.value);
+                  if (!editName) setEditName(e.target.value.toUpperCase());
+                }}
+                placeholder="Ex: Ponto crítico de assalto próximo ao semáforo..."
+                className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2.5 text-xs text-white focus:border-emerald-500 outline-none"
+              />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="space-y-1.5">
+              <label className="block text-xs font-semibold text-slate-300">Mensagem de Alerta</label>
+              <input
+                type="text"
+                value={editMensagemDeAlerta}
+                onChange={(e) => setEditMensagemDeAlerta(e.target.value)}
+                placeholder="Ex: Atenção! Área com alto índice de furtos."
+                className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2.5 text-xs text-white focus:border-emerald-500 outline-none"
+              />
+            </div>
+
+            <div className="space-y-1.5">
+              <label className="block text-xs font-semibold text-slate-300">Observação / Som / Alerta</label>
+              <input
+                type="text"
+                value={editObs}
+                onChange={(e) => setEditObs(e.target.value)}
+                placeholder="Ex: Evite paradas à noite / som habilitado..."
+                className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2.5 text-xs text-white focus:border-emerald-500 outline-none"
+              />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
             <div className="space-y-1.5">
               <label className="block text-xs font-semibold text-slate-300">Nível de Risco</label>
               <select
@@ -2226,14 +2357,12 @@ export default function RiskZonesTab({
                 onChange={(e) => setEditLevel(e.target.value as any)}
                 className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2.5 text-xs text-white focus:border-emerald-500 cursor-pointer outline-none"
               >
-                <option value="ALTO">Alto Risco (Gera Alertas de Disparo)</option>
+                <option value="ALTO">Alto Risco</option>
                 <option value="MEDIO">Médio Risco</option>
-                <option value="BAIXO">Baixo Risco (Monitoramento de Segurança)</option>
+                <option value="BAIXO">Baixo Risco</option>
               </select>
             </div>
-          </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
             <div className="space-y-1.5">
               <label className="block text-xs font-semibold text-slate-300">Latitude</label>
               <input
@@ -2314,11 +2443,14 @@ export default function RiskZonesTab({
                 <div>
                   <div className="flex justify-between items-start mb-2">
                     <div className="flex items-center gap-1.5">
-                      <span className={`w-2 h-2 rounded-full ${zone.nivelRisco === 'ALTO' ? 'bg-red-500 animate-pulse' : 'bg-emerald-400'}`} />
+                      <span className={`w-2 h-2 rounded-full ${(zone.nivelRisco === 'ALTO' || zone.nivelDeRisco === 'ALTO') ? 'bg-red-500 animate-pulse' : 'bg-emerald-400'}`} />
                       <span className={`text-[10px] font-bold tracking-widest font-mono uppercase ${
-                        zone.nivelRisco === 'ALTO' ? 'text-red-400' : 'text-slate-400'
+                        (zone.nivelRisco === 'ALTO' || zone.nivelDeRisco === 'ALTO') ? 'text-red-400' : 'text-slate-400'
                       }`}>
-                        {zone.nivelRisco} RISCO
+                        {zone.nivelRisco || zone.nivelDeRisco || 'BAIXO'} RISCO
+                      </span>
+                      <span className="text-[9px] font-mono text-slate-500 bg-slate-950 px-1.5 py-0.5 rounded border border-slate-800">
+                        ID: #{zone.id}
                       </span>
                     </div>
                     
@@ -2326,21 +2458,42 @@ export default function RiskZonesTab({
                     <button
                       onClick={() => onToggleActive(zone.id)}
                       className={`px-2 py-0.5 rounded text-[10px] font-bold border cursor-pointer uppercase transition-all ${
-                        zone.ativo
+                        zone.ativo === true || zone.ativo === 'SIM'
                           ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400'
                           : 'bg-slate-950 border-slate-800 text-slate-500'
                       }`}
                     >
-                      {zone.ativo ? 'ATIVO' : 'MUTADO'}
+                      {(zone.ativo === true || zone.ativo === 'SIM') ? 'ATIVO' : 'MUTADO'}
                     </button>
                   </div>
 
-                  <h4 className="text-xs font-bold text-white uppercase tracking-tight">{zone.nomeLocal}</h4>
+                  <h4 className="text-xs font-bold text-white uppercase tracking-tight">
+                    {zone.nomeLocal || zone.descricao || `ZONA #${zone.id}`}
+                  </h4>
+                  {zone.descricao && zone.descricao.toUpperCase() !== zone.nomeLocal && (
+                    <p className="text-[11px] text-slate-300 mt-1 font-medium leading-tight">
+                      {zone.descricao}
+                    </p>
+                  )}
+
+                  {(zone.mensagemDeAlerta || zone.mensagem) && (
+                    <div className="mt-2 text-[10px] text-red-300 bg-red-500/10 border border-red-500/20 px-2.5 py-1 rounded-lg font-mono flex items-center gap-1">
+                      <ShieldAlert className="w-3 h-3 text-red-400 shrink-0" />
+                      <span>{zone.mensagemDeAlerta || zone.mensagem}</span>
+                    </div>
+                  )}
+
+                  {zone.obs && (
+                    <div className="mt-1.5 text-[10px] text-amber-300/90 bg-amber-500/10 border border-amber-500/20 px-2.5 py-1 rounded-lg font-mono flex items-center gap-1">
+                      <AlertTriangle className="w-3 h-3 text-amber-400 shrink-0" />
+                      <span>{zone.obs}</span>
+                    </div>
+                  )}
                   
                   <div className="flex flex-col gap-1 mt-2">
                     <p className="text-[10px] text-slate-400 font-mono flex items-center gap-1">
                       <MapPin className="w-3.5 h-3.5 text-slate-500" />
-                      {zone.localizacao}
+                      {zone.localizacao || `${zone.latitude || zone.latitudi}, ${zone.longitude}`}
                     </p>
                     <p className="text-[10px] text-emerald-400 font-mono font-bold flex items-center gap-1">
                       <Locate className="w-3.5 h-3.5 text-emerald-500" />

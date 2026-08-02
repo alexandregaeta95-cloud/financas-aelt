@@ -5,15 +5,21 @@ export interface RiskZone {
   localizacao: string; // "latitude, longitude"
   latitude: number;
   longitude: number;
+  latitudi?: number | string;
   dataRegistro: string;
-  dataHora: string;
-  status: string; // '⚠️ EM ÁREA DE RISCO!' | '✅ Seguro'
+  dataHora?: string;
+  status?: string; // '⚠️ EM ÁREA DE RISCO!' | '✅ Seguro'
   nomeLocal: string;
+  descricao?: string;
   raioMetros: number;
+  raioM?: number;
   nivelRisco: 'ALTO' | 'BAIXO' | 'MEDIO';
-  statusGeral: 'DISPARAR' | 'VAZIO' | 'ALERTA';
-  ativo: boolean;
+  nivelDeRisco?: string;
+  statusGeral?: 'DISPARAR' | 'VAZIO' | 'ALERTA';
+  ativo: boolean | string;
+  mensagemDeAlerta?: string;
   mensagem?: string;
+  obs?: string;
   som?: string;
   voz?: string;
   sentido?: string;
