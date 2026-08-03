@@ -169,6 +169,14 @@ export default function CarServicesTab({
     return list.filter(Boolean);
   }, [asyncVehicles, registeredVehicles, vehicles, hookVehicles]);
 
+  // Lista de exibição garantida com fallback "FOX ROCK RIO 1.6"
+  const displayVehicles = useMemo(() => {
+    if (safeRegisteredVehicles && safeRegisteredVehicles.length > 0) {
+      return safeRegisteredVehicles;
+    }
+    return [{ id: 'FOX ROCK RIO 1.6', nome: 'FOX ROCK RIO 1.6', modelo: 'FOX ROCK RIO 1.6', placa: 'FOX ROCK RIO 1.6', descricao: 'FOX ROCK RIO 1.6' }];
+  }, [safeRegisteredVehicles]);
+
   // Safe Array Fallbacks
   const safePerformedServices = Array.isArray(performedServices) ? performedServices.filter(Boolean) : [];
   const safeScheduledServices = Array.isArray(scheduledServices) ? scheduledServices.filter(Boolean) : [];
@@ -202,11 +210,11 @@ export default function CarServicesTab({
   const [schedDateAlvo, setSchedDateAlvo] = useState('');
   const [schedKmAlvo, setSchedKmAlvo] = useState('');
 
-  // Seleção Padrão: Se houver veículos na lista e nenhum estiver selecionado, seleciona o primeiro por padrão
+  // Seleção Padrão / Auto-seleção: Ao carregar ou abrir o modal, se nenhum estiver selecionado, seleciona o primeiro por padrão
   useEffect(() => {
-    if (safeRegisteredVehicles.length > 0) {
-      const firstVeh = safeRegisteredVehicles[0];
-      const defaultVal = firstVeh.id || firstVeh.descricao || (firstVeh as any).nome || firstVeh.modelo || firstVeh.placa || '';
+    if (displayVehicles.length > 0) {
+      const firstVeh = displayVehicles[0];
+      const defaultVal = firstVeh.id || firstVeh.descricao || (firstVeh as any).nome || firstVeh.modelo || firstVeh.placa || 'FOX ROCK RIO 1.6';
       if (!perfVehicle) {
         setPerfVehicle(defaultVal);
       }
@@ -214,13 +222,14 @@ export default function CarServicesTab({
         setSchedVehicle(defaultVal);
       }
     }
-  }, [safeRegisteredVehicles]);
+  }, [displayVehicles]);
 
   const handleOpenAddPerformed = () => {
     setEditingPerformed(null);
-    const defaultVal = safeRegisteredVehicles[0]
-      ? (safeRegisteredVehicles[0].id || safeRegisteredVehicles[0].descricao || (safeRegisteredVehicles[0] as any).nome || safeRegisteredVehicles[0].modelo || safeRegisteredVehicles[0].placa || '')
-      : '';
+    const firstVeh = displayVehicles[0];
+    const defaultVal = firstVeh
+      ? (firstVeh.id || firstVeh.descricao || (firstVeh as any).nome || firstVeh.modelo || firstVeh.placa || 'FOX ROCK RIO 1.6')
+      : 'FOX ROCK RIO 1.6';
     setPerfVehicle(perfVehicle || defaultVal);
     setPerfDescription('');
     setPerfDate(new Date().toISOString().split('T')[0]);
@@ -292,9 +301,10 @@ export default function CarServicesTab({
 
   const handleOpenAddScheduled = () => {
     setEditingScheduled(null);
-    const defaultVal = safeRegisteredVehicles[0]
-      ? (safeRegisteredVehicles[0].id || safeRegisteredVehicles[0].descricao || (safeRegisteredVehicles[0] as any).nome || safeRegisteredVehicles[0].modelo || safeRegisteredVehicles[0].placa || '')
-      : '';
+    const firstVeh = displayVehicles[0];
+    const defaultVal = firstVeh
+      ? (firstVeh.id || firstVeh.descricao || (firstVeh as any).nome || firstVeh.modelo || firstVeh.placa || 'FOX ROCK RIO 1.6')
+      : 'FOX ROCK RIO 1.6';
     setSchedVehicle(schedVehicle || defaultVal);
     setSchedDescription('');
     setSchedType('DATA');
@@ -811,25 +821,19 @@ export default function CarServicesTab({
                     disabled={isLoadingVehicles && safeRegisteredVehicles.length === 0}
                     className="w-full bg-slate-950 border border-slate-800 rounded-xl p-2.5 text-xs text-white outline-none focus:border-emerald-500 font-mono uppercase disabled:opacity-50"
                   >
-                    {safeRegisteredVehicles.length > 0 ? (
-                      <>
-                        <option value="">Selecione um Veículo...</option>
-                        {safeRegisteredVehicles.filter(Boolean).map((v, idx) => {
-                          const val = v.id || v.descricao || (v as any).nome || v.modelo || v.placa || `veh_${idx}`;
-                          const label = (v as any).nome || v.modelo || v.placa || v.descricao || `Veículo ${idx + 1}`;
-                          return (
-                            <option key={v.id || idx} value={val}>
-                              {label}
-                            </option>
-                          );
-                        })}
-                      </>
-                    ) : isLoadingVehicles ? (
-                      <option value="">Carregando veículos...</option>
-                    ) : vehiclesError ? (
-                      <option value="">Erro ao carregar veículos (clique para tentar)</option>
+                    <option value="">Selecione um Veículo...</option>
+                    {safeRegisteredVehicles && safeRegisteredVehicles.length > 0 ? (
+                      safeRegisteredVehicles.filter(Boolean).map((v, idx) => {
+                        const val = v.id || v.descricao || (v as any).nome || v.modelo || v.placa || `veh_${idx}`;
+                        const label = (v as any).nome || v.modelo || v.placa || v.descricao || `Veículo ${idx + 1}`;
+                        return (
+                          <option key={v.id || idx} value={val}>
+                            {label}
+                          </option>
+                        );
+                      })
                     ) : (
-                      <option value="">Nenhum veículo cadastrado</option>
+                      <option value="FOX ROCK RIO 1.6">FOX ROCK RIO 1.6</option>
                     )}
                   </select>
                   {vehiclesError && safeRegisteredVehicles.length === 0 && (
@@ -986,25 +990,19 @@ export default function CarServicesTab({
                     disabled={isLoadingVehicles && safeRegisteredVehicles.length === 0}
                     className="w-full bg-slate-950 border border-slate-800 rounded-xl p-2.5 text-xs text-white outline-none focus:border-amber-500 font-mono uppercase disabled:opacity-50"
                   >
-                    {safeRegisteredVehicles.length > 0 ? (
-                      <>
-                        <option value="">Selecione um Veículo...</option>
-                        {safeRegisteredVehicles.filter(Boolean).map((v, idx) => {
-                          const val = v.id || v.descricao || (v as any).nome || v.modelo || v.placa || `veh_${idx}`;
-                          const label = (v as any).nome || v.modelo || v.placa || v.descricao || `Veículo ${idx + 1}`;
-                          return (
-                            <option key={v.id || idx} value={val}>
-                              {label}
-                            </option>
-                          );
-                        })}
-                      </>
-                    ) : isLoadingVehicles ? (
-                      <option value="">Carregando veículos...</option>
-                    ) : vehiclesError ? (
-                      <option value="">Erro ao carregar veículos (clique para tentar)</option>
+                    <option value="">Selecione um Veículo...</option>
+                    {safeRegisteredVehicles && safeRegisteredVehicles.length > 0 ? (
+                      safeRegisteredVehicles.filter(Boolean).map((v, idx) => {
+                        const val = v.id || v.descricao || (v as any).nome || v.modelo || v.placa || `veh_${idx}`;
+                        const label = (v as any).nome || v.modelo || v.placa || v.descricao || `Veículo ${idx + 1}`;
+                        return (
+                          <option key={v.id || idx} value={val}>
+                            {label}
+                          </option>
+                        );
+                      })
                     ) : (
-                      <option value="">Nenhum veículo cadastrado</option>
+                      <option value="FOX ROCK RIO 1.6">FOX ROCK RIO 1.6</option>
                     )}
                   </select>
                   {vehiclesError && safeRegisteredVehicles.length === 0 && (
