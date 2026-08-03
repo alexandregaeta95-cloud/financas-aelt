@@ -120,6 +120,35 @@ export const syncDataToSpreadsheet = async (
     obs: item.obs || item.OBS || item.som || ''
   }));
 
+  const rawWorkshopSource = (Array.isArray(workshop) && workshop.length > 0)
+    ? workshop
+    : (Array.isArray(performedServices) ? performedServices : []);
+
+  const mappedWorkshop = rawWorkshopSource.map((item: any) => {
+    let rawDate = item.data || item.Data || '';
+    if (rawDate && rawDate.includes('-')) {
+      const parts = rawDate.split('T')[0].split('-');
+      if (parts.length === 3) rawDate = `${parts[2]}/${parts[1]}/${parts[0]}`;
+    }
+    if (!rawDate) rawDate = new Date().toLocaleDateString('pt-BR');
+
+    const rawValAPG = item.valorAPG ?? item['Valor_A_PG'] ?? item.valorAPagar ?? 0;
+    const rawValPago = item.valorPago ?? item['Valor_Pago'] ?? item.valor ?? 0;
+
+    return {
+      id: item.id !== undefined && item.id !== null && String(item.id).trim() !== '' ? String(item.id) : String(Date.now()),
+      data: rawDate,
+      descricao: item.descricao || item['Descrição'] || item['Descrição do Serviço'] || '',
+      km: item.km !== undefined && item.km !== null ? item.km : (item['KM'] || ''),
+      valorAPG: typeof rawValAPG === 'string' ? (parseFloat(rawValAPG.replace(/\./g, '').replace(',', '.')) || 0) : Number(rawValAPG || 0),
+      valorPago: typeof rawValPago === 'string' ? (parseFloat(rawValPago.replace(/\./g, '').replace(',', '.')) || 0) : Number(rawValPago || 0),
+      oficinaNome: item.oficinaNome || item.oficina || item['Oficina_Nome'] || item['Oficina/Estabelecimento'] || '',
+      comprovanteUrl: item.comprovanteUrl || item.comprovante || item['Comprovante_Url'] || '',
+      observacoes: item.observacoes || item.obs || item['Observações'] || '',
+      veiculoId: item.veiculoId || item.veiculo || item.veiculoDescricao || item['VeiculoID'] || item['Veículo'] || ''
+    };
+  });
+
   const payload = {
     action: 'syncData',
     spreadsheetId: cleanSheetId,
@@ -130,11 +159,11 @@ export const syncDataToSpreadsheet = async (
     prescriptions: Array.isArray(prescriptions) ? prescriptions : [],
     compromissos: Array.isArray(compromissos) ? compromissos : [],
     registeredVehicles: Array.isArray(registeredVehicles) ? registeredVehicles : [],
-    performedServices: Array.isArray(performedServices) ? performedServices : [],
+    performedServices: mappedWorkshop,
     scheduledServices: Array.isArray(scheduledServices) ? scheduledServices : [],
     scheduledMaintenance: Array.isArray(scheduledMaintenance) ? scheduledMaintenance : [],
     agenda: Array.isArray(agenda) ? agenda : [],
-    workshop: Array.isArray(workshop) ? workshop : [],
+    workshop: mappedWorkshop,
     bankAccounts: Array.isArray(bankAccounts) ? bankAccounts : [],
     creditCards: Array.isArray(creditCards) ? creditCards : [],
     analysis: Array.isArray(analysis) ? analysis : [],

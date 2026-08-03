@@ -51,13 +51,17 @@ export default function CarServicesTab({
   const [isPerformedModalOpen, setIsPerformedModalOpen] = useState(false);
   const [editingPerformed, setEditingPerformed] = useState<CarServicePerformed | null>(null);
   
-  // Campos do Formulário para bater com a planilha
+  // 10 Colunas de Oficina (Aba 14_Oficina):
+  // A: ID | B: Data | C: Descrição | D: KM | E: Valor_A_PG | F: Valor_Pago | G: Oficina_Nome | H: Comprovante_Url | I: Observações | J: VeiculoID
+
   const [perfVehicle, setPerfVehicle] = useState('FOX ROCK RIO 1.6');
   const [perfDescription, setPerfDescription] = useState('');
   const [perfDate, setPerfDate] = useState(new Date().toISOString().split('T')[0]);
   const [perfKm, setPerfKm] = useState('');
-  const [perfValor, setPerfValor] = useState('');
+  const [perfValorAPG, setPerfValorAPG] = useState('');
+  const [perfValorPago, setPerfValorPago] = useState('');
   const [perfOficina, setPerfOficina] = useState('');
+  const [perfComprovanteUrl, setPerfComprovanteUrl] = useState('');
   const [perfObservacoes, setPerfObservacoes] = useState('');
 
   const [isScheduledModalOpen, setIsScheduledModalOpen] = useState(false);
@@ -74,39 +78,58 @@ export default function CarServicesTab({
     setPerfDescription('');
     setPerfDate(new Date().toISOString().split('T')[0]);
     setPerfKm('');
-    setPerfValor('');
+    setPerfValorAPG('');
+    setPerfValorPago('');
     setPerfOficina('');
+    setPerfComprovanteUrl('');
     setPerfObservacoes('');
     setIsPerformedModalOpen(true);
   };
 
   const handleOpenEditPerformed = (serv: CarServicePerformed) => {
     setEditingPerformed(serv);
-    setPerfVehicle(serv.veiculoDescricao || (serv as any)['Veículo'] || safeRegisteredVehicles[0]?.descricao || 'FOX ROCK RIO 1.6');
-    setPerfDescription(serv.descricao || (serv as any)['Descrição do Serviço'] || (serv as any)['Descrição'] || '');
-    const rawDate = serv.data || (serv as any)['Data Realização'] || (serv as any)['Data'] || '';
-    setPerfDate(rawDate.includes('T') ? rawDate.split('T')[0] : (rawDate || new Date().toISOString().split('T')[0]));
-    const rawKm = serv.km ?? (serv as any)['Quilometragem (KM)'] ?? (serv as any)['KM'];
+    setPerfVehicle(serv.veiculoId || serv.veiculoDescricao || (serv as any)['VeiculoID'] || (serv as any)['Veículo'] || safeRegisteredVehicles[0]?.descricao || 'FOX ROCK RIO 1.6');
+    setPerfDescription(serv.descricao || (serv as any)['Descrição'] || (serv as any)['Descrição do Serviço'] || '');
+    
+    const rawDate = serv.data || (serv as any)['Data'] || (serv as any)['Data Realização'] || '';
+    let dateForInput = new Date().toISOString().split('T')[0];
+    if (rawDate.includes('/')) {
+      const parts = rawDate.split('/');
+      if (parts.length === 3) dateForInput = `${parts[2]}-${parts[1].padStart(2, '0')}-${parts[0].padStart(2, '0')}`;
+    } else if (rawDate.includes('T')) {
+      dateForInput = rawDate.split('T')[0];
+    } else if (rawDate.includes('-')) {
+      dateForInput = rawDate;
+    }
+    setPerfDate(dateForInput);
+
+    const rawKm = serv.km ?? (serv as any)['KM'] ?? (serv as any)['Quilometragem (KM)'];
     setPerfKm(rawKm !== undefined && rawKm !== null ? String(rawKm) : '');
-    const rawVal = (serv as any)['Valor Pago (R$)'] ?? (serv as any)['Valor (R$)'] ?? serv.valor ?? 0;
-    setPerfValor(rawVal ? String(rawVal).replace('.', ',') : '');
-    setPerfOficina(serv.oficina || (serv as any)['Oficina/Estabelecimento'] || (serv as any)['Oficina'] || '');
-    setPerfObservacoes(serv.observacoes || (serv as any)['Observações'] || '');
+
+    const rawValAPG = serv.valorAPG ?? (serv as any)['Valor_A_PG'] ?? (serv as any)['Valor A Pagar'] ?? 0;
+    setPerfValorAPG(rawValAPG ? String(rawValAPG).replace('.', ',') : '');
+
+    const rawValPago = serv.valorPago ?? serv.valor ?? (serv as any)['Valor_Pago'] ?? (serv as any)['Valor Pago (R$)'] ?? 0;
+    setPerfValorPago(rawValPago ? String(rawValPago).replace('.', ',') : '');
+
+    setPerfOficina(serv.oficinaNome || serv.oficina || (serv as any)['Oficina_Nome'] || (serv as any)['Oficina/Estabelecimento'] || '');
+    setPerfComprovanteUrl(serv.comprovanteUrl || (serv as any)['Comprovante_Url'] || '');
+    setPerfObservacoes(serv.observacoes || serv.obs || (serv as any)['Observações'] || '');
     setIsPerformedModalOpen(true);
   };
 
   const handleDeletePerformed = (serv: CarServicePerformed) => {
-    const desc = serv.descricao || (serv as any)['Descrição do Serviço'] || 'este serviço';
+    const desc = serv.descricao || (serv as any)['Descrição do Serviço'] || (serv as any)['Descrição'] || 'este registro';
     showConfirm(
-      "Excluir Serviço 🗑️",
+      "Excluir Registro da Oficina 🗑️",
       `Deseja realmente excluir "${desc}" da oficina?`,
       async () => {
         try {
           await onDeletePerformedService(serv.id);
-          showAlert("Sucesso 🎉", "Serviço excluído com sucesso!");
+          showAlert("Sucesso 🎉", "Registro excluído da oficina!");
         } catch (e) {
           console.error(e);
-          showAlert("Erro ❌", "Não foi possível excluir o serviço.");
+          showAlert("Erro ❌", "Não foi possível excluir o registro.");
         }
       }
     );
@@ -156,44 +179,69 @@ export default function CarServicesTab({
       return;
     }
 
-    const cleanValorStr = perfValor.replace(/\./g, "").replace(",", ".");
-    const parsedValor = cleanValorStr ? parseFloat(cleanValorStr) : 0;
-    const parsedKm = perfKm ? parseInt(perfKm, 10) : "";
+    const cleanValAPG = perfValorAPG.replace(/\./g, "").replace(",", ".");
+    const parsedValorAPG = cleanValAPG ? parseFloat(cleanValAPG) : 0;
+
+    const cleanValPago = perfValorPago.replace(/\./g, "").replace(",", ".");
+    const parsedValorPago = cleanValPago ? parseFloat(cleanValPago) : 0;
+
+    const parsedKm = perfKm.trim() ? (isNaN(Number(perfKm)) ? perfKm.trim() : parseInt(perfKm, 10)) : "";
+
+    let dateDDMMYYYY = perfDate;
+    if (perfDate.includes('-')) {
+      const parts = perfDate.split('-');
+      if (parts.length === 3) dateDDMMYYYY = `${parts[2]}/${parts[1]}/${parts[0]}`;
+    }
+
+    const itemId = editingPerformed ? editingPerformed.id : Date.now().toString();
+
+    const payload: any = {
+      // 10 Colunas exatas da Aba 14_Oficina:
+      id: itemId,
+      data: dateDDMMYYYY,
+      descricao: perfDescription.trim(),
+      km: parsedKm,
+      valorAPG: parsedValorAPG,
+      valorPago: parsedValorPago,
+      oficinaNome: perfOficina.trim(),
+      comprovanteUrl: perfComprovanteUrl.trim(),
+      observacoes: perfObservacoes.trim(),
+      veiculoId: (perfVehicle || 'FOX ROCK RIO 1.6').toUpperCase(),
+
+      // Aliases para compatibilidade legada:
+      "VeiculoID": (perfVehicle || 'FOX ROCK RIO 1.6').toUpperCase(),
+      "Veículo": (perfVehicle || 'FOX ROCK RIO 1.6').toUpperCase(),
+      "Descrição": perfDescription.trim(),
+      "Descrição do Serviço": perfDescription.trim(),
+      "Data": dateDDMMYYYY,
+      "Data Realização": perfDate,
+      "KM": parsedKm,
+      "Quilometragem (KM)": parsedKm,
+      "Valor_A_PG": parsedValorAPG,
+      "Valor_Pago": parsedValorPago,
+      "Valor Pago (R$)": parsedValorPago,
+      "valor": parsedValorPago,
+      "Oficina_Nome": perfOficina.trim(),
+      "Oficina/Estabelecimento": perfOficina.trim(),
+      "oficina": perfOficina.trim(),
+      "Comprovante_Url": perfComprovanteUrl.trim(),
+      "Observações": perfObservacoes.trim(),
+      "veiculoDescricao": (perfVehicle || 'FOX ROCK RIO 1.6').toUpperCase(),
+      updatedAt: Date.now()
+    };
 
     try {
-      const payload = {
-        // Chaves para a Planilha do Google Apps Script
-        "Veículo": (perfVehicle || 'FOX ROCK RIO 1.6').toUpperCase(),
-        "Descrição do Serviço": perfDescription.trim(),
-        "Data Realização": perfDate,
-        "Quilometragem (KM)": parsedKm,
-        "Valor Pago (R$)": parsedValor,
-        "Oficina/Estabelecimento": perfOficina.trim(),
-        "Observações": perfObservacoes.trim(),
-
-        // Chaves internas legadas do React
-        veiculoDescricao: (perfVehicle || 'FOX ROCK RIO 1.6').toUpperCase(),
-        descricao: perfDescription.trim(),
-        data: perfDate,
-        km: parsedKm || undefined,
-        valor: parsedValor,
-        oficina: perfOficina.trim() || undefined,
-        observacoes: perfObservacoes.trim() || undefined,
-        updatedAt: Date.now()
-      };
-
       if (editingPerformed) {
         await onEditPerformedService(editingPerformed.id, payload);
-        showAlert("Sucesso 🎉", "Serviço atualizado com sucesso!");
+        showAlert("Sucesso 🎉", "Registro de oficina atualizado!");
       } else {
         await onAddPerformedService(payload);
-        showAlert("Sucesso 🎉", "Serviço salvo e enviado para a planilha!");
+        showAlert("Sucesso 🎉", "Registro salvo na oficina!");
       }
-
       setIsPerformedModalOpen(false);
     } catch (e) {
       console.error(e);
-      showAlert("Erro", "Não foi possível salvar na planilha.");
+      showAlert("Erro", "Não foi possível salvar os dados da oficina.");
     }
   };
 
@@ -240,15 +288,17 @@ export default function CarServicesTab({
     return safePerformedServices
       .filter(s => {
         if (!s) return false;
-        const sVehDesc = (s.veiculoDescricao || (s as any)['Veículo'] || '').toString().toUpperCase();
+        const sVehDesc = (s.veiculoId || s.veiculoDescricao || (s as any)['VeiculoID'] || (s as any)['Veículo'] || '').toString().toUpperCase();
         const vfUpper = (vehicleFilter || 'TODOS').toString().toUpperCase();
-        const matchesVehicle = vfUpper === 'TODOS' || sVehDesc === vfUpper;
+        const matchesVehicle = vfUpper === 'TODOS' || sVehDesc === vfUpper || (sVehDesc && sVehDesc.includes(vfUpper));
 
         const q = (searchQuery || '').toString().toLowerCase();
-        const sDesc = (s.descricao || (s as any)['Descrição do Serviço'] || (s as any)['Descrição'] || '').toString().toLowerCase();
-        const sOficina = (s.oficina || (s as any)['Oficina/Estabelecimento'] || (s as any)['Oficina'] || '').toString().toLowerCase();
-        const sObs = (s.observacoes || (s as any)['Observações'] || '').toString().toLowerCase();
-        const matchesSearch = !q || sDesc.includes(q) || (sVehDesc || '').toString().toLowerCase().includes(q) || sOficina.includes(q) || sObs.includes(q);
+        const sDesc = (s.descricao || (s as any)['Descrição'] || (s as any)['Descrição do Serviço'] || '').toString().toLowerCase();
+        const sOficina = (s.oficinaNome || s.oficina || (s as any)['Oficina_Nome'] || (s as any)['Oficina/Estabelecimento'] || '').toString().toLowerCase();
+        const sObs = (s.observacoes || s.obs || (s as any)['Observações'] || '').toString().toLowerCase();
+        const sVeh = sVehDesc.toLowerCase();
+
+        const matchesSearch = !q || sDesc.includes(q) || sOficina.includes(q) || sVeh.includes(q) || sObs.includes(q);
         return matchesVehicle && matchesSearch;
       });
   }, [safePerformedServices, vehicleFilter, searchQuery]);
@@ -385,42 +435,60 @@ export default function CarServicesTab({
           ) : (
             filteredPerformed.map((serv, index) => {
               const desc = serv.descricao || (serv as any)['Descrição do Serviço'] || (serv as any)['Descrição'] || 'Serviço sem descrição';
-              const veiculo = serv.veiculoDescricao || (serv as any)['Veículo'] || 'FOX ROCK RIO 1.6';
+              const veiculo = serv.veiculoId || serv.veiculoDescricao || (serv as any)['VeiculoID'] || (serv as any)['Veículo'] || 'FOX ROCK RIO 1.6';
               const rawData = serv.data || (serv as any)['Data Realização'] || (serv as any)['Data'] || '';
               const dataFmt = rawData ? (rawData.includes('T') ? rawData.split('T')[0].split('-').reverse().join('/') : rawData) : 'S/ Data';
-              const rawVal = (serv as any)['Valor Pago (R$)'] ?? (serv as any)['Valor (R$)'] ?? serv.valor ?? 0;
-              const valNum = typeof rawVal === 'number' ? rawVal : parseFloat(String(rawVal).replace(',', '.')) || 0;
-              const oficina = serv.oficina || (serv as any)['Oficina/Estabelecimento'] || (serv as any)['Oficina'] || '';
+
+              const valAPG = serv.valorAPG ?? (serv as any)['Valor_A_PG'] ?? (serv as any)['Valor A Pagar'] ?? 0;
+              const valPago = serv.valorPago ?? serv.valor ?? (serv as any)['Valor_Pago'] ?? (serv as any)['Valor Pago (R$)'] ?? 0;
+
+              const valAPGNum = typeof valAPG === 'number' ? valAPG : parseFloat(String(valAPG).replace(/\./g, '').replace(',', '.')) || 0;
+              const valPagoNum = typeof valPago === 'number' ? valPago : parseFloat(String(valPago).replace(/\./g, '').replace(',', '.')) || 0;
+
+              const oficina = serv.oficinaNome || serv.oficina || (serv as any)['Oficina_Nome'] || (serv as any)['Oficina/Estabelecimento'] || '';
               const km = serv.km ?? (serv as any)['Quilometragem (KM)'] ?? (serv as any)['KM'] ?? undefined;
-              const obs = serv.observacoes || (serv as any)['Observações'] || '';
+              const comprovante = serv.comprovanteUrl || (serv as any)['Comprovante_Url'] || '';
+              const obs = serv.observacoes || serv.obs || (serv as any)['Observações'] || '';
 
               return (
                 <div key={serv.id || index} className="bg-slate-950 border border-slate-900 p-4 rounded-2xl flex flex-col justify-between gap-2.5 hover:border-slate-800 transition-all">
                   <div className="flex justify-between items-start gap-2">
                     <div>
-                      <h4 className="text-xs font-bold text-slate-100 uppercase tracking-tight">{desc}</h4>
-                      <div className="flex items-center gap-2 text-[9.5px] font-mono text-slate-400 mt-1">
+                      <div className="flex items-center gap-2">
+                        <h4 className="text-xs font-bold text-slate-100 uppercase tracking-tight">{desc}</h4>
+                        {serv.id && (
+                          <span className="text-[9px] font-mono text-slate-500 bg-slate-900 px-1.5 py-0.5 rounded border border-slate-800">
+                            ID: {serv.id}
+                          </span>
+                        )}
+                      </div>
+                      <div className="flex items-center gap-2 text-[9.5px] font-mono text-slate-400 mt-1 flex-wrap">
                         <span className="text-emerald-400 font-semibold">🚗 {veiculo}</span>
                         <span>•</span>
-                        <span>{dataFmt}</span>
-                        {km && (
+                        <span>📅 {dataFmt}</span>
+                        {km !== undefined && km !== null && km !== '' && (
                           <>
                             <span>•</span>
-                            <span>{Number(km).toLocaleString('pt-BR')} KM</span>
+                            <span>⚡ {Number(km).toLocaleString('pt-BR')} KM</span>
                           </>
                         )}
                       </div>
                     </div>
-                    <div className="flex items-center gap-2">
-                      <span className="text-xs font-bold text-emerald-400 font-mono">
-                        {valNum > 0 ? `R$ ${valNum.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : 'Grátis'}
-                      </span>
+                    <div className="flex items-center gap-2 shrink-0">
+                      <div className="text-right font-mono">
+                        <div className="text-[10px] text-slate-400">
+                          A Pagar: <span className="text-amber-400 font-bold">R$ {valAPGNum.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                        </div>
+                        <div className="text-[10px] text-slate-400">
+                          Pago: <span className="text-emerald-400 font-bold">R$ {valPagoNum.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                        </div>
+                      </div>
                       <div className="flex items-center gap-1 border-l border-slate-800 pl-2">
                         <button
                           type="button"
                           onClick={() => handleOpenEditPerformed(serv)}
                           className="p-1 text-slate-400 hover:text-emerald-400 hover:bg-slate-900 rounded-lg transition-colors cursor-pointer"
-                          title="Editar Serviço"
+                          title="Editar Registro da Oficina"
                         >
                           <span className="material-symbols-outlined text-base">edit</span>
                         </button>
@@ -428,7 +496,7 @@ export default function CarServicesTab({
                           type="button"
                           onClick={() => handleDeletePerformed(serv)}
                           className="p-1 text-slate-400 hover:text-rose-400 hover:bg-slate-900 rounded-lg transition-colors cursor-pointer"
-                          title="Excluir Serviço"
+                          title="Excluir Registro da Oficina"
                         >
                           <span className="material-symbols-outlined text-base">delete</span>
                         </button>
@@ -436,9 +504,24 @@ export default function CarServicesTab({
                     </div>
                   </div>
 
-                  {oficina && (
-                    <p className="text-[9px] text-slate-500 font-mono">🏪 {oficina}</p>
-                  )}
+                  <div className="flex items-center gap-3 text-[9.5px] font-mono text-slate-400 flex-wrap">
+                    {oficina && (
+                      <span className="bg-slate-900/80 px-2 py-0.5 rounded-lg border border-slate-800">
+                        🏪 Oficina: {oficina}
+                      </span>
+                    )}
+                    {comprovante && (
+                      <a
+                        href={comprovante.startsWith('http') ? comprovante : `https://${comprovante}`}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="bg-emerald-500/10 text-emerald-400 hover:underline px-2 py-0.5 rounded-lg border border-emerald-500/20 flex items-center gap-1"
+                      >
+                        <span className="material-symbols-outlined text-xs">link</span>
+                        Ver Comprovante
+                      </a>
+                    )}
+                  </div>
 
                   {obs && (
                     <p className="text-[9.5px] text-slate-400 bg-slate-900/60 p-2 rounded-xl italic font-sans">{obs}</p>
@@ -581,20 +664,34 @@ export default function CarServicesTab({
                   </div>
                 </div>
 
-                {/* Valor Pago & Oficina */}
+                {/* Valor A Pagar & Valor Pago */}
                 <div className="grid grid-cols-2 gap-2">
                   <div>
-                    <label className="text-[10px] text-slate-400 uppercase font-mono block mb-1">Valor Pago (R$)</label>
+                    <label className="text-[10px] text-slate-400 uppercase font-mono block mb-1">Valor A Pagar (R$) (Valor_A_PG)</label>
                     <input
                       type="text"
-                      value={perfValor}
-                      onChange={(e) => setPerfValor(e.target.value)}
-                      placeholder="Ex: 250,00"
-                      className="w-full bg-slate-950 border border-slate-800 rounded-xl p-2.5 text-xs text-white outline-none focus:border-emerald-500 font-mono"
+                      value={perfValorAPG}
+                      onChange={(e) => setPerfValorAPG(e.target.value)}
+                      placeholder="Ex: 300,00"
+                      className="w-full bg-slate-950 border border-slate-800 rounded-xl p-2.5 text-xs text-amber-400 outline-none focus:border-emerald-500 font-mono"
                     />
                   </div>
                   <div>
-                    <label className="text-[10px] text-slate-400 uppercase font-mono block mb-1">Oficina / Estabelecimento</label>
+                    <label className="text-[10px] text-slate-400 uppercase font-mono block mb-1">Valor Pago (R$) (Valor_Pago)</label>
+                    <input
+                      type="text"
+                      value={perfValorPago}
+                      onChange={(e) => setPerfValorPago(e.target.value)}
+                      placeholder="Ex: 250,00"
+                      className="w-full bg-slate-950 border border-slate-800 rounded-xl p-2.5 text-xs text-emerald-400 outline-none focus:border-emerald-500 font-mono"
+                    />
+                  </div>
+                </div>
+
+                {/* Oficina & Link Comprovante */}
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <label className="text-[10px] text-slate-400 uppercase font-mono block mb-1">Nome da Oficina (Oficina_Nome)</label>
                     <input
                       type="text"
                       value={perfOficina}
@@ -603,11 +700,21 @@ export default function CarServicesTab({
                       className="w-full bg-slate-950 border border-slate-800 rounded-xl p-2.5 text-xs text-white outline-none focus:border-emerald-500"
                     />
                   </div>
+                  <div>
+                    <label className="text-[10px] text-slate-400 uppercase font-mono block mb-1">Link Comprovante (Comprovante_Url)</label>
+                    <input
+                      type="url"
+                      value={perfComprovanteUrl}
+                      onChange={(e) => setPerfComprovanteUrl(e.target.value)}
+                      placeholder="https://..."
+                      className="w-full bg-slate-950 border border-slate-800 rounded-xl p-2.5 text-xs text-white outline-none focus:border-emerald-500 font-mono"
+                    />
+                  </div>
                 </div>
 
                 {/* Observações */}
                 <div>
-                  <label className="text-[10px] text-slate-400 uppercase font-mono block mb-1">Observações</label>
+                  <label className="text-[10px] text-slate-400 uppercase font-mono block mb-1">Observações (OBS)</label>
                   <textarea
                     rows={2}
                     value={perfObservacoes}

@@ -123,13 +123,33 @@ export interface Compromisso {
 
 export interface CarServicePerformed {
   id: string;
-  veiculoDescricao: string;
+  veiculoDescricao?: string;
+  veiculoId?: string;
   descricao: string;
-  data: string; // YYYY-MM-DD
-  km?: number;
+  data: string; // YYYY-MM-DD or DD/MM/YYYY
+  km?: number | string;
   valor?: number;
+  valorAPG?: number;
+  valorPago?: number;
   oficina?: string;
+  oficinaNome?: string;
+  comprovanteUrl?: string;
   observacoes?: string;
+  obs?: string;
+  updatedAt?: number;
+}
+
+export interface WorkshopItem {
+  id: string;
+  data: string; // DD/MM/YYYY or YYYY-MM-DD
+  descricao: string;
+  km?: number | string;
+  valorAPG?: number;
+  valorPago?: number;
+  oficinaNome?: string;
+  comprovanteUrl?: string;
+  observacoes?: string;
+  veiculoId?: string;
   updatedAt?: number;
 }
 
