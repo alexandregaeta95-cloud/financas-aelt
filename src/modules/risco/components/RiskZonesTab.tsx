@@ -1731,7 +1731,7 @@ export default function RiskZonesTab({
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div className="space-y-1.5">
-                    <label className="block text-xs font-semibold text-slate-300">Mensagem de Alerta</label>
+                    <label className="block text-xs font-semibold text-slate-300">Mensagem de Alerta (Mensagem_De_Alerta)</label>
                     <input
                       type="text"
                       value={mensagemDeAlerta}
@@ -1742,7 +1742,7 @@ export default function RiskZonesTab({
                   </div>
 
                   <div className="space-y-1.5">
-                    <label className="block text-xs font-semibold text-slate-300">Observação / Som / Alerta</label>
+                    <label className="block text-xs font-semibold text-slate-300">Observações (OBS)</label>
                     <input
                       type="text"
                       value={obs}
@@ -1792,7 +1792,7 @@ export default function RiskZonesTab({
                   </div>
 
                   <div className="space-y-1.5">
-                    <label className="block text-xs font-semibold text-slate-300">Raio (metros)</label>
+                    <label className="block text-xs font-semibold text-slate-300">Raio em Metros (Raio_(M))</label>
                     <input
                       type="number"
                       required
@@ -2357,7 +2357,7 @@ export default function RiskZonesTab({
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="space-y-1.5">
-              <label className="block text-xs font-semibold text-slate-300">Mensagem de Alerta</label>
+              <label className="block text-xs font-semibold text-slate-300">Mensagem de Alerta (Mensagem_De_Alerta)</label>
               <input
                 type="text"
                 value={editMensagemDeAlerta}
@@ -2368,7 +2368,7 @@ export default function RiskZonesTab({
             </div>
 
             <div className="space-y-1.5">
-              <label className="block text-xs font-semibold text-slate-300">Observação / Som / Alerta</label>
+              <label className="block text-xs font-semibold text-slate-300">Observações (OBS)</label>
               <input
                 type="text"
                 value={editObs}
@@ -2418,7 +2418,7 @@ export default function RiskZonesTab({
             </div>
 
             <div className="space-y-1.5">
-              <label className="block text-xs font-semibold text-slate-300">Raio (metros)</label>
+              <label className="block text-xs font-semibold text-slate-300">Raio em Metros (Raio_(M))</label>
               <input
                 type="number"
                 required

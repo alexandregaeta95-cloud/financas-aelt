@@ -1927,7 +1927,7 @@ export default function App() {
 
   // Listen to Google authentication lifecycle
   useEffect(() => {
-    const unsubscribe = authService.initAuth(
+    authService.initAuth(
       (user, token) => {
         setGoogleUser(user);
         setGoogleToken(token);
@@ -1937,7 +1937,6 @@ export default function App() {
         setGoogleToken(null);
       }
     );
-    return () => unsubscribe();
   }, []);
 
   // Network Listener & Auto-sync processing for Offline Queue
@@ -2839,7 +2838,7 @@ export default function App() {
     const result = await authService.googleSignIn(finalVal);
     if (result) {
       setGoogleUser(result.user);
-      setGoogleToken(result.accessToken);
+      setGoogleToken(result.token);
     } else {
       setGoogleUser({
         displayName: 'Google Apps Script Conectado',

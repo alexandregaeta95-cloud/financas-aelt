@@ -108,12 +108,12 @@ export const syncDataToSpreadsheet = async (
   const cleanSheetId = toSafeString(spreadsheetId) || DEFAULT_SPREADSHEET_ID;
 
   const mappedRiskZones = (Array.isArray(riskZones) ? riskZones : []).map((item: any) => ({
-    id: String(item.id || item.ID || Date.now()),
+    id: item.id !== undefined && item.id !== null ? item.id : (item.ID || Date.now()),
     descricao: item.descricao || item.nomeLocal || item.nome || item.Descrição || 'ZONA DE RISCO',
     nivelDeRisco: item.nivelDeRisco || item.nivelRisco || 'BAIXO',
     latitudi: item.latitudi || item.latitude || item.Latitudi || '',
     longitude: item.longitude || item.Longitude || '',
-    raioM: Number(item.raioM || item.raioMetros || item['Raio_(M)'] || 100),
+    raioM: item.raioM !== undefined ? Number(item.raioM) : Number(item.raioMetros || item['Raio_(M)'] || 100),
     ativo: (item.ativo === true || String(item.ativo).toUpperCase() === 'SIM' || String(item.ativo) === 'TRUE') ? 'SIM' : 'NÃO',
     mensagemDeAlerta: item.mensagemDeAlerta || item.mensagem || item.Mensagem_De_Alerta || '',
     dataRegistro: item.dataRegistro || item.Data_Registro || new Date().toLocaleDateString('pt-BR'),
