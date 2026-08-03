@@ -1187,6 +1187,8 @@ export default function RiskZonesTab({
         nivelRisco: editLevel,
         nivelDeRisco: editLevel || 'BAIXO',
         statusGeral: editLevel === 'ALTO' ? 'DISPARAR' : 'VAZIO',
+        ativo: editingZone.ativo !== undefined ? editingZone.ativo : true,
+        dataRegistro: editingZone.dataRegistro || new Date().toLocaleDateString('pt-BR'),
         mensagemDeAlerta: editMensagemDeAlerta || '',
         mensagem: editMensagemDeAlerta || '',
         obs: editObs || ''

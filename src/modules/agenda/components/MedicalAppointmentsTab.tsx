@@ -636,7 +636,9 @@ export default function MedicalAppointmentsTab({
     const s = String(appointmentSearch || '').toLowerCase();
     return (
       String(appt.medico || '').toLowerCase().includes(s) ||
-      String(appt.especialidade || '').toLowerCase().includes(s)
+      String(appt.especialidade || '').toLowerCase().includes(s) ||
+      String(appt.local || '').toLowerCase().includes(s) ||
+      String(appt.observacoes || appt.obs || '').toLowerCase().includes(s)
     );
   });
 

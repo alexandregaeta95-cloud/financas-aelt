@@ -71,6 +71,7 @@ export interface MedicalAppointment {
   horario?: string;
   local: string;
   observacoes?: string;
+  obs?: string;
   status: 'Agendada' | 'Realizada' | 'Cancelada';
   lembreteAtivo: boolean;
   updatedAt?: number;
@@ -84,6 +85,7 @@ export interface MedicalPrescription {
   medicamentos: string; // Rich text list of medications
   instrucoes?: string; // Instructions for taking
   observacoes?: string;
+  obs?: string;
   dataVencimento?: string; // YYYY-MM-DD expiration date
   arquivoAnexo?: string; // Base64 data of prescription (PDF or Image)
   nomeArquivoAnexo?: string; // original filename
