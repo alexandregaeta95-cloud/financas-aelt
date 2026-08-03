@@ -8,18 +8,36 @@ self.addEventListener('activate', (event) => {
 });
 
 self.addEventListener('message', (event) => {
-  if (event.data && event.data.type === 'SHOW_NOTIFICATION') {
-    event.waitUntil(
-      self.registration.showNotification(event.data.title, {
-        body: event.data.body,
-        icon: event.data.icon,
-        tag: event.data.tag || 'risk-zone-alert',
-        renotify: event.data.renotify !== false,
-        requireInteraction: event.data.requireInteraction !== false,
-        vibrate: event.data.vibrate || [500, 110, 500, 110, 450, 110, 200, 110, 170, 40],
-        silent: false
-      })
-    );
+  if (!event.data) return;
+
+  if (event.data.type === 'PING') {
+    if (event.ports && event.ports[0]) {
+      event.ports[0].postMessage({ status: 'PONG' });
+    }
+    return;
+  }
+
+  if (event.data.type === 'SHOW_NOTIFICATION') {
+    const promise = self.registration.showNotification(event.data.title, {
+      body: event.data.body,
+      icon: event.data.icon,
+      tag: event.data.tag || 'risk-zone-alert',
+      renotify: event.data.renotify !== false,
+      requireInteraction: event.data.requireInteraction !== false,
+      vibrate: event.data.vibrate || [500, 110, 500, 110, 450, 110, 200, 110, 170, 40],
+      silent: false
+    }).then(() => {
+      if (event.ports && event.ports[0]) {
+        event.ports[0].postMessage({ success: true });
+      }
+    }).catch((err) => {
+      console.error('ServiceWorker notification error:', err);
+      if (event.ports && event.ports[0]) {
+        event.ports[0].postMessage({ success: false, error: String(err) });
+      }
+    });
+
+    event.waitUntil(promise);
   }
 });
 

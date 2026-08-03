@@ -1,1 +1,1 @@
-export { default as CarServicesTab } from './CarServicesTab';
+export { default as CarServicesTab } from '../../../pages/Oficina';

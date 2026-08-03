@@ -6,26 +6,31 @@ import { initialRiskZones } from './data/riskZones';
 import { initialInfractions, nonAppealedInfractions } from './data/infractions';
 
 // Pages
-import { Abastecimento, Dashboard as DashboardPage, Financeiro } from './pages';
+import { 
+  Abastecimento, 
+  Dashboard as DashboardPage, 
+  Financeiro, 
+  Oficina, 
+  Agenda, 
+  ZonasDeRisco, 
+  Consultas, 
+  Receitas, 
+  Despesas, 
+  Perfil, 
+  AssistenteIA, 
+  Comprovantes, 
+  ListaMercado, 
+  Indicacoes, 
+  Analise 
+} from './pages';
 
-// Tab imports
-import Dashboard from './components/Dashboard';
-import TransactionsTab from './components/TransactionsTab';
+// Tab imports & Utilities
+import { isNotificationPeriod } from './pages/Consultas';
+import TransactionsTab from './modules/financeiro/components/TransactionsTab';
 import ErrorBoundary from './components/ErrorBoundary';
-import AnalysisTab from './components/AnalysisTab';
-import RiskZonesTab from './components/RiskZonesTab';
-import ProfileTab from './components/ProfileTab';
-import MedicalAppointmentsTab, { isNotificationPeriod } from './components/MedicalAppointmentsTab';
-import CompromissosTab from './components/CompromissosTab';
-import CarServicesTab from './components/CarServicesTab';
-import IndicacoesTab from './components/IndicacoesTab';
 import LockScreen from './components/LockScreen';
 import { checkIpvaAlerts } from './lib/ipvaUtils';
 import GoogleDriveModal from './components/GoogleDriveModal';
-import { AssistantDashboardView } from './modules/assistant';
-import { DocumentScannerView } from './modules/documents';
-import { ExecutiveDashboardView } from './modules/analytics';
-import { GroceryListTab } from './modules/mercado';
 
 // Database Sync API
 import { 
@@ -4106,7 +4111,7 @@ export default function App() {
         );
       case 'analysis':
         return (
-          <AnalysisTab 
+          <Analise 
             transactions={transactions}
             onNavigate={handleTabNavigate}
             showAlert={showAlert}
@@ -4263,7 +4268,7 @@ export default function App() {
       case 'oficina':
       case 'carservices': // Fallback for safety
         return (
-          <CarServicesTab
+          <Oficina
             performedServices={performedServices}
             scheduledServices={scheduledServices}
             registeredVehicles={registeredVehicles}
@@ -4296,7 +4301,7 @@ export default function App() {
       case 'agenda':
       case 'compromissos': // Fallback for safety
         return (
-          <CompromissosTab 
+          <Agenda 
             compromissos={compromissos}
             onAddCompromisso={handleAddCompromisso}
             onEditCompromisso={handleEditCompromisso}
@@ -4305,8 +4310,9 @@ export default function App() {
           />
         );
       case 'risk':
+      case 'zonasderisco':
         return (
-          <RiskZonesTab 
+          <ZonasDeRisco 
             riskZones={riskZones}
             onAddRiskZone={handleAddRiskZone}
             onToggleActive={handleToggleZoneActive}
@@ -4318,8 +4324,27 @@ export default function App() {
           />
         );
       case 'medical':
+      case 'consultas':
         return (
-          <MedicalAppointmentsTab
+          <Consultas
+            appointments={appointments}
+            onAddAppointment={handleAddAppointment}
+            onEditAppointment={handleEditAppointment}
+            onDeleteAppointment={handleDeleteAppointment}
+            prescriptions={prescriptions}
+            onAddPrescription={handleAddPrescription}
+            onEditPrescription={handleEditPrescription}
+            onDeletePrescription={handleDeletePrescription}
+            showAlert={showAlert}
+            showConfirm={showConfirm}
+            medicalAppointmentLeadDays={medicalAppointmentLeadDays}
+            onReindexAppointments={handleReindexAppointments}
+            onReindexPrescriptions={handleReindexPrescriptions}
+          />
+        );
+      case 'receitas':
+        return (
+          <Receitas
             appointments={appointments}
             onAddAppointment={handleAddAppointment}
             onEditAppointment={handleEditAppointment}
@@ -4336,8 +4361,9 @@ export default function App() {
           />
         );
       case 'profile':
+      case 'perfil':
         return (
-          <ProfileTab 
+          <Perfil 
             bankAccounts={bankAccountsState}
             setBankAccounts={setBankAccountsState}
             creditCards={creditCardsState}
@@ -4405,7 +4431,7 @@ export default function App() {
         );
       case 'indicacoes':
         return (
-          <IndicacoesTab 
+          <Indicacoes 
             transactions={transactions}
             onNavigate={handleTabNavigate}
             showAlert={showAlert}
@@ -4414,7 +4440,7 @@ export default function App() {
       case 'assistant':
       case 'assistente':
         return (
-          <AssistantDashboardView
+          <AssistenteIA
             transactions={transactions}
             initialAccountsTotal={bankAccountsState.reduce((sum, b) => sum + (b.saldo || 0), 0)}
           />
@@ -4423,7 +4449,7 @@ export default function App() {
       case 'ocr':
       case 'comprovantes':
         return (
-          <DocumentScannerView
+          <Comprovantes
             existingTransactions={transactions}
             onAddTransaction={handleAddTransaction}
             showAlert={showAlert}
@@ -4433,7 +4459,7 @@ export default function App() {
       case 'listamercado':
       case 'grocery':
         return (
-          <GroceryListTab
+          <ListaMercado
             groceryItems={groceryItems}
             bankAccounts={bankAccountsState}
             creditCards={creditCardsState}
@@ -4448,7 +4474,7 @@ export default function App() {
         );
       default:
         return (
-          <AnalysisTab 
+          <Analise 
             transactions={transactions}
             onNavigate={handleTabNavigate}
             showAlert={showAlert}

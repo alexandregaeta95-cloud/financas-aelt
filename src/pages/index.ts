@@ -1,3 +1,15 @@
 export { default as Abastecimento } from './Abastecimento';
 export { default as Dashboard } from './Dashboard';
 export { default as Financeiro } from './Financeiro';
+export { default as Oficina } from './Oficina';
+export { default as Agenda } from './Agenda';
+export { default as ZonasDeRisco } from './ZonasDeRisco';
+export { default as Consultas } from './Consultas';
+export { default as Receitas } from './Receitas';
+export { default as Despesas } from './Despesas';
+export { default as Perfil } from './Perfil';
+export { default as AssistenteIA } from './AssistenteIA';
+export { default as Comprovantes } from './Comprovantes';
+export { default as ListaMercado } from './ListaMercado';
+export { default as Indicacoes } from './Indicacoes';
+export { default as Analise } from './Analise';
