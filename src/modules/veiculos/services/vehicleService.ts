@@ -12,7 +12,23 @@ import {
 
 export class VehicleService {
   static async listarVeiculos() {
-    return await getRegisteredVehiclesFromDb();
+    try {
+      const data = await getRegisteredVehiclesFromDb();
+      if (Array.isArray(data) && data.length > 0) return data;
+    } catch (e) {
+      console.warn('Erro ao listar veículos via DB, aplicando fallback de localStorage:', e);
+    }
+
+    try {
+      const stored = localStorage.getItem('wealthflow_registered_vehicles') || localStorage.getItem('registered_vehicles');
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        if (Array.isArray(parsed)) return parsed;
+      }
+    } catch {
+      // ignore
+    }
+    return [];
   }
 
   static async salvarVeiculo(veiculo: any) {

@@ -137,7 +137,7 @@ ${JSON.stringify(historico || [])}
 `;
 
       const response = await ai.models.generateContent({
-        model: "gemini-3.5-flash",
+        model: "gemini-3.6-flash",
         contents: prompt,
         config: {
           systemInstruction: "Você é um assistente especialista em finanças pessoais e classificador de transações. Analise as descrições, estabelecimentos, bancos e valores no histórico do usuário para sugerir a categoria ideal com máxima precisão. Prefira reutilizar as categorias que o usuário já possui no seu histórico (como TRABALHO, CONSUMO, ABASTECIMENTO, CASA, OUTROS, SAÚDE, VIAGEM, SUPERMERCADO, etc.) em letras maiúsculas. Retorne obrigatoriamente no formato JSON fornecido pelo schema.",
@@ -167,7 +167,7 @@ ${JSON.stringify(historico || [])}
         fallback: false
       });
     } catch (err: any) {
-      console.error("Error in suggest-category API:", err);
+      console.warn("AI suggest-category fallback used:", err?.message || String(err));
       res.json({
         categoria: "OUTROS",
         justificativa: "Erro no processamento da sugestão da IA: " + (err.message || String(err)),
@@ -250,7 +250,7 @@ ${JSON.stringify(recentTransactions || [], null, 2)}
         fallback: false
       });
     } catch (err: any) {
-      console.error("Error in daily-tip API:", err);
+      console.warn("AI daily-tip fallback used:", err?.message || String(err));
       res.json({
         titulo: "Construindo Hábitos Financeiros Saudáveis",
         dica: "A chave para uma vida financeira estável é manter o hábito constante de registrar entradas e saídas e revisar os totais por categoria.",

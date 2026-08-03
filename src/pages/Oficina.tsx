@@ -808,16 +808,10 @@ export default function CarServicesTab({
                   <select
                     value={perfVehicle}
                     onChange={(e) => setPerfVehicle(e.target.value)}
-                    disabled={isLoadingVehicles}
+                    disabled={isLoadingVehicles && safeRegisteredVehicles.length === 0}
                     className="w-full bg-slate-950 border border-slate-800 rounded-xl p-2.5 text-xs text-white outline-none focus:border-emerald-500 font-mono uppercase disabled:opacity-50"
                   >
-                    {isLoadingVehicles ? (
-                      <option value="">Carregando veículos...</option>
-                    ) : vehiclesError && safeRegisteredVehicles.length === 0 ? (
-                      <option value="">Erro ao carregar veículos (clique para tentar)</option>
-                    ) : safeRegisteredVehicles.length === 0 ? (
-                      <option value="">Nenhum veículo cadastrado</option>
-                    ) : (
+                    {safeRegisteredVehicles.length > 0 ? (
                       <>
                         <option value="">Selecione um Veículo...</option>
                         {safeRegisteredVehicles.filter(Boolean).map((v, idx) => {
@@ -830,6 +824,12 @@ export default function CarServicesTab({
                           );
                         })}
                       </>
+                    ) : isLoadingVehicles ? (
+                      <option value="">Carregando veículos...</option>
+                    ) : vehiclesError ? (
+                      <option value="">Erro ao carregar veículos (clique para tentar)</option>
+                    ) : (
+                      <option value="">Nenhum veículo cadastrado</option>
                     )}
                   </select>
                   {vehiclesError && safeRegisteredVehicles.length === 0 && (
@@ -983,16 +983,10 @@ export default function CarServicesTab({
                   <select
                     value={schedVehicle}
                     onChange={(e) => setSchedVehicle(e.target.value)}
-                    disabled={isLoadingVehicles}
+                    disabled={isLoadingVehicles && safeRegisteredVehicles.length === 0}
                     className="w-full bg-slate-950 border border-slate-800 rounded-xl p-2.5 text-xs text-white outline-none focus:border-amber-500 font-mono uppercase disabled:opacity-50"
                   >
-                    {isLoadingVehicles ? (
-                      <option value="">Carregando veículos...</option>
-                    ) : vehiclesError && safeRegisteredVehicles.length === 0 ? (
-                      <option value="">Erro ao carregar veículos (clique para tentar)</option>
-                    ) : safeRegisteredVehicles.length === 0 ? (
-                      <option value="">Nenhum veículo cadastrado</option>
-                    ) : (
+                    {safeRegisteredVehicles.length > 0 ? (
                       <>
                         <option value="">Selecione um Veículo...</option>
                         {safeRegisteredVehicles.filter(Boolean).map((v, idx) => {
@@ -1005,6 +999,12 @@ export default function CarServicesTab({
                           );
                         })}
                       </>
+                    ) : isLoadingVehicles ? (
+                      <option value="">Carregando veículos...</option>
+                    ) : vehiclesError ? (
+                      <option value="">Erro ao carregar veículos (clique para tentar)</option>
+                    ) : (
+                      <option value="">Nenhum veículo cadastrado</option>
                     )}
                   </select>
                   {vehiclesError && safeRegisteredVehicles.length === 0 && (
