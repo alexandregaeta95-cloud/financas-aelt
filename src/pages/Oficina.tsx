@@ -488,15 +488,25 @@ export default function CarServicesTab({
         if (!s) return false;
         const sVehDesc = (s.veiculoId || s.veiculoDescricao || (s as any)['VeiculoID'] || (s as any)['Veículo'] || '').toString().toUpperCase();
         const vfUpper = (vehicleFilter || 'TODOS').toString().toUpperCase();
-        const matchesVehicle = vfUpper === 'TODOS' || sVehDesc === vfUpper || (sVehDesc && sVehDesc.includes(vfUpper));
+        const matchesVehicle = vfUpper === 'TODOS' || sVehDesc === vfUpper || (sVehDesc && sVehDesc.includes(vfUpper)) || (vfUpper && vfUpper.includes(sVehDesc));
 
-        const q = (searchQuery || '').toString().toLowerCase();
+        const rawQ = (searchQuery || '').toString().toLowerCase().trim();
+        if (!rawQ) return matchesVehicle;
+
         const sDesc = (s.descricao || (s as any)['Descrição'] || (s as any)['Descrição do Serviço'] || '').toString().toLowerCase();
         const sOficina = (s.oficinaNome || s.oficina || (s as any)['Oficina_Nome'] || (s as any)['Oficina/Estabelecimento'] || '').toString().toLowerCase();
         const sObs = (s.observacoes || s.obs || (s as any)['Observações'] || '').toString().toLowerCase();
         const sVeh = sVehDesc.toLowerCase();
+        const sKm = (s.km ?? (s as any)['KM'] ?? (s as any)['Quilometragem (KM)'] ?? '').toString().toLowerCase();
+        const sData = (s.data || (s as any)['Data'] || (s as any)['Data Realização'] || '').toString().toLowerCase();
+        const sId = (s.id || '').toString().toLowerCase();
+        const sValAPG = (s.valorAPG ?? (s as any)['Valor_A_PG'] ?? '').toString().toLowerCase();
+        const sValPago = (s.valorPago ?? s.valor ?? (s as any)['Valor_Pago'] ?? '').toString().toLowerCase();
 
-        const matchesSearch = !q || sDesc.includes(q) || sOficina.includes(q) || sVeh.includes(q) || sObs.includes(q);
+        const qWords = rawQ.split(/\s+/).filter(Boolean);
+        const combinedText = `${sDesc} ${sOficina} ${sObs} ${sVeh} ${sKm} ${sData} ${sId} ${sValAPG} ${sValPago}`;
+
+        const matchesSearch = qWords.every(word => combinedText.includes(word));
         return matchesVehicle && matchesSearch;
       });
   }, [safePerformedServices, vehicleFilter, searchQuery]);
@@ -507,11 +517,20 @@ export default function CarServicesTab({
         if (!s) return false;
         const sVehDesc = (s.veiculoDescricao || (s as any)['Veículo'] || '').toString().toUpperCase();
         const vfUpper = (vehicleFilter || 'TODOS').toString().toUpperCase();
-        const matchesVehicle = vfUpper === 'TODOS' || sVehDesc === vfUpper;
+        const matchesVehicle = vfUpper === 'TODOS' || sVehDesc === vfUpper || (sVehDesc && sVehDesc.includes(vfUpper)) || (vfUpper && vfUpper.includes(sVehDesc));
 
-        const q = (searchQuery || '').toString().toLowerCase();
+        const rawQ = (searchQuery || '').toString().toLowerCase().trim();
+        if (!rawQ) return matchesVehicle && s.status !== 'REALIZADO';
+
         const sDesc = (s.descricao || (s as any)['Descrição do Serviço'] || (s as any)['Descrição'] || '').toString().toLowerCase();
-        const matchesSearch = !q || sDesc.includes(q) || (sVehDesc || '').toString().toLowerCase().includes(q);
+        const sObs = ((s as any).observacoes || (s as any)['Observações'] || '').toString().toLowerCase();
+        const sVeh = sVehDesc.toLowerCase();
+        const sAlvo = (s.dataAlvo || s.kmAlvo || '').toString().toLowerCase();
+
+        const qWords = rawQ.split(/\s+/).filter(Boolean);
+        const combinedText = `${sDesc} ${sObs} ${sVeh} ${sAlvo}`;
+
+        const matchesSearch = qWords.every(word => combinedText.includes(word));
         return matchesVehicle && matchesSearch && s.status !== 'REALIZADO';
       });
   }, [safeScheduledServices, vehicleFilter, searchQuery]);

@@ -3919,10 +3919,10 @@ export default function App() {
   };
 
   const handleEditPerformedService = async (id: string, updatedFields: Partial<CarServicePerformed>) => {
-    const updated = performedServices.map(s => s.id === id ? { ...s, ...updatedFields, updatedAt: Date.now() } : s);
+    const updated = performedServices.map(s => String(s.id) === String(id) ? { ...s, ...updatedFields, id: s.id, updatedAt: Date.now() } : s);
     setPerformedServices(updated);
     localStorage.setItem('wealthflow_car_services_performed', JSON.stringify(updated));
-    const item = updated.find(s => s.id === id);
+    const item = updated.find(s => String(s.id) === String(id));
     if (item) {
       try {
         await runTrackedSync('Edição de Serviço Realizado', `${item.descricao}`, () => savePerformedServiceToDb(item));
@@ -3938,11 +3938,11 @@ export default function App() {
 
   const handleDeletePerformedService = async (id: string) => {
     const backup = [...performedServices];
-    const updated = performedServices.filter(s => s.id !== id);
+    const updated = performedServices.filter(s => String(s.id) !== String(id));
     setPerformedServices(updated);
     localStorage.setItem('wealthflow_car_services_performed', JSON.stringify(updated));
     try {
-      const toDelete = backup.find(s => s.id === id);
+      const toDelete = backup.find(s => String(s.id) === String(id));
       const name = toDelete ? toDelete.descricao : `ID #${id}`;
       await runTrackedSync('Remoção de Serviço Realizado', name, () => deletePerformedServiceFromDb(id));
     } catch (error) {
@@ -3974,10 +3974,10 @@ export default function App() {
   };
 
   const handleEditScheduledService = async (id: string, updatedFields: Partial<CarServiceScheduled>) => {
-    const updated = scheduledServices.map(s => s.id === id ? { ...s, ...updatedFields, updatedAt: Date.now() } : s);
+    const updated = scheduledServices.map(s => String(s.id) === String(id) ? { ...s, ...updatedFields, id: s.id, updatedAt: Date.now() } : s);
     setScheduledServices(updated);
     localStorage.setItem('wealthflow_car_services_scheduled', JSON.stringify(updated));
-    const item = updated.find(s => s.id === id);
+    const item = updated.find(s => String(s.id) === String(id));
     if (item) {
       try {
         await runTrackedSync('Edição de Serviço Planejado', `${item.descricao}`, () => saveScheduledServiceToDb(item));
@@ -3993,11 +3993,11 @@ export default function App() {
 
   const handleDeleteScheduledService = async (id: string) => {
     const backup = [...scheduledServices];
-    const updated = scheduledServices.filter(s => s.id !== id);
+    const updated = scheduledServices.filter(s => String(s.id) !== String(id));
     setScheduledServices(updated);
     localStorage.setItem('wealthflow_car_services_scheduled', JSON.stringify(updated));
     try {
-      const toDelete = backup.find(s => s.id === id);
+      const toDelete = backup.find(s => String(s.id) === String(id));
       const name = toDelete ? toDelete.descricao : `ID #${id}`;
       await runTrackedSync('Remoção de Serviço Planejado', name, () => deleteScheduledServiceFromDb(id));
     } catch (error) {

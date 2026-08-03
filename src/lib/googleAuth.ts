@@ -135,17 +135,39 @@ export const syncDataToSpreadsheet = async (
     const rawValAPG = item.valorAPG ?? item['Valor_A_PG'] ?? item.valorAPagar ?? 0;
     const rawValPago = item.valorPago ?? item['Valor_Pago'] ?? item.valor ?? 0;
 
+    const valAPGNum = typeof rawValAPG === 'string' ? (parseFloat(rawValAPG.replace(/\./g, '').replace(',', '.')) || 0) : Number(rawValAPG || 0);
+    const valPagoNum = typeof rawValPago === 'string' ? (parseFloat(rawValPago.replace(/\./g, '').replace(',', '.')) || 0) : Number(rawValPago || 0);
+    const idStr = item.id !== undefined && item.id !== null && String(item.id).trim() !== '' ? String(item.id) : String(Date.now());
+    const descStr = item.descricao || item['Descrição'] || item['Descrição do Serviço'] || '';
+    const kmVal = item.km !== undefined && item.km !== null ? item.km : (item['KM'] || '');
+    const oficinaStr = item.oficinaNome || item.oficina || item['Oficina_Nome'] || item['Oficina/Estabelecimento'] || '';
+    const compStr = item.comprovanteUrl || item.comprovante || item['Comprovante_Url'] || '';
+    const obsStr = item.observacoes || item.obs || item['Observações'] || '';
+    const vehIdStr = item.veiculoId || item.veiculo || item.veiculoDescricao || item['VeiculoID'] || item['Veículo'] || '';
+
     return {
-      id: item.id !== undefined && item.id !== null && String(item.id).trim() !== '' ? String(item.id) : String(Date.now()),
+      id: idStr,
       data: rawDate,
-      descricao: item.descricao || item['Descrição'] || item['Descrição do Serviço'] || '',
-      km: item.km !== undefined && item.km !== null ? item.km : (item['KM'] || ''),
-      valorAPG: typeof rawValAPG === 'string' ? (parseFloat(rawValAPG.replace(/\./g, '').replace(',', '.')) || 0) : Number(rawValAPG || 0),
-      valorPago: typeof rawValPago === 'string' ? (parseFloat(rawValPago.replace(/\./g, '').replace(',', '.')) || 0) : Number(rawValPago || 0),
-      oficinaNome: item.oficinaNome || item.oficina || item['Oficina_Nome'] || item['Oficina/Estabelecimento'] || '',
-      comprovanteUrl: item.comprovanteUrl || item.comprovante || item['Comprovante_Url'] || '',
-      observacoes: item.observacoes || item.obs || item['Observações'] || '',
-      veiculoId: item.veiculoId || item.veiculo || item.veiculoDescricao || item['VeiculoID'] || item['Veículo'] || ''
+      descricao: descStr,
+      km: kmVal,
+      valorAPG: valAPGNum,
+      valorPago: valPagoNum,
+      oficinaNome: oficinaStr,
+      comprovanteUrl: compStr,
+      observacoes: obsStr,
+      veiculoId: vehIdStr,
+
+      // Column Header Aliases for 14_Oficina
+      ID: idStr,
+      Data: rawDate,
+      Descrição: descStr,
+      KM: kmVal,
+      Valor_A_PG: valAPGNum,
+      Valor_Pago: valPagoNum,
+      Oficina_Nome: oficinaStr,
+      Comprovante_Url: compStr,
+      Observações: obsStr,
+      VeiculoID: vehIdStr
     };
   });
 
@@ -160,10 +182,12 @@ export const syncDataToSpreadsheet = async (
     compromissos: Array.isArray(compromissos) ? compromissos : [],
     registeredVehicles: Array.isArray(registeredVehicles) ? registeredVehicles : [],
     performedServices: mappedWorkshop,
+    workshop: mappedWorkshop,
+    oficina: mappedWorkshop,
+    "14_Oficina": mappedWorkshop,
     scheduledServices: Array.isArray(scheduledServices) ? scheduledServices : [],
     scheduledMaintenance: Array.isArray(scheduledMaintenance) ? scheduledMaintenance : [],
     agenda: Array.isArray(agenda) ? agenda : [],
-    workshop: mappedWorkshop,
     bankAccounts: Array.isArray(bankAccounts) ? bankAccounts : [],
     creditCards: Array.isArray(creditCards) ? creditCards : [],
     analysis: Array.isArray(analysis) ? analysis : [],

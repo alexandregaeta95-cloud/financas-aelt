@@ -93,8 +93,9 @@ const APPS_SCRIPT_CODE = `function doPost(e) {
       if (data.registeredVehicles && Array.isArray(data.registeredVehicles)) {
         writeArrayToSheet(ss, 'Veículos Registrados', data.registeredVehicles, ['id', 'nome', 'marca', 'modelo', 'placa', 'ano', 'combustivel', 'kmAtual']);
       }
-      if (data.performedServices && Array.isArray(data.performedServices)) {
-        writeArrayToSheet(ss, 'Oficina', data.performedServices, ['id', 'data', 'descricao', 'km', 'valor', 'oficinaNome', 'comprovanteUrl', 'observacoes', 'veiculoId']);
+      var performedList = data['14_Oficina'] || data.performedServices || data.workshop || data.oficina || [];
+      if (Array.isArray(performedList) && performedList.length > 0) {
+        writeArrayToSheet(ss, '14_Oficina', performedList, ['id', 'data', 'descricao', 'km', 'valorAPG', 'valorPago', 'oficinaNome', 'comprovanteUrl', 'observacoes', 'veiculoId']);
       }
       if (data.scheduledServices && Array.isArray(data.scheduledServices)) {
         writeArrayToSheet(ss, 'Manutenções Agendadas', data.scheduledServices, ['id', 'dataAlvo', 'kmAlvo', 'descricao', 'status', 'prioridade', 'observacoes', 'veiculoId']);
@@ -161,7 +162,10 @@ function doGet(e) {
       var prescriptions = readSheetToArray(ss, 'Receitas Médicas');
       var compromissos = readSheetToArray(ss, 'Compromissos');
       var registeredVehicles = readSheetToArray(ss, 'Veículos Registrados');
-      var performedServices = readSheetToArray(ss, 'Oficina');
+      var performedServices = readSheetToArray(ss, '14_Oficina');
+      if (!performedServices || performedServices.length === 0) {
+        performedServices = readSheetToArray(ss, 'Oficina');
+      }
       var scheduledServices = readSheetToArray(ss, 'Manutenções Agendadas');
       var groceryItems = readSheetToArray(ss, 'ListaMercado');
 
@@ -177,10 +181,17 @@ function doGet(e) {
           compromissos: compromissos,
           registeredVehicles: registeredVehicles,
           performedServices: performedServices,
+          workshop: performedServices,
+          oficina: performedServices,
+          "14_Oficina": performedServices,
           scheduledServices: scheduledServices,
           groceryItems: groceryItems
         },
-        transactions: transactions
+        transactions: transactions,
+        performedServices: performedServices,
+        workshop: performedServices,
+        oficina: performedServices,
+        "14_Oficina": performedServices
       })).setMimeType(ContentService.MimeType.JSON);
     }
 
@@ -198,6 +209,7 @@ function findSheetByNameFuzzy(ss, sheetName) {
     var title = sheets[i].getName();
     var normTitle = String(title).trim().toUpperCase().replace(/[^A-Z0-9]/g, '');
     if (normTitle === normTarget) return sheets[i];
+    if (normTarget.indexOf('OFICINA') !== -1 && normTitle.indexOf('OFICINA') !== -1) return sheets[i];
     if (normTarget.indexOf('ABASTEC') === 0 && normTitle.indexOf('ABASTEC') === 0) return sheets[i];
     if (normTarget.indexOf('TRANSAC') === 0 && normTitle.indexOf('TRANSAC') === 0) return sheets[i];
     if (normTarget.indexOf('RECEIT') === 0 && normTitle.indexOf('RECEIT') === 0) return sheets[i];
@@ -253,11 +265,14 @@ function writeArrayToSheet(ss, sheetName, items, headers) {
         if (h === 'nome' && (item['Item'] || item['nomeItem'] || item['Nome'])) val = item['Item'] || item['nomeItem'] || item['Nome'];
         if (h === 'descricao' && (item['Descrição do Serviço'] || item['Descrição'] || item['Descricao'])) val = item['Descrição do Serviço'] || item['Descrição'] || item['Descricao'];
         if (h === 'valor' && (item['Valor Pago (R$)'] || item['Valor (R$)'] || item['Valor'])) val = item['Valor Pago (R$)'] || item['Valor (R$)'] || item['Valor'];
-        if (h === 'km' && (item['Quilometragem (KM)'] || item['KM'])) val = item['Quilometragem (KM)'] || item['KM'];
+        if ((h === 'valorAPG' || h === 'Valor_A_PG') && (item['valorAPG'] !== undefined || item['Valor_A_PG'] !== undefined || item['valorAPagar'] !== undefined)) val = item['valorAPG'] !== undefined ? item['valorAPG'] : (item['Valor_A_PG'] !== undefined ? item['Valor_A_PG'] : item['valorAPagar']);
+        if ((h === 'valorPago' || h === 'Valor_Pago') && (item['valorPago'] !== undefined || item['Valor_Pago'] !== undefined || item['valor'] !== undefined)) val = item['valorPago'] !== undefined ? item['valorPago'] : (item['Valor_Pago'] !== undefined ? item['Valor_Pago'] : item['valor']);
+        if (h === 'km' && (item['Quilometragem (KM)'] || item['KM'] !== undefined)) val = item['Quilometragem (KM)'] !== undefined ? item['Quilometragem (KM)'] : item['KM'];
         if (h === 'data' && (item['Data Realização'] || item['Data'])) val = item['Data Realização'] || item['Data'];
-        if (h === 'oficinaNome' && (item['Oficina/Estabelecimento'] || item['Oficina'])) val = item['Oficina/Estabelecimento'] || item['Oficina'];
-        if (h === 'observacoes' && (item['Observações'] || item['Observacao'] || item['Observação'])) val = item['Observações'] || item['Observacao'] || item['Observação'];
-        if (h === 'veiculoId' && (item['Veículo'] || item['veiculoDescricao'])) val = item['Veículo'] || item['veiculoDescricao'];
+        if ((h === 'oficinaNome' || h === 'Oficina_Nome') && (item['oficinaNome'] !== undefined || item['Oficina_Nome'] !== undefined || item['oficina'] !== undefined || item['Oficina/Estabelecimento'] !== undefined)) val = item['oficinaNome'] !== undefined ? item['oficinaNome'] : (item['Oficina_Nome'] !== undefined ? item['Oficina_Nome'] : (item['oficina'] !== undefined ? item['oficina'] : item['Oficina/Estabelecimento']));
+        if ((h === 'comprovanteUrl' || h === 'Comprovante_Url') && (item['comprovanteUrl'] !== undefined || item['Comprovante_Url'] !== undefined)) val = item['comprovanteUrl'] !== undefined ? item['comprovanteUrl'] : item['Comprovante_Url'];
+        if ((h === 'observacoes' || h === 'Observações') && (item['observacoes'] !== undefined || item['Observações'] !== undefined || item['obs'] !== undefined)) val = item['observacoes'] !== undefined ? item['observacoes'] : (item['Observações'] !== undefined ? item['Observações'] : item['obs']);
+        if ((h === 'veiculoId' || h === 'VeiculoID') && (item['veiculoId'] !== undefined || item['VeiculoID'] !== undefined || item['veiculo'] !== undefined || item['veiculoDescricao'] !== undefined)) val = item['veiculoId'] !== undefined ? item['veiculoId'] : (item['VeiculoID'] !== undefined ? item['VeiculoID'] : (item['veiculo'] !== undefined ? item['veiculo'] : item['veiculoDescricao']));
         if (h === 'valorEstimado' && (item['Valor Estimado (R$)'] || item['Valor Estimado'])) val = item['Valor Estimado (R$)'] || item['Valor Estimado'];
       }
       return val !== undefined && val !== null ? val : '';
