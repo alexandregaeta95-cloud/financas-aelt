@@ -1,3 +1,6 @@
+import { safeJsonParse } from './safeParse';
+export { safeJsonParse, safeJsonParse as safeParse };
+
 export const DEFAULT_SPREADSHEET_ID = '1JL1LlHmBtXj_dvWXvaedlDTWrSfptXzbhYlMJH1RNO4';
 export const DEFAULT_SPREADSHEET_URL = 'https://docs.google.com/spreadsheets/d/1JL1LlHmBtXj_dvWXvaedlDTWrSfptXzbhYlMJH1RNO4/edit';
 export const DEFAULT_APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzsC73N1O1vU2oN4lD0HneqWLM964XXkqHNDbeC8MH0uy5HUFIEaCZVQ7lX5sSma4LZGg/exec';
@@ -68,7 +71,7 @@ export const callAppsScript = async (
         parsed = await directRes.json();
       } catch (e) {
         const text = await directRes.text();
-        parsed = JSON.parse(text);
+        parsed = safeJsonParse(text, null);
       }
       return parsed?.data || parsed;
     }
@@ -95,7 +98,12 @@ export const syncDataToSpreadsheet = async (
   creditCards: any[] = [],
   categoryBudgets: any = {},
   customCategories: any = [],
-  groceryItems: any[] = []
+  groceryItems: any[] = [],
+  scheduledMaintenance: any[] = [],
+  agenda: any[] = [],
+  workshop: any[] = [],
+  analysis: any[] = [],
+  profile: any[] = []
 ): Promise<string> => {
   const cleanSheetId = toSafeString(spreadsheetId) || DEFAULT_SPREADSHEET_ID;
 
@@ -115,20 +123,25 @@ export const syncDataToSpreadsheet = async (
   const payload = {
     action: 'syncData',
     spreadsheetId: cleanSheetId,
-    transactions,
-    infractions,
+    transactions: Array.isArray(transactions) ? transactions : [],
+    infractions: Array.isArray(infractions) ? infractions : [],
     riskZones: mappedRiskZones,
-    appointments,
-    prescriptions,
-    compromissos,
-    registeredVehicles,
-    performedServices,
-    scheduledServices,
-    bankAccounts,
-    creditCards,
-    categoryBudgets,
-    customCategories,
-    groceryItems
+    appointments: Array.isArray(appointments) ? appointments : [],
+    prescriptions: Array.isArray(prescriptions) ? prescriptions : [],
+    compromissos: Array.isArray(compromissos) ? compromissos : [],
+    registeredVehicles: Array.isArray(registeredVehicles) ? registeredVehicles : [],
+    performedServices: Array.isArray(performedServices) ? performedServices : [],
+    scheduledServices: Array.isArray(scheduledServices) ? scheduledServices : [],
+    scheduledMaintenance: Array.isArray(scheduledMaintenance) ? scheduledMaintenance : [],
+    agenda: Array.isArray(agenda) ? agenda : [],
+    workshop: Array.isArray(workshop) ? workshop : [],
+    bankAccounts: Array.isArray(bankAccounts) ? bankAccounts : [],
+    creditCards: Array.isArray(creditCards) ? creditCards : [],
+    analysis: Array.isArray(analysis) ? analysis : [],
+    profile: Array.isArray(profile) ? profile : [],
+    groceryItems: Array.isArray(groceryItems) ? groceryItems : [],
+    categoryBudgets: categoryBudgets || {},
+    customCategories: Array.isArray(customCategories) ? customCategories : []
   };
 
   const res = await callAppsScript(DEFAULT_APPS_SCRIPT_URL, payload, 'POST');

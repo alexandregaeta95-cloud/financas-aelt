@@ -2,6 +2,7 @@ import { Transaction, RiskZone, Infraction, MedicalAppointment, MedicalPrescript
 import { initialTransactions } from '../data/transactions';
 import { initialRiskZones } from '../data/riskZones';
 import { initialInfractions, nonAppealedInfractions } from '../data/infractions';
+import { safeJsonParse } from './safeParse';
 
 export enum OperationType {
   CREATE = 'create',
@@ -24,7 +25,7 @@ function markPendingSheetsSync() {
 export async function getTransactionsFromDb(): Promise<Transaction[]> {
   try {
     const saved = localStorage.getItem('wealthflow_transactions');
-    return saved ? JSON.parse(saved) : initialTransactions;
+    return saved ? safeJsonParse(saved, initialTransactions) : initialTransactions;
   } catch {
     return initialTransactions;
   }
@@ -79,7 +80,7 @@ export async function saveSyncTimestampToDb(timestamp: number): Promise<void> {
 export async function getRiskZonesFromDb(): Promise<RiskZone[]> {
   try {
     const saved = localStorage.getItem('wealthflow_riskzones');
-    return saved ? JSON.parse(saved) : initialRiskZones;
+    return saved ? safeJsonParse(saved, initialRiskZones) : initialRiskZones;
   } catch {
     return initialRiskZones;
   }
@@ -116,7 +117,7 @@ export async function deleteRiskZoneFromDb(id: number | string): Promise<void> {
 export async function getInfractionsFromDb(): Promise<Infraction[]> {
   try {
     const saved = localStorage.getItem('wealthflow_infractions');
-    return saved ? JSON.parse(saved) : initialInfractions;
+    return saved ? safeJsonParse(saved, initialInfractions) : initialInfractions;
   } catch {
     return initialInfractions;
   }
@@ -151,7 +152,7 @@ export async function deleteInfractionFromDb(id: number | string): Promise<void>
 export async function getNonAppealedFromDb(): Promise<any[]> {
   try {
     const saved = localStorage.getItem('wealthflow_nonappealed');
-    return saved ? JSON.parse(saved) : (nonAppealedInfractions as any[]);
+    return saved ? safeJsonParse(saved, nonAppealedInfractions) : (nonAppealedInfractions as any[]);
   } catch {
     return nonAppealedInfractions as any[];
   }
@@ -188,7 +189,7 @@ export async function saveAvatarUrlToDb(url: string): Promise<void> {
 export async function getMedicalAppointmentsFromDb(): Promise<MedicalAppointment[]> {
   try {
     const saved = localStorage.getItem('wealthflow_appointments');
-    return saved ? JSON.parse(saved) : [];
+    return saved ? safeJsonParse(saved, []) : [];
   } catch {
     return [];
   }
@@ -225,7 +226,7 @@ export async function deleteMedicalAppointmentFromDb(id: string): Promise<void> 
 export async function getMedicalPrescriptionsFromDb(): Promise<MedicalPrescription[]> {
   try {
     const saved = localStorage.getItem('wealthflow_prescriptions');
-    return saved ? JSON.parse(saved) : [];
+    return saved ? safeJsonParse(saved, []) : [];
   } catch {
     return [];
   }
@@ -262,7 +263,7 @@ export async function deleteMedicalPrescriptionFromDb(id: string): Promise<void>
 export async function getRegisteredVehiclesFromDb(): Promise<RegisteredVehicle[]> {
   try {
     const saved = localStorage.getItem('wealthflow_registered_vehicles');
-    return saved ? JSON.parse(saved) : [];
+    return saved ? safeJsonParse(saved, []) : [];
   } catch {
     return [];
   }
@@ -299,7 +300,7 @@ export async function deleteRegisteredVehicleFromDb(id: string): Promise<void> {
 export async function getCompromissosFromDb(): Promise<Compromisso[]> {
   try {
     const saved = localStorage.getItem('wealthflow_compromissos');
-    return saved ? JSON.parse(saved) : [];
+    return saved ? safeJsonParse(saved, []) : [];
   } catch {
     return [];
   }
@@ -336,7 +337,7 @@ export async function deleteCompromissoFromDb(id: string): Promise<void> {
 export async function getCustomCategoriesFromDb(): Promise<string[]> {
   try {
     const saved = localStorage.getItem('wealthflow_custom_categories');
-    return saved ? JSON.parse(saved) : [];
+    return saved ? safeJsonParse(saved, []) : [];
   } catch {
     return [];
   }
@@ -354,7 +355,7 @@ export async function saveCustomCategoriesToDb(categories: string[]): Promise<vo
 export async function getSecurityConfigFromDb(): Promise<SecurityConfig | null> {
   try {
     const saved = localStorage.getItem('wealthflow_security_config');
-    return saved ? JSON.parse(saved) : null;
+    return saved ? safeJsonParse(saved, null) : null;
   } catch {
     return null;
   }
@@ -372,7 +373,7 @@ export async function saveSecurityConfigToDb(config: SecurityConfig): Promise<vo
 export async function getPerformedServicesFromDb(): Promise<CarServicePerformed[]> {
   try {
     const saved = localStorage.getItem('wealthflow_car_services_performed');
-    return saved ? JSON.parse(saved) : [];
+    return saved ? safeJsonParse(saved, []) : [];
   } catch {
     return [];
   }
@@ -409,7 +410,7 @@ export async function deletePerformedServiceFromDb(id: string): Promise<void> {
 export async function getScheduledServicesFromDb(): Promise<CarServiceScheduled[]> {
   try {
     const saved = localStorage.getItem('wealthflow_car_services_scheduled');
-    return saved ? JSON.parse(saved) : [];
+    return saved ? safeJsonParse(saved, []) : [];
   } catch {
     return [];
   }
@@ -446,7 +447,7 @@ export async function deleteScheduledServiceFromDb(id: string): Promise<void> {
 export async function getGroceryItemsFromDb(): Promise<GroceryItem[]> {
   try {
     const saved = localStorage.getItem('wealthflow_grocery_items');
-    return saved ? JSON.parse(saved) : [];
+    return saved ? safeJsonParse(saved, []) : [];
   } catch {
     return [];
   }

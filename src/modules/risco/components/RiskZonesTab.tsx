@@ -1090,45 +1090,59 @@ export default function RiskZonesTab({
   };
 
   // Submit new risk zone
-  const handleAddSubmit = (e: React.FormEvent) => {
+  const handleAddSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    const finalTitle = (name || descricao).trim();
-    if (!finalTitle && !descricao.trim()) {
-      alert("Por favor, digite o nome / descrição do local de risco.");
-      return;
+    try {
+      const finalTitle = (name || descricao).trim();
+      if (!finalTitle && !descricao.trim()) {
+        if (showAlert) {
+          showAlert("Campo Obrigatório", "Por favor, digite o nome / descrição do local de risco.");
+        } else {
+          alert("Por favor, digite o nome / descrição do local de risco.");
+        }
+        return;
+      }
+
+      const uniqueId = Math.floor(Date.now() + Math.random() * 1000);
+      const itemObj: any = {
+        id: uniqueId,
+        localizacao: `${lat.toFixed(5)}, ${lng.toFixed(5)}`,
+        latitude: lat,
+        latitudi: lat,
+        longitude: lng,
+        dataRegistro: new Date().toLocaleDateString('pt-BR'),
+        dataHora: `${new Date().toLocaleDateString('pt-BR')} ${new Date().toLocaleTimeString('pt-BR')}`,
+        status: level === 'ALTO' ? '⚠️ EM ÁREA DE RISCO!' : '✅ Seguro',
+        nomeLocal: String(finalTitle || descricao).toUpperCase(),
+        descricao: descricao || finalTitle,
+        raioMetros: radius || 100,
+        raioM: radius || 100,
+        nivelRisco: level,
+        nivelDeRisco: level || 'BAIXO',
+        statusGeral: level === 'ALTO' ? 'DISPARAR' : 'VAZIO',
+        ativo: true,
+        mensagemDeAlerta: mensagemDeAlerta || '',
+        mensagem: mensagemDeAlerta || '',
+        obs: obs || ''
+      };
+
+      await onAddRiskZone(itemObj);
+
+      setName('');
+      setDescricao('');
+      setMensagemDeAlerta('');
+      setObs('');
+      clearZoneDraftFromStorage();
+      setShowAddForm(false);
+      if (showAlert) {
+        showAlert("Sucesso", "Zona de risco cadastrada com sucesso!");
+      }
+    } catch (err) {
+      console.warn("Erro na sincronização de Zona de Risco:", err);
+      if (showAlert) {
+        showAlert("Salvo Localmente", "A Zona de Risco foi salva localmente na sua sessão.");
+      }
     }
-
-    const uniqueId = Math.floor(Date.now() + Math.random() * 1000);
-    const itemObj: any = {
-      id: uniqueId,
-      localizacao: `${lat.toFixed(5)}, ${lng.toFixed(5)}`,
-      latitude: lat,
-      latitudi: lat,
-      longitude: lng,
-      dataRegistro: new Date().toLocaleDateString('pt-BR'),
-      dataHora: `${new Date().toLocaleDateString('pt-BR')} ${new Date().toLocaleTimeString('pt-BR')}`,
-      status: level === 'ALTO' ? '⚠️ EM ÁREA DE RISCO!' : '✅ Seguro',
-      nomeLocal: String(finalTitle || descricao).toUpperCase(),
-      descricao: descricao || finalTitle,
-      raioMetros: radius || 100,
-      raioM: radius || 100,
-      nivelRisco: level,
-      nivelDeRisco: level || 'BAIXO',
-      statusGeral: level === 'ALTO' ? 'DISPARAR' : 'VAZIO',
-      ativo: true,
-      mensagemDeAlerta: mensagemDeAlerta || '',
-      mensagem: mensagemDeAlerta || '',
-      obs: obs || ''
-    };
-
-    onAddRiskZone(itemObj);
-
-    setName('');
-    setDescricao('');
-    setMensagemDeAlerta('');
-    setObs('');
-    clearZoneDraftFromStorage();
-    setShowAddForm(false);
   };
 
   // Edit existing risk zone
@@ -1145,43 +1159,50 @@ export default function RiskZonesTab({
     setShowAddForm(false); // Close add form if open
   };
 
-  const handleEditSubmit = (e: React.FormEvent) => {
+  const handleEditSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!editingZone) return;
-    const finalTitle = (editName || editDescricao).trim();
-    if (!finalTitle && !editDescricao.trim()) {
-      if (showAlert) {
-        showAlert("Campo Obrigatório", "Por favor, digite o nome / descrição do local de risco.");
-      } else {
-        alert("Por favor, digite o nome / descrição do local de risco.");
+    try {
+      const finalTitle = (editName || editDescricao).trim();
+      if (!finalTitle && !editDescricao.trim()) {
+        if (showAlert) {
+          showAlert("Campo Obrigatório", "Por favor, digite o nome / descrição do local de risco.");
+        } else {
+          alert("Por favor, digite o nome / descrição do local de risco.");
+        }
+        return;
       }
-      return;
-    }
 
-    const updatedObj: any = {
-      id: editingZone.id || Date.now(),
-      localizacao: `${editLat.toFixed(5)}, ${editLng.toFixed(5)}`,
-      latitude: editLat,
-      latitudi: editLat,
-      longitude: editLng,
-      status: editLevel === 'ALTO' ? '⚠️ EM ÁREA DE RISCO!' : '✅ Seguro',
-      nomeLocal: String(finalTitle || editDescricao).toUpperCase(),
-      descricao: editDescricao || finalTitle,
-      raioMetros: editRadius || 100,
-      raioM: editRadius || 100,
-      nivelRisco: editLevel,
-      nivelDeRisco: editLevel || 'BAIXO',
-      statusGeral: editLevel === 'ALTO' ? 'DISPARAR' : 'VAZIO',
-      mensagemDeAlerta: editMensagemDeAlerta || '',
-      mensagem: editMensagemDeAlerta || '',
-      obs: editObs || ''
-    };
+      const updatedObj: any = {
+        id: editingZone.id || Date.now(),
+        localizacao: `${editLat.toFixed(5)}, ${editLng.toFixed(5)}`,
+        latitude: editLat,
+        latitudi: editLat,
+        longitude: editLng,
+        status: editLevel === 'ALTO' ? '⚠️ EM ÁREA DE RISCO!' : '✅ Seguro',
+        nomeLocal: String(finalTitle || editDescricao).toUpperCase(),
+        descricao: editDescricao || finalTitle,
+        raioMetros: editRadius || 100,
+        raioM: editRadius || 100,
+        nivelRisco: editLevel,
+        nivelDeRisco: editLevel || 'BAIXO',
+        statusGeral: editLevel === 'ALTO' ? 'DISPARAR' : 'VAZIO',
+        mensagemDeAlerta: editMensagemDeAlerta || '',
+        mensagem: editMensagemDeAlerta || '',
+        obs: editObs || ''
+      };
 
-    onEditRiskZone(editingZone.id, updatedObj);
+      await onEditRiskZone(editingZone.id, updatedObj);
 
-    setEditingZone(null);
-    if (showAlert) {
-      showAlert("Sucesso", "Perímetro de risco atualizado com sucesso!");
+      setEditingZone(null);
+      if (showAlert) {
+        showAlert("Sucesso", "Perímetro de risco atualizado com sucesso!");
+      }
+    } catch (err) {
+      console.warn("Erro ao atualizar Zona de Risco:", err);
+      if (showAlert) {
+        showAlert("Salvo Localmente", "A alteração foi salva localmente no seu dispositivo.");
+      }
     }
   };
 
