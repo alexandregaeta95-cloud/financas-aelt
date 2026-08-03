@@ -22,6 +22,37 @@ interface CarServicesTabProps {
   onReindexScheduledServices?: () => void;
 }
 
+// Formata string numérica ou valor para exibição de moeda BRL em tempo real (ex: "25000" -> "250,00")
+const formatBRLCurrencyInput = (val: string | number): string => {
+  if (val === undefined || val === null || val === '') return '0,00';
+  const raw = String(val).replace(/\D/g, "");
+  if (!raw) return '0,00';
+  const numeric = parseInt(raw, 10) / 100;
+  return numeric.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+};
+
+// Formata valor bruto vindo do objeto de dados/DB (ex: 250 -> "250,00")
+const formatValueForInput = (val: any): string => {
+  if (val === undefined || val === null || val === '') return '0,00';
+  let num = 0;
+  if (typeof val === 'number') {
+    num = val;
+  } else {
+    const clean = String(val).replace(/\./g, '').replace(',', '.');
+    num = parseFloat(clean) || 0;
+  }
+  return num.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+};
+
+// Converte string formatada ("250,00" ou "1.250,50") para Number JS (250 ou 1250.50)
+const parseBRLCurrencyToNumber = (valStr: string | number): number => {
+  if (typeof valStr === 'number') return isNaN(valStr) ? 0 : valStr;
+  if (!valStr) return 0;
+  const raw = String(valStr).replace(/\D/g, "");
+  if (!raw) return 0;
+  return parseInt(raw, 10) / 100;
+};
+
 export default function CarServicesTab({
   performedServices,
   scheduledServices,
@@ -78,8 +109,8 @@ export default function CarServicesTab({
     setPerfDescription('');
     setPerfDate(new Date().toISOString().split('T')[0]);
     setPerfKm('');
-    setPerfValorAPG('');
-    setPerfValorPago('');
+    setPerfValorAPG('0,00');
+    setPerfValorPago('0,00');
     setPerfOficina('');
     setPerfComprovanteUrl('');
     setPerfObservacoes('');
@@ -107,10 +138,10 @@ export default function CarServicesTab({
     setPerfKm(rawKm !== undefined && rawKm !== null ? String(rawKm) : '');
 
     const rawValAPG = serv.valorAPG ?? (serv as any)['Valor_A_PG'] ?? (serv as any)['Valor A Pagar'] ?? 0;
-    setPerfValorAPG(rawValAPG ? String(rawValAPG).replace('.', ',') : '');
+    setPerfValorAPG(formatValueForInput(rawValAPG));
 
     const rawValPago = serv.valorPago ?? serv.valor ?? (serv as any)['Valor_Pago'] ?? (serv as any)['Valor Pago (R$)'] ?? 0;
-    setPerfValorPago(rawValPago ? String(rawValPago).replace('.', ',') : '');
+    setPerfValorPago(formatValueForInput(rawValPago));
 
     setPerfOficina(serv.oficinaNome || serv.oficina || (serv as any)['Oficina_Nome'] || (serv as any)['Oficina/Estabelecimento'] || '');
     setPerfComprovanteUrl(serv.comprovanteUrl || (serv as any)['Comprovante_Url'] || '');
@@ -179,11 +210,8 @@ export default function CarServicesTab({
       return;
     }
 
-    const cleanValAPG = perfValorAPG.replace(/\./g, "").replace(",", ".");
-    const parsedValorAPG = cleanValAPG ? parseFloat(cleanValAPG) : 0;
-
-    const cleanValPago = perfValorPago.replace(/\./g, "").replace(",", ".");
-    const parsedValorPago = cleanValPago ? parseFloat(cleanValPago) : 0;
+    const numValorAPG = parseBRLCurrencyToNumber(perfValorAPG);
+    const numValorPago = parseBRLCurrencyToNumber(perfValorPago);
 
     const parsedKm = perfKm.trim() ? (isNaN(Number(perfKm)) ? perfKm.trim() : parseInt(perfKm, 10)) : "";
 
@@ -194,39 +222,44 @@ export default function CarServicesTab({
     }
 
     const itemId = editingPerformed ? editingPerformed.id : Date.now().toString();
+    const veiculoIdVal = (perfVehicle || 'FOX ROCK RIO 1.6').toUpperCase();
 
-    const payload: any = {
-      // 10 Colunas exatas da Aba 14_Oficina:
+    // Objeto base da Oficina com as 10 propriedades exatas para a aba 14_Oficina:
+    const workshopData = {
       id: itemId,
       data: dateDDMMYYYY,
       descricao: perfDescription.trim(),
       km: parsedKm,
-      valorAPG: parsedValorAPG,
-      valorPago: parsedValorPago,
+      valorAPG: Number(numValorAPG),
+      valorPago: Number(numValorPago),
       oficinaNome: perfOficina.trim(),
-      comprovanteUrl: perfComprovanteUrl.trim(),
-      observacoes: perfObservacoes.trim(),
-      veiculoId: (perfVehicle || 'FOX ROCK RIO 1.6').toUpperCase(),
+      comprovanteUrl: perfComprovanteUrl.trim() || '',
+      observacoes: perfObservacoes.trim() || '',
+      veiculoId: veiculoIdVal
+    };
 
-      // Aliases para compatibilidade legada:
-      "VeiculoID": (perfVehicle || 'FOX ROCK RIO 1.6').toUpperCase(),
-      "Veículo": (perfVehicle || 'FOX ROCK RIO 1.6').toUpperCase(),
+    const payload: any = {
+      ...workshopData,
+      // Aliases e compatibilidade legada:
+      "VeiculoID": veiculoIdVal,
+      "Veículo": veiculoIdVal,
       "Descrição": perfDescription.trim(),
       "Descrição do Serviço": perfDescription.trim(),
       "Data": dateDDMMYYYY,
       "Data Realização": perfDate,
       "KM": parsedKm,
       "Quilometragem (KM)": parsedKm,
-      "Valor_A_PG": parsedValorAPG,
-      "Valor_Pago": parsedValorPago,
-      "Valor Pago (R$)": parsedValorPago,
-      "valor": parsedValorPago,
+      "Valor_A_PG": Number(numValorAPG),
+      "Valor_Pago": Number(numValorPago),
+      "Valor Pago (R$)": Number(numValorPago),
+      "valor": Number(numValorPago),
       "Oficina_Nome": perfOficina.trim(),
       "Oficina/Estabelecimento": perfOficina.trim(),
       "oficina": perfOficina.trim(),
       "Comprovante_Url": perfComprovanteUrl.trim(),
       "Observações": perfObservacoes.trim(),
-      "veiculoDescricao": (perfVehicle || 'FOX ROCK RIO 1.6').toUpperCase(),
+      "obs": perfObservacoes.trim(),
+      "veiculoDescricao": veiculoIdVal,
       updatedAt: Date.now()
     };
 
@@ -664,27 +697,37 @@ export default function CarServicesTab({
                   </div>
                 </div>
 
-                {/* Valor A Pagar & Valor Pago */}
+                {/* Valor A Pagar & Valor Pago (Moeda BRL em Tempo Real) */}
                 <div className="grid grid-cols-2 gap-2">
                   <div>
-                    <label className="text-[10px] text-slate-400 uppercase font-mono block mb-1">Valor A Pagar (R$) (Valor_A_PG)</label>
-                    <input
-                      type="text"
-                      value={perfValorAPG}
-                      onChange={(e) => setPerfValorAPG(e.target.value)}
-                      placeholder="Ex: 300,00"
-                      className="w-full bg-slate-950 border border-slate-800 rounded-xl p-2.5 text-xs text-amber-400 outline-none focus:border-emerald-500 font-mono"
-                    />
+                    <label className="text-[10px] text-slate-400 uppercase font-mono block mb-1">
+                      Valor a Pagar (R$)
+                    </label>
+                    <div className="relative flex items-center">
+                      <span className="absolute left-2.5 text-xs font-mono text-amber-500 font-bold">R$</span>
+                      <input
+                        type="text"
+                        value={perfValorAPG}
+                        onChange={(e) => setPerfValorAPG(formatBRLCurrencyInput(e.target.value))}
+                        placeholder="0,00"
+                        className="w-full bg-slate-950 border border-slate-800 rounded-xl py-2.5 pl-8 pr-2 text-xs text-amber-400 outline-none focus:border-emerald-500 font-mono font-bold"
+                      />
+                    </div>
                   </div>
                   <div>
-                    <label className="text-[10px] text-slate-400 uppercase font-mono block mb-1">Valor Pago (R$) (Valor_Pago)</label>
-                    <input
-                      type="text"
-                      value={perfValorPago}
-                      onChange={(e) => setPerfValorPago(e.target.value)}
-                      placeholder="Ex: 250,00"
-                      className="w-full bg-slate-950 border border-slate-800 rounded-xl p-2.5 text-xs text-emerald-400 outline-none focus:border-emerald-500 font-mono"
-                    />
+                    <label className="text-[10px] text-slate-400 uppercase font-mono block mb-1">
+                      Valor Pago (R$)
+                    </label>
+                    <div className="relative flex items-center">
+                      <span className="absolute left-2.5 text-xs font-mono text-emerald-500 font-bold">R$</span>
+                      <input
+                        type="text"
+                        value={perfValorPago}
+                        onChange={(e) => setPerfValorPago(formatBRLCurrencyInput(e.target.value))}
+                        placeholder="0,00"
+                        className="w-full bg-slate-950 border border-slate-800 rounded-xl py-2.5 pl-8 pr-2 text-xs text-emerald-400 outline-none focus:border-emerald-500 font-mono font-bold"
+                      />
+                    </div>
                   </div>
                 </div>
 
