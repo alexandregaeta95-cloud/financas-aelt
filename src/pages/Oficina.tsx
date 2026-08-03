@@ -1,7 +1,8 @@
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { CarServicePerformed, CarServiceScheduled, RegisteredVehicle, BankAccount, Transaction } from '../types';
 import { useVehicles } from '../modules/veiculos/hooks/useVehicles';
+import { vehicleService } from '../modules/veiculos/services/vehicleService';
 
 interface CarServicesTabProps {
   performedServices: CarServicePerformed[];
@@ -73,12 +74,82 @@ export default function CarServicesTab({
   showConfirm
 }: CarServicesTabProps) {
   // Consumir hook global de veículos
-  const { vehicles: hookVehicles } = useVehicles();
+  const { vehicles: hookVehicles, loading: hookLoading } = useVehicles();
 
-  // Consolidar a lista de veículos a partir de props (registeredVehicles ou vehicles), hook ou localStorage fallback
+  // Estados locais para carregamento assíncrono e tratamento de erros
+  const [asyncVehicles, setAsyncVehicles] = useState<RegisteredVehicle[]>([]);
+  const [isLoadingVehicles, setIsLoadingVehicles] = useState<boolean>(true);
+  const [vehiclesError, setVehiclesError] = useState<string | null>(null);
+
+  // Carregamento assíncrono robusto com try/catch
+  const loadVehiclesAsync = useCallback(async () => {
+    setIsLoadingVehicles(true);
+    setVehiclesError(null);
+    try {
+      // 1. Prioriza veículos passados por props se existirem
+      if (Array.isArray(registeredVehicles) && registeredVehicles.length > 0) {
+        setAsyncVehicles(registeredVehicles);
+        setIsLoadingVehicles(false);
+        return;
+      }
+      if (Array.isArray(vehicles) && vehicles.length > 0) {
+        setAsyncVehicles(vehicles);
+        setIsLoadingVehicles(false);
+        return;
+      }
+
+      // 2. Tenta buscar via vehicleService
+      const serviceData = await vehicleService.listarVeiculos();
+      if (Array.isArray(serviceData) && serviceData.length > 0) {
+        setAsyncVehicles(serviceData);
+      } else if (Array.isArray(hookVehicles) && hookVehicles.length > 0) {
+        setAsyncVehicles(hookVehicles);
+      } else {
+        // 3. Fallback no localStorage
+        const stored = localStorage.getItem('wealthflow_registered_vehicles') || localStorage.getItem('registered_vehicles');
+        if (stored) {
+          const parsed = JSON.parse(stored);
+          if (Array.isArray(parsed) && parsed.length > 0) {
+            setAsyncVehicles(parsed);
+          } else {
+            setAsyncVehicles([]);
+          }
+        } else {
+          setAsyncVehicles([]);
+        }
+      }
+    } catch (err: any) {
+      console.error('Erro ao carregar lista de veículos:', err);
+      setVehiclesError('Não foi possível carregar a lista de veículos.');
+
+      // Tenta recuperar do localStorage em caso de erro na API/DB
+      try {
+        const stored = localStorage.getItem('wealthflow_registered_vehicles') || localStorage.getItem('registered_vehicles');
+        if (stored) {
+          const parsed = JSON.parse(stored);
+          if (Array.isArray(parsed) && parsed.length > 0) {
+            setAsyncVehicles(parsed);
+            setVehiclesError(null); // Recuperado com sucesso
+          }
+        }
+      } catch (e) {
+        // ignorar erro secundário
+      }
+    } finally {
+      setIsLoadingVehicles(false);
+    }
+  }, [registeredVehicles, vehicles, hookVehicles]);
+
+  useEffect(() => {
+    loadVehiclesAsync();
+  }, [loadVehiclesAsync]);
+
+  // Consolidar a lista de veículos final garantindo segurança de arrays
   const safeRegisteredVehicles = useMemo(() => {
     let list: any[] = [];
-    if (Array.isArray(registeredVehicles) && registeredVehicles.length > 0) {
+    if (asyncVehicles.length > 0) {
+      list = asyncVehicles;
+    } else if (Array.isArray(registeredVehicles) && registeredVehicles.length > 0) {
       list = registeredVehicles;
     } else if (Array.isArray(vehicles) && vehicles.length > 0) {
       list = vehicles;
@@ -96,7 +167,7 @@ export default function CarServicesTab({
       }
     }
     return list.filter(Boolean);
-  }, [registeredVehicles, vehicles, hookVehicles]);
+  }, [asyncVehicles, registeredVehicles, vehicles, hookVehicles]);
 
   // Safe Array Fallbacks
   const safePerformedServices = Array.isArray(performedServices) ? performedServices.filter(Boolean) : [];
@@ -719,23 +790,51 @@ export default function CarServicesTab({
                 
                 {/* Veículo */}
                 <div>
-                  <label className="text-[10px] text-slate-400 uppercase font-mono block mb-1">Veículo</label>
+                  <div className="flex justify-between items-center mb-1">
+                    <label className="text-[10px] text-slate-400 uppercase font-mono block">Veículo</label>
+                    {isLoadingVehicles && (
+                      <span className="text-[9px] text-amber-400 font-mono animate-pulse">Carregando...</span>
+                    )}
+                    {vehiclesError && !isLoadingVehicles && safeRegisteredVehicles.length === 0 && (
+                      <button
+                        type="button"
+                        onClick={() => loadVehiclesAsync()}
+                        className="text-[9px] text-rose-400 hover:underline font-mono uppercase cursor-pointer"
+                      >
+                        Tentar Novamente
+                      </button>
+                    )}
+                  </div>
                   <select
                     value={perfVehicle}
                     onChange={(e) => setPerfVehicle(e.target.value)}
-                    className="w-full bg-slate-950 border border-slate-800 rounded-xl p-2.5 text-xs text-white outline-none focus:border-emerald-500 font-mono uppercase"
+                    disabled={isLoadingVehicles}
+                    className="w-full bg-slate-950 border border-slate-800 rounded-xl p-2.5 text-xs text-white outline-none focus:border-emerald-500 font-mono uppercase disabled:opacity-50"
                   >
-                    <option value="">Selecione um Veículo...</option>
-                    {safeRegisteredVehicles.filter(Boolean).map((v, idx) => {
-                      const val = v.id || v.descricao || (v as any).nome || v.modelo || v.placa || `veh_${idx}`;
-                      const label = (v as any).nome || v.modelo || v.placa || v.descricao || `Veículo ${idx + 1}`;
-                      return (
-                        <option key={v.id || idx} value={val}>
-                          {label}
-                        </option>
-                      );
-                    })}
+                    {isLoadingVehicles ? (
+                      <option value="">Carregando veículos...</option>
+                    ) : vehiclesError && safeRegisteredVehicles.length === 0 ? (
+                      <option value="">Erro ao carregar veículos (clique para tentar)</option>
+                    ) : safeRegisteredVehicles.length === 0 ? (
+                      <option value="">Nenhum veículo cadastrado</option>
+                    ) : (
+                      <>
+                        <option value="">Selecione um Veículo...</option>
+                        {safeRegisteredVehicles.filter(Boolean).map((v, idx) => {
+                          const val = v.id || v.descricao || (v as any).nome || v.modelo || v.placa || `veh_${idx}`;
+                          const label = (v as any).nome || v.modelo || v.placa || v.descricao || `Veículo ${idx + 1}`;
+                          return (
+                            <option key={v.id || idx} value={val}>
+                              {label}
+                            </option>
+                          );
+                        })}
+                      </>
+                    )}
                   </select>
+                  {vehiclesError && safeRegisteredVehicles.length === 0 && (
+                    <p className="text-[10px] text-rose-400 mt-1 font-mono">{vehiclesError}</p>
+                  )}
                 </div>
 
                 {/* Descrição */}
@@ -866,23 +965,51 @@ export default function CarServicesTab({
               </h4>
               <div className="space-y-3 text-left">
                 <div>
-                  <label className="text-[10px] text-slate-400 uppercase font-mono block mb-1">Veículo</label>
+                  <div className="flex justify-between items-center mb-1">
+                    <label className="text-[10px] text-slate-400 uppercase font-mono block">Veículo</label>
+                    {isLoadingVehicles && (
+                      <span className="text-[9px] text-amber-400 font-mono animate-pulse">Carregando...</span>
+                    )}
+                    {vehiclesError && !isLoadingVehicles && safeRegisteredVehicles.length === 0 && (
+                      <button
+                        type="button"
+                        onClick={() => loadVehiclesAsync()}
+                        className="text-[9px] text-rose-400 hover:underline font-mono uppercase cursor-pointer"
+                      >
+                        Tentar Novamente
+                      </button>
+                    )}
+                  </div>
                   <select
                     value={schedVehicle}
                     onChange={(e) => setSchedVehicle(e.target.value)}
-                    className="w-full bg-slate-950 border border-slate-800 rounded-xl p-2.5 text-xs text-white outline-none focus:border-amber-500 font-mono uppercase"
+                    disabled={isLoadingVehicles}
+                    className="w-full bg-slate-950 border border-slate-800 rounded-xl p-2.5 text-xs text-white outline-none focus:border-amber-500 font-mono uppercase disabled:opacity-50"
                   >
-                    <option value="">Selecione um Veículo...</option>
-                    {safeRegisteredVehicles.filter(Boolean).map((v, idx) => {
-                      const val = v.id || v.descricao || (v as any).nome || v.modelo || v.placa || `veh_${idx}`;
-                      const label = (v as any).nome || v.modelo || v.placa || v.descricao || `Veículo ${idx + 1}`;
-                      return (
-                        <option key={v.id || idx} value={val}>
-                          {label}
-                        </option>
-                      );
-                    })}
+                    {isLoadingVehicles ? (
+                      <option value="">Carregando veículos...</option>
+                    ) : vehiclesError && safeRegisteredVehicles.length === 0 ? (
+                      <option value="">Erro ao carregar veículos (clique para tentar)</option>
+                    ) : safeRegisteredVehicles.length === 0 ? (
+                      <option value="">Nenhum veículo cadastrado</option>
+                    ) : (
+                      <>
+                        <option value="">Selecione um Veículo...</option>
+                        {safeRegisteredVehicles.filter(Boolean).map((v, idx) => {
+                          const val = v.id || v.descricao || (v as any).nome || v.modelo || v.placa || `veh_${idx}`;
+                          const label = (v as any).nome || v.modelo || v.placa || v.descricao || `Veículo ${idx + 1}`;
+                          return (
+                            <option key={v.id || idx} value={val}>
+                              {label}
+                            </option>
+                          );
+                        })}
+                      </>
+                    )}
                   </select>
+                  {vehiclesError && safeRegisteredVehicles.length === 0 && (
+                    <p className="text-[10px] text-rose-400 mt-1 font-mono">{vehiclesError}</p>
+                  )}
                 </div>
                 <div>
                   <label className="text-[10px] text-slate-400 uppercase font-mono block mb-1">Descrição do Serviço</label>
