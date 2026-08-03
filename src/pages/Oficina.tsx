@@ -1,11 +1,13 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { CarServicePerformed, CarServiceScheduled, RegisteredVehicle, BankAccount, Transaction } from '../types';
+import { useVehicles } from '../modules/veiculos/hooks/useVehicles';
 
 interface CarServicesTabProps {
   performedServices: CarServicePerformed[];
   scheduledServices: CarServiceScheduled[];
-  registeredVehicles: RegisteredVehicle[];
+  registeredVehicles?: RegisteredVehicle[];
+  vehicles?: RegisteredVehicle[];
   bankAccounts: BankAccount[];
   transactions: Transaction[];
   onAddPerformedService: (service: any) => Promise<void>;
@@ -57,6 +59,7 @@ export default function CarServicesTab({
   performedServices,
   scheduledServices,
   registeredVehicles,
+  vehicles,
   bankAccounts,
   transactions,
   onAddPerformedService,
@@ -69,10 +72,35 @@ export default function CarServicesTab({
   showAlert,
   showConfirm
 }: CarServicesTabProps) {
+  // Consumir hook global de veículos
+  const { vehicles: hookVehicles } = useVehicles();
+
+  // Consolidar a lista de veículos a partir de props (registeredVehicles ou vehicles), hook ou localStorage fallback
+  const safeRegisteredVehicles = useMemo(() => {
+    let list: any[] = [];
+    if (Array.isArray(registeredVehicles) && registeredVehicles.length > 0) {
+      list = registeredVehicles;
+    } else if (Array.isArray(vehicles) && vehicles.length > 0) {
+      list = vehicles;
+    } else if (Array.isArray(hookVehicles) && hookVehicles.length > 0) {
+      list = hookVehicles;
+    } else {
+      try {
+        const stored = localStorage.getItem('wealthflow_registered_vehicles') || localStorage.getItem('registered_vehicles');
+        if (stored) {
+          const parsed = JSON.parse(stored);
+          if (Array.isArray(parsed)) list = parsed;
+        }
+      } catch (e) {
+        // ignore
+      }
+    }
+    return list.filter(Boolean);
+  }, [registeredVehicles, vehicles, hookVehicles]);
+
   // Safe Array Fallbacks
   const safePerformedServices = Array.isArray(performedServices) ? performedServices.filter(Boolean) : [];
   const safeScheduledServices = Array.isArray(scheduledServices) ? scheduledServices.filter(Boolean) : [];
-  const safeRegisteredVehicles = Array.isArray(registeredVehicles) ? registeredVehicles.filter(Boolean) : [];
 
   const [activeSubTab, setActiveSubTab] = useState<'REALIZADOS' | 'AGENDADOS'>('REALIZADOS');
   const [vehicleFilter, setVehicleFilter] = useState<string>('TODOS');
@@ -85,7 +113,7 @@ export default function CarServicesTab({
   // 10 Colunas de Oficina (Aba 14_Oficina):
   // A: ID | B: Data | C: Descrição | D: KM | E: Valor_A_PG | F: Valor_Pago | G: Oficina_Nome | H: Comprovante_Url | I: Observações | J: VeiculoID
 
-  const [perfVehicle, setPerfVehicle] = useState('FOX ROCK RIO 1.6');
+  const [perfVehicle, setPerfVehicle] = useState('');
   const [perfDescription, setPerfDescription] = useState('');
   const [perfDate, setPerfDate] = useState(new Date().toISOString().split('T')[0]);
   const [perfKm, setPerfKm] = useState('');
@@ -97,15 +125,32 @@ export default function CarServicesTab({
 
   const [isScheduledModalOpen, setIsScheduledModalOpen] = useState(false);
   const [editingScheduled, setEditingScheduled] = useState<CarServiceScheduled | null>(null);
-  const [schedVehicle, setSchedVehicle] = useState('FOX ROCK RIO 1.6');
+  const [schedVehicle, setSchedVehicle] = useState('');
   const [schedDescription, setSchedDescription] = useState('');
   const [schedType, setSchedType] = useState<'DATA' | 'KM' | 'DATA_E_KM'>('DATA');
   const [schedDateAlvo, setSchedDateAlvo] = useState('');
   const [schedKmAlvo, setSchedKmAlvo] = useState('');
 
+  // Seleção Padrão: Se houver veículos na lista e nenhum estiver selecionado, seleciona o primeiro por padrão
+  useEffect(() => {
+    if (safeRegisteredVehicles.length > 0) {
+      const firstVeh = safeRegisteredVehicles[0];
+      const defaultVal = firstVeh.id || firstVeh.descricao || (firstVeh as any).nome || firstVeh.modelo || firstVeh.placa || '';
+      if (!perfVehicle) {
+        setPerfVehicle(defaultVal);
+      }
+      if (!schedVehicle) {
+        setSchedVehicle(defaultVal);
+      }
+    }
+  }, [safeRegisteredVehicles]);
+
   const handleOpenAddPerformed = () => {
     setEditingPerformed(null);
-    setPerfVehicle(safeRegisteredVehicles[0]?.descricao || 'FOX ROCK RIO 1.6');
+    const defaultVal = safeRegisteredVehicles[0]
+      ? (safeRegisteredVehicles[0].id || safeRegisteredVehicles[0].descricao || (safeRegisteredVehicles[0] as any).nome || safeRegisteredVehicles[0].modelo || safeRegisteredVehicles[0].placa || '')
+      : '';
+    setPerfVehicle(perfVehicle || defaultVal);
     setPerfDescription('');
     setPerfDate(new Date().toISOString().split('T')[0]);
     setPerfKm('');
@@ -119,7 +164,15 @@ export default function CarServicesTab({
 
   const handleOpenEditPerformed = (serv: CarServicePerformed) => {
     setEditingPerformed(serv);
-    setPerfVehicle(serv.veiculoId || serv.veiculoDescricao || (serv as any)['VeiculoID'] || (serv as any)['Veículo'] || safeRegisteredVehicles[0]?.descricao || 'FOX ROCK RIO 1.6');
+    const rawVeh = serv.veiculoId || serv.veiculoDescricao || (serv as any)['VeiculoID'] || (serv as any)['Veículo'] || '';
+    const matchedVeh = safeRegisteredVehicles.find(v =>
+      (v.id && String(v.id).toUpperCase() === String(rawVeh).toUpperCase()) ||
+      (v.descricao && String(v.descricao).toUpperCase() === String(rawVeh).toUpperCase()) ||
+      ((v as any).nome && String((v as any).nome).toUpperCase() === String(rawVeh).toUpperCase()) ||
+      (v.modelo && String(v.modelo).toUpperCase() === String(rawVeh).toUpperCase())
+    );
+    const selectedVeh = matchedVeh ? (matchedVeh.id || matchedVeh.descricao) : (rawVeh || safeRegisteredVehicles[0]?.id || safeRegisteredVehicles[0]?.descricao || '');
+    setPerfVehicle(selectedVeh);
     setPerfDescription(serv.descricao || (serv as any)['Descrição'] || (serv as any)['Descrição do Serviço'] || '');
     
     const rawDate = serv.data || (serv as any)['Data'] || (serv as any)['Data Realização'] || '';
@@ -168,7 +221,10 @@ export default function CarServicesTab({
 
   const handleOpenAddScheduled = () => {
     setEditingScheduled(null);
-    setSchedVehicle(safeRegisteredVehicles[0]?.descricao || 'FOX ROCK RIO 1.6');
+    const defaultVal = safeRegisteredVehicles[0]
+      ? (safeRegisteredVehicles[0].id || safeRegisteredVehicles[0].descricao || (safeRegisteredVehicles[0] as any).nome || safeRegisteredVehicles[0].modelo || safeRegisteredVehicles[0].placa || '')
+      : '';
+    setSchedVehicle(schedVehicle || defaultVal);
     setSchedDescription('');
     setSchedType('DATA');
     setSchedDateAlvo('');
@@ -178,7 +234,15 @@ export default function CarServicesTab({
 
   const handleOpenEditScheduled = (sched: CarServiceScheduled) => {
     setEditingScheduled(sched);
-    setSchedVehicle(sched.veiculoDescricao || (sched as any)['Veículo'] || safeRegisteredVehicles[0]?.descricao || 'FOX ROCK RIO 1.6');
+    const rawVeh = sched.veiculoDescricao || (sched as any)['Veículo'] || '';
+    const matchedVeh = safeRegisteredVehicles.find(v =>
+      (v.id && String(v.id).toUpperCase() === String(rawVeh).toUpperCase()) ||
+      (v.descricao && String(v.descricao).toUpperCase() === String(rawVeh).toUpperCase()) ||
+      ((v as any).nome && String((v as any).nome).toUpperCase() === String(rawVeh).toUpperCase()) ||
+      (v.modelo && String(v.modelo).toUpperCase() === String(rawVeh).toUpperCase())
+    );
+    const selectedVeh = matchedVeh ? (matchedVeh.id || matchedVeh.descricao) : (rawVeh || safeRegisteredVehicles[0]?.id || safeRegisteredVehicles[0]?.descricao || '');
+    setSchedVehicle(selectedVeh);
     setSchedDescription(sched.descricao || (sched as any)['Descrição do Serviço'] || '');
     setSchedType(sched.tipoAgendamento || (sched as any)['Tipo Agendamento'] || 'DATA');
     setSchedDateAlvo(sched.dataAlvo || (sched as any)['Data Alvo'] || '');
@@ -222,7 +286,16 @@ export default function CarServicesTab({
     }
 
     const itemId = editingPerformed ? editingPerformed.id : Date.now().toString();
-    const veiculoIdVal = (perfVehicle || 'FOX ROCK RIO 1.6').toUpperCase();
+    const selectedVehicleObj = safeRegisteredVehicles.find(v =>
+      v.id === perfVehicle ||
+      v.descricao === perfVehicle ||
+      (v as any).nome === perfVehicle
+    );
+    const veiculoIdVal = (
+      selectedVehicleObj
+        ? (selectedVehicleObj.descricao || selectedVehicleObj.id || perfVehicle)
+        : (perfVehicle || safeRegisteredVehicles[0]?.descricao || safeRegisteredVehicles[0]?.id || '')
+    ).toUpperCase();
 
     // Objeto base da Oficina com as 10 propriedades exatas para a aba 14_Oficina:
     const workshopData = {
@@ -285,15 +358,26 @@ export default function CarServicesTab({
     }
 
     try {
+      const selectedVehicleObj = safeRegisteredVehicles.find(v =>
+        v.id === schedVehicle ||
+        v.descricao === schedVehicle ||
+        (v as any).nome === schedVehicle
+      );
+      const veiculoIdVal = (
+        selectedVehicleObj
+          ? (selectedVehicleObj.descricao || selectedVehicleObj.id || schedVehicle)
+          : (schedVehicle || safeRegisteredVehicles[0]?.descricao || safeRegisteredVehicles[0]?.id || '')
+      ).toUpperCase();
+
       const payload = {
-        "Veículo": (schedVehicle || 'FOX ROCK RIO 1.6').toUpperCase(),
+        "Veículo": veiculoIdVal,
         "Descrição do Serviço": schedDescription.trim(),
         "Data Alvo": schedType !== 'KM' ? schedDateAlvo : "",
         "KM Alvo": schedType !== 'DATA' ? (schedKmAlvo ? parseInt(schedKmAlvo, 10) : "") : "",
         "Tipo Agendamento": schedType,
         "Status": 'PENDENTE',
 
-        veiculoDescricao: (schedVehicle || 'FOX ROCK RIO 1.6').toUpperCase(),
+        veiculoDescricao: veiculoIdVal,
         descricao: schedDescription.trim(),
         tipoAgendamento: schedType,
         dataAlvo: schedType !== 'KM' ? schedDateAlvo : undefined,
@@ -636,30 +720,22 @@ export default function CarServicesTab({
                 {/* Veículo */}
                 <div>
                   <label className="text-[10px] text-slate-400 uppercase font-mono block mb-1">Veículo</label>
-                  {safeRegisteredVehicles.length > 0 ? (
-                    <select
-                      value={perfVehicle}
-                      onChange={(e) => setPerfVehicle(e.target.value)}
-                      className="w-full bg-slate-950 border border-slate-800 rounded-xl p-2.5 text-xs text-white outline-none focus:border-emerald-500 font-mono uppercase"
-                    >
-                      {safeRegisteredVehicles.filter(Boolean).map((v) => {
-                        const val = v.descricao || v.modelo || v.placa || 'VEÍCULO';
-                        return (
-                          <option key={v.id || val} value={val}>
-                            {val}
-                          </option>
-                        );
-                      })}
-                    </select>
-                  ) : (
-                    <input
-                      type="text"
-                      value={perfVehicle}
-                      onChange={(e) => setPerfVehicle(e.target.value)}
-                      placeholder="Ex: FOX ROCK RIO 1.6"
-                      className="w-full bg-slate-950 border border-slate-800 rounded-xl p-2.5 text-xs text-white outline-none focus:border-emerald-500 font-mono uppercase"
-                    />
-                  )}
+                  <select
+                    value={perfVehicle}
+                    onChange={(e) => setPerfVehicle(e.target.value)}
+                    className="w-full bg-slate-950 border border-slate-800 rounded-xl p-2.5 text-xs text-white outline-none focus:border-emerald-500 font-mono uppercase"
+                  >
+                    <option value="">Selecione um Veículo...</option>
+                    {safeRegisteredVehicles.filter(Boolean).map((v, idx) => {
+                      const val = v.id || v.descricao || (v as any).nome || v.modelo || v.placa || `veh_${idx}`;
+                      const label = (v as any).nome || v.modelo || v.placa || v.descricao || `Veículo ${idx + 1}`;
+                      return (
+                        <option key={v.id || idx} value={val}>
+                          {label}
+                        </option>
+                      );
+                    })}
+                  </select>
                 </div>
 
                 {/* Descrição */}
@@ -791,30 +867,22 @@ export default function CarServicesTab({
               <div className="space-y-3 text-left">
                 <div>
                   <label className="text-[10px] text-slate-400 uppercase font-mono block mb-1">Veículo</label>
-                  {safeRegisteredVehicles.length > 0 ? (
-                    <select
-                      value={schedVehicle}
-                      onChange={(e) => setSchedVehicle(e.target.value)}
-                      className="w-full bg-slate-950 border border-slate-800 rounded-xl p-2.5 text-xs text-white outline-none focus:border-amber-500 font-mono uppercase"
-                    >
-                      {safeRegisteredVehicles.filter(Boolean).map((v) => {
-                        const val = v.descricao || v.modelo || v.placa || 'VEÍCULO';
-                        return (
-                          <option key={v.id || val} value={val}>
-                            {val}
-                          </option>
-                        );
-                      })}
-                    </select>
-                  ) : (
-                    <input
-                      type="text"
-                      value={schedVehicle}
-                      onChange={(e) => setSchedVehicle(e.target.value)}
-                      placeholder="Ex: FOX ROCK RIO 1.6"
-                      className="w-full bg-slate-950 border border-slate-800 rounded-xl p-2.5 text-xs text-white outline-none focus:border-amber-500 font-mono uppercase"
-                    />
-                  )}
+                  <select
+                    value={schedVehicle}
+                    onChange={(e) => setSchedVehicle(e.target.value)}
+                    className="w-full bg-slate-950 border border-slate-800 rounded-xl p-2.5 text-xs text-white outline-none focus:border-amber-500 font-mono uppercase"
+                  >
+                    <option value="">Selecione um Veículo...</option>
+                    {safeRegisteredVehicles.filter(Boolean).map((v, idx) => {
+                      const val = v.id || v.descricao || (v as any).nome || v.modelo || v.placa || `veh_${idx}`;
+                      const label = (v as any).nome || v.modelo || v.placa || v.descricao || `Veículo ${idx + 1}`;
+                      return (
+                        <option key={v.id || idx} value={val}>
+                          {label}
+                        </option>
+                      );
+                    })}
+                  </select>
                 </div>
                 <div>
                   <label className="text-[10px] text-slate-400 uppercase font-mono block mb-1">Descrição do Serviço</label>
