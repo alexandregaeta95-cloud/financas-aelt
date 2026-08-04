@@ -227,11 +227,10 @@ export default function CarServicesTab({
   const handleOpenAddPerformed = () => {
     setEditingPerformed(null);
     const firstVeh = displayVehicles[0];
-    const defaultVal = firstVeh
-      ? (firstVeh.id || firstVeh.descricao || (firstVeh as any).nome || firstVeh.modelo || firstVeh.placa || 'FOX ROCK RIO 1.6')
-      : 'FOX ROCK RIO 1.6';
-    setPerfVehicle(perfVehicle || defaultVal);
-    setPerfDescription('');
+    const defaultVal = firstVeh ? String(firstVeh.id) : '';
+    setPerfVehicle(defaultVal);
+    const defaultDesc = firstVeh ? (firstVeh.descricao || (firstVeh as any).nome || firstVeh.modelo || '') : '';
+    setPerfDescription(defaultDesc);
     setPerfDate(new Date().toISOString().split('T')[0]);
     setPerfKm('');
     setPerfValorAPG('0,00');
@@ -245,13 +244,13 @@ export default function CarServicesTab({
   const handleOpenEditPerformed = (serv: CarServicePerformed) => {
     setEditingPerformed(serv);
     const rawVeh = serv.veiculoId || serv.veiculoDescricao || (serv as any)['VeiculoID'] || (serv as any)['Veículo'] || '';
-    const matchedVeh = safeRegisteredVehicles.find(v =>
+    const matchedVeh = displayVehicles.find(v =>
       (v.id && String(v.id).toUpperCase() === String(rawVeh).toUpperCase()) ||
       (v.descricao && String(v.descricao).toUpperCase() === String(rawVeh).toUpperCase()) ||
       ((v as any).nome && String((v as any).nome).toUpperCase() === String(rawVeh).toUpperCase()) ||
       (v.modelo && String(v.modelo).toUpperCase() === String(rawVeh).toUpperCase())
     );
-    const selectedVeh = matchedVeh ? (matchedVeh.id || matchedVeh.descricao) : (rawVeh || safeRegisteredVehicles[0]?.id || safeRegisteredVehicles[0]?.descricao || '');
+    const selectedVeh = matchedVeh ? String(matchedVeh.id) : (rawVeh || String(displayVehicles[0]?.id || ''));
     setPerfVehicle(selectedVeh);
     setPerfDescription(serv.descricao || (serv as any)['Descrição'] || (serv as any)['Descrição do Serviço'] || '');
     
@@ -367,16 +366,17 @@ export default function CarServicesTab({
     }
 
     const itemId = editingPerformed ? editingPerformed.id : Date.now().toString();
-    const selectedVehicleObj = safeRegisteredVehicles.find(v =>
-      v.id === perfVehicle ||
-      v.descricao === perfVehicle ||
-      (v as any).nome === perfVehicle
+    const selectedVehicleObj = displayVehicles.find(v =>
+      String(v.id) === String(perfVehicle) ||
+      String(v.descricao).toUpperCase() === String(perfVehicle).toUpperCase() ||
+      String((v as any).nome).toUpperCase() === String(perfVehicle).toUpperCase()
     );
-    const veiculoIdVal = (
-      selectedVehicleObj
-        ? (selectedVehicleObj.descricao || selectedVehicleObj.id || perfVehicle)
-        : (perfVehicle || safeRegisteredVehicles[0]?.descricao || safeRegisteredVehicles[0]?.id || '')
-    ).toUpperCase();
+    const veiculoIdVal = selectedVehicleObj && selectedVehicleObj.id !== undefined && selectedVehicleObj.id !== null
+      ? String(selectedVehicleObj.id)
+      : (perfVehicle || String(displayVehicles[0]?.id || '1'));
+    const veiculoDescVal = selectedVehicleObj
+      ? (selectedVehicleObj.descricao || (selectedVehicleObj as any).nome || selectedVehicleObj.modelo || '')
+      : perfVehicle;
 
     // Objeto base da Oficina com as 10 propriedades exatas para a aba 14_Oficina:
     const workshopData = {
@@ -396,7 +396,7 @@ export default function CarServicesTab({
       ...workshopData,
       // Aliases e compatibilidade legada:
       "VeiculoID": veiculoIdVal,
-      "Veículo": veiculoIdVal,
+      "Veículo": veiculoDescVal || veiculoIdVal,
       "Descrição": perfDescription.trim(),
       "Descrição do Serviço": perfDescription.trim(),
       "Data": dateDDMMYYYY,
@@ -413,7 +413,7 @@ export default function CarServicesTab({
       "Comprovante_Url": perfComprovanteUrl.trim(),
       "Observações": perfObservacoes.trim(),
       "obs": perfObservacoes.trim(),
-      "veiculoDescricao": veiculoIdVal,
+      "veiculoDescricao": veiculoDescVal || veiculoIdVal,
       updatedAt: Date.now()
     };
 
@@ -836,23 +836,31 @@ export default function CarServicesTab({
                   </div>
                   <select
                     value={perfVehicle}
-                    onChange={(e) => setPerfVehicle(e.target.value)}
-                    disabled={isLoadingVehicles && safeRegisteredVehicles.length === 0}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      setPerfVehicle(val);
+                      const selected = displayVehicles.find(v => String(v.id) === String(val) || String(v.descricao).toUpperCase() === String(val).toUpperCase());
+                      if (selected) {
+                        const autoDesc = selected.descricao || (selected as any).nome || selected.modelo || '';
+                        if (autoDesc) setPerfDescription(autoDesc);
+                      }
+                    }}
+                    disabled={isLoadingVehicles && displayVehicles.length === 0}
                     className="w-full bg-slate-950 border border-slate-800 rounded-xl p-2.5 text-xs text-white outline-none focus:border-emerald-500 font-mono uppercase disabled:opacity-50"
                   >
                     <option value="">Selecione um Veículo...</option>
-                    {safeRegisteredVehicles && safeRegisteredVehicles.length > 0 ? (
-                      safeRegisteredVehicles.filter(Boolean).map((v, idx) => {
-                        const val = v.id || v.descricao || (v as any).nome || v.modelo || v.placa || `veh_${idx}`;
-                        const label = (v as any).nome || v.modelo || v.placa || v.descricao || `Veículo ${idx + 1}`;
+                    {displayVehicles && displayVehicles.length > 0 ? (
+                      displayVehicles.filter(Boolean).map((v, idx) => {
+                        const val = String(v.id !== undefined && v.id !== null ? v.id : (v.descricao || idx));
+                        const label = v.descricao || (v as any).nome || `${v.marca || ''} ${v.modelo || ''}`.trim() || `Veículo ${v.id || idx + 1}`;
                         return (
                           <option key={v.id || idx} value={val}>
-                            {label}
+                            {label} {v.placa ? `(${v.placa})` : ''}
                           </option>
                         );
                       })
                     ) : (
-                      <option value="FOX ROCK RIO 1.6">FOX ROCK RIO 1.6</option>
+                      <option value="1">FOX ROCK RIO 1.6</option>
                     )}
                   </select>
                   {vehiclesError && safeRegisteredVehicles.length === 0 && (

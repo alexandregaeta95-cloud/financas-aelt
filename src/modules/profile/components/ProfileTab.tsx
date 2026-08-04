@@ -11,7 +11,6 @@ import ProfilePrivacy from './ProfilePrivacy';
 import ProfileGoogleSheets from './ProfileGoogleSheets';
 import ProfileAI from './ProfileAI';
 import ProfileOCR from './ProfileOCR';
-import ProfileVehicles from './ProfileVehicles';
 import ProfileRiskZones from './ProfileRiskZones';
 import ProfileAgenda from './ProfileAgenda';
 import ProfileBackup from './ProfileBackup';
@@ -123,18 +122,6 @@ export function ProfileTab(props: ProfileTabProps) {
           <ProfilePrivacy
             showAlert={showAlert}
             showConfirm={showConfirm}
-          />
-          <ProfileVehicles
-            registeredVehicles={registeredVehicles}
-            defaultVehicleId={defaultVehicleId}
-            setDefaultVehicleId={setDefaultVehicleId}
-            ipvaLeadDays={ipvaLeadDays}
-            setIpvaLeadDays={setIpvaLeadDays}
-            ipvaClosingDay={ipvaClosingDay}
-            setIpvaClosingDay={setIpvaClosingDay}
-            licensingReminderDay={licensingReminderDay}
-            setLicensingReminderDay={setLicensingReminderDay}
-            showAlert={showAlert}
           />
           <ProfileRiskZones
             riskZones={riskZones}

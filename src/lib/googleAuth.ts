@@ -171,6 +171,44 @@ export const syncDataToSpreadsheet = async (
     };
   });
 
+  const mappedVehicles = (Array.isArray(registeredVehicles) ? registeredVehicles : []).map((item: any) => {
+    const idStr = item.id !== undefined && item.id !== null && String(item.id).trim() !== '' ? String(item.id) : String(Date.now());
+    const descStr = item.descricao || item['Descrição'] || item.nome || item.modelo || '';
+    const motStr = item.motorista || item['Motorista'] || '';
+    const placaStr = item.placa || item['Placa'] || '';
+    const renavanStr = item.renavan || item.renavam || item['Renavan'] || item['Renavam'] || '';
+    const chassiStr = item.chassi || item['Chassi'] || '';
+    const marcaStr = item.marca || item['Marca'] || '';
+    const modeloStr = item.modelo || item['Modelo'] || '';
+    const anoVal = item.ano !== undefined && item.ano !== null ? item.ano : (item['Ano'] || '');
+    const anoFabVal = item.anoFabricacao !== undefined && item.anoFabricacao !== null ? item.anoFabricacao : (item['Ano_Fabricação'] || item['Ano_Fabricacao'] || '');
+
+    return {
+      id: idStr,
+      descricao: descStr,
+      motorista: motStr,
+      placa: placaStr,
+      renavan: renavanStr,
+      chassi: chassiStr,
+      marca: marcaStr,
+      modelo: modeloStr,
+      ano: anoVal,
+      anoFabricacao: anoFabVal,
+
+      // Column Header Aliases for 9_Veiculos
+      ID: idStr,
+      Descrição: descStr,
+      Motorista: motStr,
+      Placa: placaStr,
+      Renavan: renavanStr,
+      Chassi: chassiStr,
+      Marca: marcaStr,
+      Modelo: modeloStr,
+      Ano: anoVal,
+      Ano_Fabricação: anoFabVal
+    };
+  });
+
   const payload = {
     action: 'syncData',
     spreadsheetId: cleanSheetId,
@@ -180,7 +218,9 @@ export const syncDataToSpreadsheet = async (
     appointments: Array.isArray(appointments) ? appointments : [],
     prescriptions: Array.isArray(prescriptions) ? prescriptions : [],
     compromissos: Array.isArray(compromissos) ? compromissos : [],
-    registeredVehicles: Array.isArray(registeredVehicles) ? registeredVehicles : [],
+    registeredVehicles: mappedVehicles,
+    veiculos: mappedVehicles,
+    "9_Veiculos": mappedVehicles,
     performedServices: mappedWorkshop,
     workshop: mappedWorkshop,
     oficina: mappedWorkshop,

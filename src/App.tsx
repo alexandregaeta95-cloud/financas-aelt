@@ -21,7 +21,8 @@ import {
   Comprovantes, 
   ListaMercado, 
   Indicacoes, 
-  Analise 
+  Analise,
+  Veiculos
 } from './pages';
 
 // Tab imports & Utilities
@@ -3447,6 +3448,48 @@ export default function App() {
     );
   };
 
+  const handleAddVehicle = async (vehicle: RegisteredVehicle) => {
+    const updated = [vehicle, ...registeredVehicles];
+    setRegisteredVehicles(updated);
+    localStorage.setItem('wealthflow_registered_vehicles', JSON.stringify(updated));
+    try {
+      await runTrackedSync('Cadastro de Veículo', vehicle.descricao || vehicle.modelo || 'Novo Veículo', async () => {
+        await saveRegisteredVehicleToDb(vehicle);
+      });
+    } catch (e) {
+      console.error('Erro ao salvar veículo no DB:', e);
+    }
+  };
+
+  const handleEditVehicle = async (id: string, updatedFields: Partial<RegisteredVehicle>) => {
+    const updated = registeredVehicles.map(v => String(v.id) === String(id) ? { ...v, ...updatedFields, id: v.id } : v);
+    setRegisteredVehicles(updated);
+    localStorage.setItem('wealthflow_registered_vehicles', JSON.stringify(updated));
+    const item = updated.find(v => String(v.id) === String(id));
+    if (item) {
+      try {
+        await runTrackedSync('Edição de Veículo', item.descricao || item.modelo || 'Veículo', async () => {
+          await saveRegisteredVehicleToDb(item);
+        });
+      } catch (e) {
+        console.error('Erro ao atualizar veículo no DB:', e);
+      }
+    }
+  };
+
+  const handleDeleteVehicle = async (id: string) => {
+    const updated = registeredVehicles.filter(v => String(v.id) !== String(id));
+    setRegisteredVehicles(updated);
+    localStorage.setItem('wealthflow_registered_vehicles', JSON.stringify(updated));
+    try {
+      await runTrackedSync('Exclusão de Veículo', `ID #${id}`, async () => {
+        await deleteRegisteredVehicleFromDb(id);
+      });
+    } catch (e) {
+      console.error('Erro ao excluir veículo no DB:', e);
+    }
+  };
+
   const handleReindexVehicles = async () => {
     if (!registeredVehicles.length) {
       showAlert("Sem Registros", "Não há veículos cadastrados para renumerar.");
@@ -4437,6 +4480,19 @@ export default function App() {
             showAlert={showAlert}
           />
         );
+      case 'veiculos':
+      case 'vehicles':
+        return (
+          <Veiculos
+            registeredVehicles={registeredVehicles}
+            onAddVehicle={handleAddVehicle}
+            onEditVehicle={handleEditVehicle}
+            onDeleteVehicle={handleDeleteVehicle}
+            onReindexVehicles={handleReindexVehicles}
+            showAlert={showAlert}
+            showConfirm={showConfirm}
+          />
+        );
       case 'assistant':
       case 'assistente':
         return (
@@ -5125,6 +5181,22 @@ export default function App() {
                   >
                     <span className="material-symbols-outlined text-[28px]">build_circle</span>
                     <span className="text-xs font-bold font-sans">Oficina</span>
+                  </button>
+
+                  {/* Veículos tab */}
+                  <button
+                    onClick={() => {
+                      handleTabNavigate('veiculos');
+                      setIsMaisMenuOpen(false);
+                    }}
+                    className={`flex flex-col items-center justify-center gap-2 p-4 rounded-2xl border transition-all cursor-pointer ${
+                      currentTab === 'veiculos' || currentTab === 'vehicles'
+                        ? 'bg-amber-500/10 border-amber-500/30 text-amber-400 shadow-md shadow-amber-500/5' 
+                        : 'bg-slate-950/40 border-slate-850 text-slate-400 hover:text-slate-100 hover:border-slate-800'
+                    }`}
+                  >
+                    <span className="material-symbols-outlined text-[28px]">directions_car</span>
+                    <span className="text-xs font-bold font-sans">Veículos</span>
                   </button>
 
                   {/* Agenda tab */}

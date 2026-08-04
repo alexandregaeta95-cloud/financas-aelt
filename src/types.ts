@@ -96,13 +96,21 @@ export interface MedicalPrescription {
 
 export interface RegisteredVehicle {
   id: string;
-  descricao: string; // ex: "FOX PRATA"
-  motorista: string; // ex: "ALEXANDRE"
-  placa?: string; // ex: "ABC-1234"
+  descricao: string; // ex: "FOX PRATA" (Coluna B)
+  motorista?: string; // ex: "ALEXANDRE" (Coluna C)
+  placa?: string; // ex: "ABC-1234" (Coluna D)
+  renavan?: string; // Coluna E
+  renavam?: string; // Alias
+  chassi?: string; // Coluna F
+  marca?: string; // Coluna G
+  modelo?: string; // Coluna H
+  ano?: string | number; // Coluna I
+  anoFabricacao?: string | number; // Coluna J
+  Ano_Fabricação?: string | number; // Alias
   mesFinalPlaca?: number; // Mês final/vencimento (1-12) para o IPVA
-  marca?: string;
-  modelo?: string;
   kmAtual?: number;
+  combustivel?: string;
+  nome?: string;
 }
 
 export interface Compromisso {

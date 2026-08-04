@@ -13,3 +13,4 @@ export { default as Comprovantes } from './Comprovantes';
 export { default as ListaMercado } from './ListaMercado';
 export { default as Indicacoes } from './Indicacoes';
 export { default as Analise } from './Analise';
+export { default as Veiculos } from './Veiculos';
