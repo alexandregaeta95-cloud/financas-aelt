@@ -209,6 +209,50 @@ export const syncDataToSpreadsheet = async (
     };
   });
 
+  const rawCompList = Array.isArray(compromissos) && compromissos.length > 0 ? compromissos : (Array.isArray(agenda) ? agenda : []);
+  const mappedCompromissos = rawCompList.map((item: any) => {
+    let rawDate = item.data || item.Data || '';
+    if (rawDate && rawDate.includes('-')) {
+      const parts = rawDate.split('T')[0].split('-');
+      if (parts.length === 3 && parts[0].length === 4) {
+        rawDate = `${parts[2]}/${parts[1]}/${parts[0]}`;
+      }
+    }
+    const idStr = item.id !== undefined && item.id !== null && String(item.id).trim() !== '' ? String(item.id) : (item.ID ? String(item.ID) : String(Date.now()));
+    const tituloStr = item.titulo || item.Titulo || item.title || '';
+    const horaStr = item.hora || item.Hora || item.horario || item.Horario || '';
+    const descStr = item.descricao || item['Descrição'] || item.Descricao || item.description || '';
+    const corStr = item.cor || item.Cor || item.Cor_De_Identificação || item['Cor_De_Identificação'] || '#22c55e';
+    const piscandoVal = (item.piscando === true || String(item.piscando).toUpperCase() === 'SIM' || String(item['Efeito_Alerta_(Piscando)']).toUpperCase() === 'SIM') ? 'SIM' : 'NÃO';
+    const lembreteVal = (item.lembreteAtivo === true || String(item.lembreteAtivo).toUpperCase() === 'SIM' || String(item['Lembrete_Ativo']).toUpperCase() === 'SIM') ? 'SIM' : 'NÃO';
+    const diasVal = item.diasAntecedencia !== undefined && item.diasAntecedencia !== null ? Number(item.diasAntecedencia) : (Number(item['Dias_De_Antecedência']) || 2);
+
+    return {
+      id: idStr,
+      titulo: tituloStr,
+      data: rawDate,
+      hora: horaStr,
+      descricao: descStr,
+      cor: corStr,
+      piscando: item.piscando ?? (piscandoVal === 'SIM'),
+      lembreteAtivo: item.lembreteAtivo ?? (lembreteVal === 'SIM'),
+      diasAntecedencia: diasVal,
+      concluido: item.concluido ?? false,
+
+      // Column Header Aliases for Aba 19_Agenda_E_Compromissos
+      // A: ID | B: Titulo | C: Data | D: Hora | E: Descrição | F: Cor_De_Identificação | G: Efeito_Alerta_(Piscando) | H: Lembrete_Ativo | I: Dias_De_Antecedência
+      ID: idStr,
+      Titulo: tituloStr,
+      Data: rawDate,
+      Hora: horaStr,
+      Descrição: descStr,
+      Cor_De_Identificação: corStr,
+      "Efeito_Alerta_(Piscando)": piscandoVal,
+      Lembrete_Ativo: lembreteVal,
+      Dias_De_Antecedência: diasVal
+    };
+  });
+
   const payload = {
     action: 'syncData',
     spreadsheetId: cleanSheetId,
@@ -217,7 +261,7 @@ export const syncDataToSpreadsheet = async (
     riskZones: mappedRiskZones,
     appointments: Array.isArray(appointments) ? appointments : [],
     prescriptions: Array.isArray(prescriptions) ? prescriptions : [],
-    compromissos: Array.isArray(compromissos) ? compromissos : [],
+    compromissos: mappedCompromissos,
     registeredVehicles: mappedVehicles,
     veiculos: mappedVehicles,
     "9_Veiculos": mappedVehicles,
@@ -227,7 +271,8 @@ export const syncDataToSpreadsheet = async (
     "14_Oficina": mappedWorkshop,
     scheduledServices: Array.isArray(scheduledServices) ? scheduledServices : [],
     scheduledMaintenance: Array.isArray(scheduledMaintenance) ? scheduledMaintenance : [],
-    agenda: Array.isArray(agenda) ? agenda : [],
+    agenda: mappedCompromissos,
+    "19_Agenda_E_Compromissos": mappedCompromissos,
     bankAccounts: Array.isArray(bankAccounts) ? bankAccounts : [],
     creditCards: Array.isArray(creditCards) ? creditCards : [],
     analysis: Array.isArray(analysis) ? analysis : [],

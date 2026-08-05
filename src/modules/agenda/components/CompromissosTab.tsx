@@ -24,6 +24,7 @@ export default function CompromissosTab({
   const [editingComp, setEditingComp] = useState<Compromisso | null>(null);
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [selectedDetailComp, setSelectedDetailComp] = useState<Compromisso | null>(null);
+  const [searchTerm, setSearchTerm] = useState('');
 
   // Browser Notification state & helpers
   const [notificationPermission, setNotificationPermission] = useState<NotificationPermission>(
@@ -146,6 +147,18 @@ export default function CompromissosTab({
     });
   }, [compromissos]);
 
+  // Filtered compromissos by search term
+  const searchFilteredCompromissos = useMemo(() => {
+    if (!searchTerm.trim()) return [];
+    const term = searchTerm.toLowerCase().trim();
+    return compromissos.filter(c =>
+      (c.titulo && c.titulo.toLowerCase().includes(term)) ||
+      (c.descricao && c.descricao.toLowerCase().includes(term)) ||
+      (c.data && c.data.includes(term)) ||
+      (c.hora && c.hora.includes(term))
+    );
+  }, [compromissos, searchTerm]);
+
   // Selected day's commitments
   const selectedDayCompromissos = useMemo(() => {
     return compromissos.filter(c => c.data === selectedDateStr);
@@ -240,13 +253,37 @@ export default function CompromissosTab({
             Gerencie e agende compromissos importantes com alertas configuráveis por cor.
           </p>
         </div>
-        <button
-          onClick={() => handleOpenAddForm()}
-          className="flex items-center justify-center gap-1.5 px-4 py-2 bg-gradient-to-r from-emerald-500 to-teal-600 text-white font-semibold text-xs rounded-xl shadow-lg shadow-emerald-500/10 hover:shadow-emerald-500/20 active:scale-95 transition-all"
-        >
-          <span className="material-symbols-outlined text-sm">add</span>
-          Novo Compromisso
-        </button>
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5">
+          {/* Search Input Bar */}
+          <div className="relative">
+            <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm pointer-events-none">
+              search
+            </span>
+            <input
+              type="text"
+              placeholder="Pesquisar compromissos..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="w-full sm:w-60 bg-slate-900/80 border border-slate-800 rounded-xl pl-9 pr-8 py-2 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-emerald-500/50 transition-all"
+            />
+            {searchTerm && (
+              <button
+                onClick={() => setSearchTerm('')}
+                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white"
+              >
+                <span className="material-symbols-outlined text-xs">close</span>
+              </button>
+            )}
+          </div>
+
+          <button
+            onClick={() => handleOpenAddForm()}
+            className="flex items-center justify-center gap-1.5 px-4 py-2 bg-gradient-to-r from-emerald-500 to-teal-600 text-white font-semibold text-xs rounded-xl shadow-lg shadow-emerald-500/10 hover:shadow-emerald-500/20 active:scale-95 transition-all shrink-0"
+          >
+            <span className="material-symbols-outlined text-sm">add</span>
+            Novo Compromisso
+          </button>
+        </div>
       </div>
 
       {/* Sistema de Lembretes Agendados via Browser Notification API */}
@@ -512,41 +549,66 @@ export default function CompromissosTab({
 
         {/* Right Side: Commitment List & Form Panel (4 cols on large) */}
         <div className="lg:col-span-4 space-y-4">
-          {/* Day's appointments */}
+          {/* Day's appointments / Search results */}
           <div className="bg-slate-900/40 border border-slate-800/80 rounded-2xl p-4 flex flex-col min-h-[350px]">
             <div className="flex items-center justify-between border-b border-slate-800/60 pb-3 mb-3">
               <div>
-                <h4 className="text-xs font-bold font-mono text-slate-400 uppercase tracking-wider">
-                  Dia Selecionado
+                <h4 className="text-xs font-bold font-mono text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
+                  {searchTerm ? (
+                    <>
+                      <span className="material-symbols-outlined text-sm text-emerald-400">search</span>
+                      Resultados da Pesquisa
+                    </>
+                  ) : (
+                    'Dia Selecionado'
+                  )}
                 </h4>
                 <p className="text-sm font-semibold text-white mt-0.5">
-                  {formatDateBRL(selectedDateStr)}
+                  {searchTerm ? `"${searchTerm}" (${searchFilteredCompromissos.length} encontrado${searchFilteredCompromissos.length === 1 ? '' : 's'})` : formatDateBRL(selectedDateStr)}
                 </p>
               </div>
-              <button
-                onClick={() => handleOpenAddForm(selectedDateStr)}
-                className="w-8 h-8 rounded-lg bg-slate-800 hover:bg-slate-700 text-emerald-400 flex items-center justify-center transition-all active:scale-95"
-                title="Adicionar para este dia"
-              >
-                <span className="material-symbols-outlined text-lg">add_task</span>
-              </button>
-            </div>
-
-            {/* List for the day */}
-            <div className="flex-grow space-y-3 overflow-y-auto max-h-[300px] pr-1">
-              {selectedDayCompromissos.length === 0 ? (
-                <div className="h-full flex flex-col items-center justify-center text-center p-6 py-12 text-slate-500">
-                  <span className="material-symbols-outlined text-3xl opacity-30">calendar_today</span>
-                  <p className="text-xs mt-2 font-mono">Sem compromissos nesta data.</p>
+              <div className="flex items-center gap-1.5">
+                {searchTerm ? (
+                  <button
+                    onClick={() => setSearchTerm('')}
+                    className="px-2 py-1 bg-slate-800 hover:bg-slate-700 text-slate-300 text-[10px] font-mono rounded-lg transition-all"
+                    title="Limpar pesquisa"
+                  >
+                    Limpar
+                  </button>
+                ) : (
                   <button
                     onClick={() => handleOpenAddForm(selectedDateStr)}
-                    className="text-[10px] text-emerald-400 underline mt-1 hover:text-emerald-300"
+                    className="w-8 h-8 rounded-lg bg-slate-800 hover:bg-slate-700 text-emerald-400 flex items-center justify-center transition-all active:scale-95"
+                    title="Adicionar para este dia"
                   >
-                    Agendar um compromisso
+                    <span className="material-symbols-outlined text-lg">add_task</span>
                   </button>
+                )}
+              </div>
+            </div>
+
+            {/* List for the day or search results */}
+            <div className="flex-grow space-y-3 overflow-y-auto max-h-[300px] pr-1">
+              {(searchTerm ? searchFilteredCompromissos : selectedDayCompromissos).length === 0 ? (
+                <div className="h-full flex flex-col items-center justify-center text-center p-6 py-12 text-slate-500">
+                  <span className="material-symbols-outlined text-3xl opacity-30">
+                    {searchTerm ? 'search_off' : 'calendar_today'}
+                  </span>
+                  <p className="text-xs mt-2 font-mono">
+                    {searchTerm ? `Nenhum compromisso encontrado para "${searchTerm}".` : 'Sem compromissos nesta data.'}
+                  </p>
+                  {!searchTerm && (
+                    <button
+                      onClick={() => handleOpenAddForm(selectedDateStr)}
+                      className="text-[10px] text-emerald-400 underline mt-1 hover:text-emerald-300"
+                    >
+                      Agendar um compromisso
+                    </button>
+                  )}
                 </div>
               ) : (
-                selectedDayCompromissos.map(comp => {
+                (searchTerm ? searchFilteredCompromissos : selectedDayCompromissos).map(comp => {
                   const pulseStyle = comp.piscando !== false && !comp.concluido
                     ? { animation: 'pulse 1.5s cubic-bezier(0.4, 0, 0.6, 1) infinite' } 
                     : {};

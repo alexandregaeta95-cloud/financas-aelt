@@ -1085,9 +1085,48 @@ export default function App() {
               setPrescriptions(sheetData.prescriptions);
               localStorage.setItem('wealthflow_prescriptions', JSON.stringify(sheetData.prescriptions));
             }
-            if (sheetData && Array.isArray(sheetData.compromissos) && sheetData.compromissos.length > 0) {
-              setCompromissos(sheetData.compromissos);
-              localStorage.setItem('wealthflow_compromissos', JSON.stringify(sheetData.compromissos));
+            const rawCompromissos = (sheetData && Array.isArray(sheetData.compromissos) && sheetData.compromissos.length > 0)
+              ? sheetData.compromissos
+              : (sheetData && Array.isArray(sheetData.agenda) && sheetData.agenda.length > 0)
+                ? sheetData.agenda
+                : (sheetData && Array.isArray(sheetData["19_Agenda_E_Compromissos"]) && sheetData["19_Agenda_E_Compromissos"].length > 0)
+                  ? sheetData["19_Agenda_E_Compromissos"]
+                  : null;
+
+            if (rawCompromissos && rawCompromissos.length > 0) {
+              const parsedCompromissos: Compromisso[] = rawCompromissos.filter(Boolean).map((item: any) => {
+                let rawDate = item.data || item.Data || '';
+                if (rawDate && rawDate.includes('/')) {
+                  const parts = rawDate.split('/');
+                  if (parts.length === 3) {
+                    rawDate = `${parts[2]}-${parts[1].padStart(2, '0')}-${parts[0].padStart(2, '0')}`;
+                  }
+                }
+                const idStr = item.id !== undefined && item.id !== null && String(item.id).trim() !== '' ? String(item.id) : (item.ID ? String(item.ID) : String(Date.now()));
+                const tituloStr = item.titulo || item.Titulo || item.title || '';
+                const horaStr = item.hora || item.Hora || item.horario || item.Horario || '';
+                const descStr = item.descricao || item['Descrição'] || item.Descricao || item.description || '';
+                const corStr = item.cor || item.Cor || item.Cor_De_Identificação || item['Cor_De_Identificação'] || '#22c55e';
+                const piscandoVal = item.piscando === true || String(item.piscando).toUpperCase() === 'SIM' || String(item['Efeito_Alerta_(Piscando)']).toUpperCase() === 'SIM' || String(item.piscando) === 'true';
+                const lembreteVal = item.lembreteAtivo === true || String(item.lembreteAtivo).toUpperCase() === 'SIM' || String(item['Lembrete_Ativo']).toUpperCase() === 'SIM' || String(item.lembreteAtivo) === 'true';
+                const diasVal = item.diasAntecedencia !== undefined && item.diasAntecedencia !== null ? Number(item.diasAntecedencia) : (Number(item['Dias_De_Antecedência']) || 2);
+
+                return {
+                  id: idStr,
+                  titulo: tituloStr,
+                  data: rawDate,
+                  hora: horaStr,
+                  descricao: descStr,
+                  cor: corStr,
+                  piscando: piscandoVal,
+                  lembreteAtivo: lembreteVal,
+                  diasAntecedencia: diasVal,
+                  concluido: item.concluido === true || String(item.concluido) === 'true' || String(item.Status).toUpperCase() === 'CONCLUÍDO',
+                  updatedAt: item.updatedAt ? Number(item.updatedAt) : Date.now()
+                };
+              });
+              setCompromissos(parsedCompromissos);
+              localStorage.setItem('wealthflow_compromissos', JSON.stringify(parsedCompromissos));
             }
             if (sheetData && Array.isArray(sheetData.registeredVehicles) && sheetData.registeredVehicles.length > 0) {
               const safeVehs = sheetData.registeredVehicles.filter(Boolean).map((v: any) => ({
@@ -3902,7 +3941,7 @@ export default function App() {
     }
     const activeToken = getEffectiveGoogleToken();
     if (activeToken) {
-      triggerSync(activeToken, true, undefined, undefined, undefined, undefined, undefined, false, updated);
+      triggerSync(activeToken, true, undefined, undefined, undefined, undefined, undefined, true, updated);
     }
   };
 
@@ -3920,7 +3959,7 @@ export default function App() {
     }
     const activeToken = getEffectiveGoogleToken();
     if (activeToken) {
-      triggerSync(activeToken, true, undefined, undefined, undefined, undefined, undefined, false, updated);
+      triggerSync(activeToken, true, undefined, undefined, undefined, undefined, undefined, true, updated);
     }
   };
 
@@ -3940,7 +3979,7 @@ export default function App() {
     }
     const activeToken = getEffectiveGoogleToken();
     if (activeToken) {
-      triggerSync(activeToken, true, undefined, undefined, undefined, undefined, undefined, false, updated);
+      triggerSync(activeToken, true, undefined, undefined, undefined, undefined, undefined, true, updated);
     }
   };
 
