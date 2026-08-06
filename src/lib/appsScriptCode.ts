@@ -2,8 +2,12 @@
  * ==============================================================================
  * GOOGLE APPS SCRIPT BACKEND ENGINE - WEALTHFLOW / FINANÇAS GAETA (v3.0 - FULL)
  * ==============================================================================
- * Sincronização Completa e Suporte Multimódulo com Mapeamento Inteligente de Abas,
- * Leitura Dinâmica de Cabeçalhos, Tratamento de Erros Isolado e Relatório de Execução.
+ */
+
+export const APPS_SCRIPT_CODE = `/**
+ * ==============================================================================
+ * GOOGLE APPS SCRIPT BACKEND ENGINE - WEALTHFLOW / FINANÇAS GAETA (v3.0 - FULL)
+ * ==============================================================================
  */
 
 var txHeaders = [
@@ -65,7 +69,6 @@ function doPost(e) {
       return createJsonResponse({ status: 'success', transactions: txs });
     }
 
-    // Ação Padrão: Sincronizar Todos os Módulos
     var report = saveAllDataToSheet(ss, postData);
     var endTime = new Date().getTime();
 
@@ -104,18 +107,12 @@ function createJsonResponse(obj) {
     .setMimeType(ContentService.MimeType.JSON);
 }
 
-// ------------------------------------------------------------------------------
-// MAPEAMENTO E LOCALIZAÇÃO DE ABAS (FUZZY & ALIASES)
-// ------------------------------------------------------------------------------
-
 function findOrCreateSheet(ss, primaryName, aliases) {
   if (!ss) ss = SpreadsheetApp.getActiveSpreadsheet();
 
-  // 1. Busca Direta por Nome Primário
   var sheet = ss.getSheetByName(primaryName);
   if (sheet) return sheet;
 
-  // 2. Busca Direta por Aliases
   if (aliases && Array.isArray(aliases)) {
     for (var i = 0; i < aliases.length; i++) {
       var s = ss.getSheetByName(aliases[i]);
@@ -123,14 +120,13 @@ function findOrCreateSheet(ss, primaryName, aliases) {
     }
   }
 
-  // 3. Busca Fuzzy / Normalizada
   var allSheets = ss.getSheets();
   var normalize = function(str) {
     if (!str) return '';
     return String(str)
       .toUpperCase()
-      .normalize("NFD").replace(/[\u0300-\u036f]/g, "")
-      .replace(/^\d+[_-\s]*/, '') // Remove prefixos como 9_ ou 14_
+      .normalize("NFD").replace(/[\\u0300-\\u036f]/g, "")
+      .replace(/^\\d+[_-\\s]*/, '')
       .replace(/[^A-Z0-9]/g, '');
   };
 
@@ -156,13 +152,8 @@ function findOrCreateSheet(ss, primaryName, aliases) {
     }
   }
 
-  // 4. Criação Automática
   return ss.insertSheet(primaryName);
 }
-
-// ------------------------------------------------------------------------------
-// LEITURA INTELIGENTE DE DADOS
-// ------------------------------------------------------------------------------
 
 function fetchAllDataFromSheet(ss) {
   if (!ss) ss = SpreadsheetApp.getActiveSpreadsheet();
@@ -275,10 +266,8 @@ function readGenericSheet(ss, primaryName, aliases) {
           val = '';
         }
 
-        // Raw header property
         item[headerKey] = val;
 
-        // Normalized camelCase property key
         var normKey = normalizeHeaderKey(headerKey);
         if (normKey && !(normKey in item)) {
           item[normKey] = parseTypedValue(normKey, val);
@@ -299,7 +288,7 @@ function readGenericSheet(ss, primaryName, aliases) {
 function normalizeHeaderKey(hName) {
   if (!hName) return '';
   var clean = String(hName).trim();
-  var upper = clean.toUpperCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^A-Z0-9]/g, "");
+  var upper = clean.toUpperCase().normalize("NFD").replace(/[\\u0300-\\u036f]/g, "").replace(/[^A-Z0-9]/g, "");
 
   if (upper === 'ID') return 'id';
   if (upper === 'DATA' || upper === 'DATAEMISSAO' || upper === 'DATAREGISTRO' || upper === 'DATAALVO') return 'data';
@@ -360,15 +349,11 @@ function parseTypedValue(key, val) {
     return val === true || val === 'true' || String(val).toUpperCase() === 'SIM' || String(val).toUpperCase() === 'TRUE';
   }
   if (key === 'valor' || key === 'valorPago' || key === 'valorAPG' || key === 'litros' || key === 'precoLitro' || key === 'km' || key === 'quantidade' || key === 'latitude' || key === 'longitude' || key === 'raioMetros') {
-    var num = Number(String(val).replace(/\./g, '').replace(',', '.'));
+    var num = Number(String(val).replace(/\\./g, '').replace(',', '.'));
     return !isNaN(num) ? num : val;
   }
   return val;
 }
-
-// ------------------------------------------------------------------------------
-// GRAVAÇÃO INTELIGENTE DE DADOS
-// ------------------------------------------------------------------------------
 
 function saveAllDataToSheet(ss, payload) {
   if (!ss) ss = SpreadsheetApp.getActiveSpreadsheet();
@@ -619,24 +604,21 @@ function writeRowsToSheet(ss, primaryName, aliases, defaultHeaders, items) {
 function extractFieldValue(item, headerName) {
   if (!item || !headerName) return '';
 
-  // 1. Busca exata pela chave no objeto
   if (headerName in item && item[headerName] !== undefined && item[headerName] !== null) {
     return item[headerName];
   }
 
-  var hUpper = String(headerName).toUpperCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^A-Z0-9]/g, "");
+  var hUpper = String(headerName).toUpperCase().normalize("NFD").replace(/[\\u0300-\\u036f]/g, "").replace(/[^A-Z0-9]/g, "");
 
-  // 2. Procura nas chaves do objeto por correspondência insensível a maiúsculas/acentos
   for (var k in item) {
     if (item.hasOwnProperty(k) && item[k] !== undefined && item[k] !== null) {
-      var kUpper = String(k).toUpperCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^A-Z0-9]/g, "");
+      var kUpper = String(k).toUpperCase().normalize("NFD").replace(/[\\u0300-\\u036f]/g, "").replace(/[^A-Z0-9]/g, "");
       if (kUpper === hUpper) {
         return item[k];
       }
     }
   }
 
-  // 3. Mapeamentos de Alias por Nome de Cabeçalho Específico
   if (hUpper === 'ID') return item.id || item.Id || item.ID || '';
   if (hUpper === 'DATA') return item.data || item.Data || item.dataEmissao || item.dataRegistro || item.dataAlvo || '';
   if (hUpper === 'DESCRICAO') return item.descricao || item['Descrição'] || item.nome || item.nomeTitulo || item.item || item.titulo || '';
@@ -708,3 +690,4 @@ function extractFieldValue(item, headerName) {
 
   return '';
 }
+`;
