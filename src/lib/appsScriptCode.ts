@@ -69,6 +69,11 @@ function doPost(e) {
       return createJsonResponse({ status: 'success', transactions: txs });
     }
 
+    if (action === 'uploadBackup') {
+      var backupRes = handleUploadBackup(ss, postData);
+      return createJsonResponse(backupRes);
+    }
+
     var report = saveAllDataToSheet(ss, postData);
     var endTime = new Date().getTime();
 
@@ -159,25 +164,25 @@ function fetchAllDataFromSheet(ss) {
   if (!ss) ss = SpreadsheetApp.getActiveSpreadsheet();
 
   var txs = readTransactions(ss);
-  var riskZones = readGenericSheet(ss, '17_Zonas_De_Risco', ['ZonasDeRisco', 'ZonaDeRisco', 'Zona de risco', 'RiskZones']);
-  var appointments = readGenericSheet(ss, '6_Consultas_Médicas', ['6_Consultas_Medicas', 'ConsultasMedicas', 'Consultas Médicas', 'Consultas', 'Appointments']);
-  var prescriptions = readGenericSheet(ss, '7_Receitas_Médicas', ['7_Receitas_Medicas', 'ReceitasMedicas', 'Receitas Médicas', 'Prescriptions']);
-  var compromissos = readGenericSheet(ss, '19_Agenda_E_Compromissos', ['Agenda', 'Compromissos', 'AgendaECompromissos', 'Agenda e Compromissos']);
-  var vehicles = readGenericSheet(ss, '9_Veiculos', ['9_Veículos', 'Veiculos', 'Veículos', 'Veiculos Registrados', 'RegisteredVehicles']);
-  var performedServices = readGenericSheet(ss, '14_Oficina', ['Oficina', 'ServicosRealizados', 'Serviços Realizados', 'Workshop']);
-  var scheduledServices = readGenericSheet(ss, '15_Manutenções_Agendadas', ['15_Manutencoes_Agendadas', 'ServicosAgendados', 'Serviços Agendados', 'Manutenções Agendadas']);
-  var groceryItems = readGenericSheet(ss, '16_Lista_De_Mercado', ['ListaMercado', 'Lista de Mercado', 'GroceryItems']);
-  var bankAccounts = readGenericSheet(ss, '5_Contas_Bancarias', ['5_Contas_Bancárias', 'Contas Bancárias', 'ContasBancarias', 'Contas']);
-  var creditCards = readGenericSheet(ss, '18_Cartões_De_Crédito', ['18_Cartoes_De_Credito', 'Cartões de Crédito', 'CartoesDeCredito']);
-  var infractions = readGenericSheet(ss, '8_Infracoes', ['Infrações', 'Infracoes', 'Multas']);
-  var categoryBudgets = readGenericSheet(ss, '10_Metas_De_Categoria', ['MetasDeCategoria', 'Metas de Categoria', 'CategoryBudgets']);
-  var customCategories = readGenericSheet(ss, '11_Categorias_Customizadas', ['CategoriasCustomizadas', 'Categorias Customizadas', 'CustomCategories']);
-  var analysis = readGenericSheet(ss, '12_Analises', ['12_Análises', 'Analises', 'Análises', 'Analysis']);
-  var profile = readGenericSheet(ss, '13_Perfil', ['Perfil', 'Profile']);
+  var riskZones = readGenericSheet(ss, '17_Zonas_De_Risco', ['ZonasDeRisco', 'ZonaDeRisco', 'Zona de risco', 'RiskZones'], ['ID', 'Tipo_Registro', 'Nome_Título', 'Nível_De_Risco', 'Latitude', 'Longitude', 'Raio (m)', 'Ativo', 'Mensagem_De_Alerta', 'Data_Registro', 'Observação']);
+  var appointments = readGenericSheet(ss, '6_Consultas_Médicas', ['6_Consultas_Medicas', 'ConsultasMedicas', 'Consultas Médicas', 'Consultas', 'Appointments'], ['ID', 'Especialidade', 'Médico', 'Data', 'Horas', 'Local', 'Lembrete_Ativo', 'Status', 'Observação']);
+  var prescriptions = readGenericSheet(ss, '7_Receitas_Médicas', ['7_Receitas_Medicas', 'ReceitasMedicas', 'Receitas Médicas', 'Prescriptions'], ['ID', 'Medicamento', 'Dosagem', 'Frequência', 'Médico', 'Especialidade', 'Data_Emissão', 'Data_Vencimento', 'Instruções', 'Observação', 'Arquivo_Anexo']);
+  var compromissos = readGenericSheet(ss, '19_Agenda_E_Compromissos', ['Agenda', 'Compromissos', 'AgendaECompromissos', 'Agenda e Compromissos'], ['ID', 'Titulo', 'Data', 'Hora', 'Descrição', 'Cor_De_Identificação', 'Efeito_Alerta_(Piscando)', 'Lembrete_Ativo', 'Dias_De_Antecedência', 'Concluído', 'Categoria']);
+  var vehicles = readGenericSheet(ss, '9_Veiculos', ['9_Veículos', 'Veiculos', 'Veículos', 'Veiculos Registrados', 'RegisteredVehicles'], ['ID', 'Descrição', 'Motorista', 'Placa', 'Renavan', 'Chassi', 'Marca', 'Modelo', 'Ano', 'Ano_Fabricação', 'Mês_Final_Placa', 'KM_Atual', 'Combustível']);
+  var performedServices = readGenericSheet(ss, '14_Oficina', ['Oficina', 'ServicosRealizados', 'Serviços Realizados', 'Workshop'], ['ID', 'Data', 'Descrição', 'KM', 'Valor_A_PG', 'Valor_Pago', 'Oficina_Nome', 'Comprovante_Url', 'Observações', 'VeiculoID']);
+  var scheduledServices = readGenericSheet(ss, '15_Manutenções_Agendadas', ['15_Manutencoes_Agendadas', 'ServicosAgendados', 'Serviços Agendados', 'Manutenções Agendadas'], ['ID', 'Data_Alvo', 'KM_Alvo', 'Descrição', 'Status', 'Prioridade', 'Oficina_Nome', 'Observações', 'VeiculoID', 'Tipo_Agendamento', 'Recorrente', 'Frequência_Meses', 'Frequência_KM']);
+  var groceryItems = readGenericSheet(ss, '16_Lista_De_Mercado', ['ListaMercado', 'Lista de Mercado', 'GroceryItems'], ['ID', 'Item', 'Categoria', 'Quantidade', 'Unidade', 'Valor_Estimado', 'Comprado', 'Observação']);
+  var bankAccounts = readGenericSheet(ss, '5_Contas_Bancarias', ['5_Contas_Bancárias', 'Contas Bancárias', 'ContasBancarias', 'Contas'], ['ID', 'Nome', 'Saldo_Inicial', 'Cor', 'Ícone', 'Tipo', 'Agência', 'Conta', 'Limite']);
+  var creditCards = readGenericSheet(ss, '18_Cartões_De_Crédito', ['18_Cartoes_De_Credito', 'Cartões de Crédito', 'CartoesDeCredito'], ['ID', 'Nome', 'Limite', 'Fechamento', 'Vencimento', 'Cor', 'Banco_Id', 'Gasto']);
+  var infractions = readGenericSheet(ss, '8_Infracoes', ['Infrações', 'Infracoes', 'Multas'], ['ID', 'Protocolo', 'Título', 'Veículo', 'Placa', 'Data', 'Descrição', 'Valor', 'Pontos', 'Status', 'Localização', 'Observação']);
+  var categoryBudgets = readGenericSheet(ss, '10_Metas_De_Categoria', ['MetasDeCategoria', 'Metas de Categoria', 'CategoryBudgets'], ['ID', 'Categoria', 'Valor_Limite', 'Período', 'Observação']);
+  var customCategories = readGenericSheet(ss, '11_Categorias_Customizadas', ['CategoriasCustomizadas', 'Categorias Customizadas', 'CustomCategories'], ['ID', 'Nome', 'Tipo', 'Cor', 'Ícone']);
+  var analysis = readGenericSheet(ss, '12_Analises', ['12_Análises', 'Analises', 'Análises', 'Analysis'], ['ID', 'Título', 'Data', 'Resultado', 'Observação']);
+  var profile = readGenericSheet(ss, '13_Perfil', ['Perfil', 'Profile'], ['ID', 'Nome', 'Email', 'Telefone', 'Configurações']);
 
   return {
     transactions: txs,
-    abastecimentos: txs.filter(function(t) { return String(t.categoria || '').toUpperCase() === 'ABASTECIMENTO'; }),
+    abastecimentos: txs.filter(function(t) { return String(t.categoria || '').toUpperCase() === 'ABASTECIMENTO' || String(t.Categoria || '').toUpperCase() === 'ABASTECIMENTO'; }),
     riskZones: riskZones,
     appointments: appointments,
     consultas: appointments,
@@ -214,12 +219,15 @@ function readTransactions(ss) {
   var seenIds = {};
 
   sheetsToRead.forEach(function(sConfig) {
-    var items = readGenericSheet(ss, sConfig.name, sConfig.aliases);
+    var items = readGenericSheet(ss, sConfig.name, sConfig.aliases, txHeaders);
     if (!items || items.length === 0) return;
 
-    items.forEach(function(item) {
+    items.forEach(function(item, idx) {
       var rawId = item.id || item.Id || item.ID;
-      if (!rawId) return;
+      if (!rawId) {
+        rawId = (new Date().getTime() + Math.floor(Math.random() * 100000) + idx);
+        item.id = rawId;
+      }
       var idStr = String(rawId).trim();
       if (seenIds[idStr]) return;
       seenIds[idStr] = true;
@@ -231,7 +239,7 @@ function readTransactions(ss) {
   return allTx;
 }
 
-function readGenericSheet(ss, primaryName, aliases) {
+function readGenericSheet(ss, primaryName, aliases, defaultHeaders) {
   try {
     var sheet = findOrCreateSheet(ss, primaryName, aliases);
     var data = sheet.getDataRange().getValues();
@@ -274,7 +282,12 @@ function readGenericSheet(ss, primaryName, aliases) {
         }
       }
 
-      if (!item.id && (item.Id || item.ID)) item.id = item.Id || item.ID;
+      if (!item.id && (item.Id || item.ID)) {
+        item.id = item.Id || item.ID;
+      }
+      if (!item.id) {
+        item.id = new Date().getTime() + Math.floor(Math.random() * 100000) + i;
+      }
 
       result.push(item);
     }
@@ -291,9 +304,9 @@ function normalizeHeaderKey(hName) {
   var upper = clean.toUpperCase().normalize("NFD").replace(/[\\u0300-\\u036f]/g, "").replace(/[^A-Z0-9]/g, "");
 
   if (upper === 'ID') return 'id';
-  if (upper === 'DATA' || upper === 'DATAEMISSAO' || upper === 'DATAREGISTRO' || upper === 'DATAALVO') return 'data';
-  if (upper === 'DESCRICAO' || upper === 'DESCRICAODOVEICULO' || upper === 'NOMETITULO') return 'descricao';
-  if (upper === 'VALOR' || upper === 'VALORLIMITE' || upper === 'VALORESTIMADO') return 'valor';
+  if (upper === 'DATA' || upper === 'DATAEMISSAO' || upper === 'DATAREGISTRO' || upper === 'DATAALVO' || upper === 'DATAOCORRENCIA') return 'data';
+  if (upper === 'DESCRICAO' || upper === 'DESCRICAODOVEICULO' || upper === 'NOMETITULO' || upper === 'JUSTIFICATIVA') return 'descricao';
+  if (upper === 'VALOR' || upper === 'VALORLIMITE' || upper === 'VALORESTIMADO' || upper === 'VALORMULTA' || upper === 'VALORPREMIO' || upper === 'SALDOINICIAL') return 'valor';
   if (upper === 'VALORPG' || upper === 'VALORPAGO') return 'valorPago';
   if (upper === 'VALORAPG' || upper === 'VALORAPAGAR') return 'valorAPG';
   if (upper === 'BANCOID') return 'bancoId';
@@ -302,7 +315,7 @@ function normalizeHeaderKey(hName) {
   if (upper === 'TIPO') return 'tipo';
   if (upper === 'CATEGORIA') return 'categoria';
   if (upper === 'STATUS') return 'status';
-  if (upper === 'KM' || upper === 'KMALVO') return 'km';
+  if (upper === 'KM' || upper === 'KMALVO' || upper === 'KMATUAL') return 'km';
   if (upper === 'LITROS') return 'litros';
   if (upper === 'PRECOLITRO') return 'precoLitro';
   if (upper === 'COMPLETOUOTANQUE') return 'completouTanque';
@@ -311,14 +324,14 @@ function normalizeHeaderKey(hName) {
   if (upper === 'VEICULO' || upper === 'VEICULOID') return 'veiculoId';
   if (upper === 'MOTORISTA') return 'motorista';
   if (upper === 'NOMEPOSTO') return 'nomePosto';
-  if (upper === 'LOCALIZACAODOPOSTO' || upper === 'LOCAL') return 'local';
+  if (upper === 'LOCALIZACAODOPOSTO' || upper === 'LOCAL' || upper === 'LOCALIZACAO') return 'local';
   if (upper === 'COMPROVANTEURL') return 'comprovanteUrl';
-  if (upper === 'OBS' || upper === 'OBSERVACAO' || upper === 'OBSERVACOES') return 'obs';
+  if (upper === 'OBS' || upper === 'OBSERVACAO' || upper === 'OBSERVACOES' || upper === 'INSTRUCOES') return 'observacoes';
   if (upper === 'TITULO') return 'titulo';
   if (upper === 'HORA' || upper === 'HORAS' || upper === 'HORARIO') return 'hora';
   if (upper === 'MEDICO') return 'medico';
   if (upper === 'ESPECIALIDADE') return 'especialidade';
-  if (upper === 'MEDICAMENTO') return 'medicamento';
+  if (upper === 'MEDICAMENTO' || upper === 'MEDICAMENTOS') return 'medicamento';
   if (upper === 'DOSAGEM') return 'dosagem';
   if (upper === 'FREQUENCIA') return 'frequencia';
   if (upper === 'PLACA') return 'placa';
@@ -332,23 +345,37 @@ function normalizeHeaderKey(hName) {
   if (upper === 'QUANTIDADE') return 'quantidade';
   if (upper === 'UNIDADE') return 'unidade';
   if (upper === 'COMPRADO') return 'comprado';
-  if (upper === 'NIVELDERISCO' || upper === 'NIVELRISCO') return 'nivelRisco';
+  if (upper === 'NIVELDERISCO' || upper === 'NIVELRISCO') return 'nivelDeRisco';
   if (upper === 'LATITUDE') return 'latitude';
   if (upper === 'LONGITUDE') return 'longitude';
   if (upper === 'RAIOM' || upper === 'RAIO') return 'raioMetros';
-  if (upper === 'ATIVO' || upper === 'LEMBRETEATIVO') return 'ativo';
+  if (upper === 'ATIVO') return 'ativo';
   if (upper === 'COR' || upper === 'CORDEIDENTIFICACAO') return 'cor';
-  if (upper === 'ICONE') return 'icone';
+  if (upper === 'EFEITOALERTAPISCANDO') return 'piscando';
+  if (upper === 'LEMBRETEATIVO') return 'lembreteAtivo';
+  if (upper === 'DIASDEANTECEDENCIA') return 'diasAntecedencia';
+  if (upper === 'CONCLUIDO') return 'concluido';
+  if (upper === 'FECHAMENTO') return 'fechamento';
+  if (upper === 'VENCIMENTO') return 'vencimento';
+  if (upper === 'LIMITE') return 'limite';
+  if (upper === 'AGENCIA') return 'agencia';
+  if (upper === 'CONTA') return 'conta';
+  if (upper === 'PONTOS') return 'pontos';
+  if (upper === 'PROTOCOLO') return 'protocolo';
+  if (upper === 'MENSAGEMDEALERTA') return 'mensagemDeAlerta';
+  if (upper === 'GASTO') return 'gasto';
+  if (upper === 'PERIODO') return 'periodo';
+  if (upper === 'CONFIGURACOES') return 'configuracoes';
 
   return clean.toLowerCase();
 }
 
 function parseTypedValue(key, val) {
   if (val === '' || val === null || val === undefined) return '';
-  if (key === 'completouTanque' || key === 'ativo' || key === 'comprado' || key === 'lembreteAtivo') {
+  if (key === 'completouTanque' || key === 'ativo' || key === 'comprado' || key === 'lembreteAtivo' || key === 'piscando' || key === 'concluido' || key === 'recorrente') {
     return val === true || val === 'true' || String(val).toUpperCase() === 'SIM' || String(val).toUpperCase() === 'TRUE';
   }
-  if (key === 'valor' || key === 'valorPago' || key === 'valorAPG' || key === 'litros' || key === 'precoLitro' || key === 'km' || key === 'quantidade' || key === 'latitude' || key === 'longitude' || key === 'raioMetros') {
+  if (key === 'valor' || key === 'valorPago' || key === 'valorAPG' || key === 'litros' || key === 'precoLitro' || key === 'km' || key === 'quantidade' || key === 'latitude' || key === 'longitude' || key === 'raioMetros' || key === 'limite' || key === 'gasto' || key === 'pontos' || key === 'diasAntecedencia' || key === 'saldoInicial') {
     var num = Number(String(val).replace(/\\./g, '').replace(',', '.'));
     return !isNaN(num) ? num : val;
   }
@@ -393,7 +420,7 @@ function saveAllDataToSheet(ss, payload) {
       name: 'Contas Bancárias',
       primaryName: '5_Contas_Bancarias',
       aliases: ['5_Contas_Bancárias', 'Contas Bancárias', 'ContasBancarias', 'Contas'],
-      headers: ['ID', 'Nome', 'Saldo_Inicial', 'Cor', 'Ícone', 'Tipo'],
+      headers: ['ID', 'Nome', 'Saldo_Inicial', 'Cor', 'Ícone', 'Tipo', 'Agência', 'Conta', 'Limite'],
       data: payload.bankAccounts || payload.contasBancarias || []
     },
     {
@@ -401,28 +428,28 @@ function saveAllDataToSheet(ss, payload) {
       primaryName: '6_Consultas_Médicas',
       aliases: ['6_Consultas_Medicas', 'ConsultasMedicas', 'Consultas Médicas', 'Consultas', 'Appointments'],
       headers: ['ID', 'Especialidade', 'Médico', 'Data', 'Horas', 'Local', 'Lembrete_Ativo', 'Status', 'Observação'],
-      data: payload.appointments || payload.consultas || payload.consultasMedicas || []
+      data: payload.appointments || payload.consultas || payload.consultasMedicas || payload['6_Consultas_Médicas'] || []
     },
     {
       name: 'Receitas Médicas',
       primaryName: '7_Receitas_Médicas',
       aliases: ['7_Receitas_Medicas', 'ReceitasMedicas', 'Receitas Médicas', 'Prescriptions'],
-      headers: ['ID', 'Medicamento', 'Dosagem', 'Frequência', 'Médico', 'Data_Emissão', 'Observação'],
+      headers: ['ID', 'Medicamento', 'Dosagem', 'Frequência', 'Médico', 'Especialidade', 'Data_Emissão', 'Data_Vencimento', 'Instruções', 'Observação', 'Arquivo_Anexo'],
       data: payload.prescriptions || payload.receitasMedicas || []
     },
     {
       name: 'Infrações',
       primaryName: '8_Infracoes',
       aliases: ['Infrações', 'Infracoes', 'Multas'],
-      headers: ['ID', 'Veículo', 'Data', 'Descrição', 'Valor', 'Pontos', 'Status', 'Observação'],
+      headers: ['ID', 'Protocolo', 'Título', 'Veículo', 'Placa', 'Data', 'Descrição', 'Valor', 'Pontos', 'Status', 'Localização', 'Observação'],
       data: payload.infractions || payload.infracoes || []
     },
     {
       name: 'Veículos',
       primaryName: '9_Veiculos',
       aliases: ['9_Veículos', 'Veiculos', 'Veículos', 'Veiculos Registrados', 'RegisteredVehicles'],
-      headers: ['ID', 'Descrição', 'Motorista', 'Placa', 'Renavan', 'Chassi', 'Marca', 'Modelo', 'Ano', 'Ano_Fabricação'],
-      data: payload.registeredVehicles || payload.veiculos || []
+      headers: ['ID', 'Descrição', 'Motorista', 'Placa', 'Renavan', 'Chassi', 'Marca', 'Modelo', 'Ano', 'Ano_Fabricação', 'Mês_Final_Placa', 'KM_Atual', 'Combustível'],
+      data: payload.registeredVehicles || payload.veiculos || payload['9_Veiculos'] || []
     },
     {
       name: 'Metas de Categoria',
@@ -457,13 +484,13 @@ function saveAllDataToSheet(ss, payload) {
       primaryName: '14_Oficina',
       aliases: ['Oficina', 'ServicosRealizados', 'Serviços Realizados', 'Workshop'],
       headers: ['ID', 'Data', 'Descrição', 'KM', 'Valor_A_PG', 'Valor_Pago', 'Oficina_Nome', 'Comprovante_Url', 'Observações', 'VeiculoID'],
-      data: payload.performedServices || payload.workshop || payload.oficina || []
+      data: payload.performedServices || payload.workshop || payload.oficina || payload['14_Oficina'] || []
     },
     {
       name: 'Manutenções Agendadas',
       primaryName: '15_Manutenções_Agendadas',
       aliases: ['15_Manutencoes_Agendadas', 'ServicosAgendados', 'Serviços Agendados', 'Manutenções Agendadas'],
-      headers: ['ID', 'Data_Alvo', 'KM_Alvo', 'Descrição', 'Status', 'Prioridade', 'Oficina_Nome', 'Observações', 'VeiculoID'],
+      headers: ['ID', 'Data_Alvo', 'KM_Alvo', 'Descrição', 'Status', 'Prioridade', 'Oficina_Nome', 'Observações', 'VeiculoID', 'Tipo_Agendamento', 'Recorrente', 'Frequência_Meses', 'Frequência_KM'],
       data: payload.scheduledServices || payload.scheduledMaintenance || []
     },
     {
@@ -477,22 +504,22 @@ function saveAllDataToSheet(ss, payload) {
       name: 'Zonas de Risco',
       primaryName: '17_Zonas_De_Risco',
       aliases: ['ZonasDeRisco', 'ZonaDeRisco', 'Zona de risco', 'RiskZones'],
-      headers: ['ID', 'Tipo_Registro', 'Nome_Título', 'Nível_De_Risco', 'Latitude', 'Longitude', 'Raio (m)', 'Ativo', 'Mensagem_De_Alerta', 'Data_Registro'],
+      headers: ['ID', 'Tipo_Registro', 'Nome_Título', 'Nível_De_Risco', 'Latitude', 'Longitude', 'Raio (m)', 'Ativo', 'Mensagem_De_Alerta', 'Data_Registro', 'Observação'],
       data: payload.riskZones || []
     },
     {
       name: 'Cartões de Crédito',
       primaryName: '18_Cartões_De_Crédito',
       aliases: ['18_Cartoes_De_Credito', 'Cartões de Crédito', 'CartoesDeCredito'],
-      headers: ['ID', 'Nome', 'Limite', 'Fechamento', 'Vencimento', 'Cor', 'Banco_Id'],
+      headers: ['ID', 'Nome', 'Limite', 'Fechamento', 'Vencimento', 'Cor', 'Banco_Id', 'Gasto'],
       data: payload.creditCards || []
     },
     {
       name: 'Agenda e Compromissos',
       primaryName: '19_Agenda_E_Compromissos',
-      aliases: ['Agenda', 'Compromissos', 'AgendaECompromissos'],
-      headers: ['ID', 'Titulo', 'Data', 'Hora', 'Descrição', 'Cor_De_Identificação', 'Efeito_Alerta_(Piscando)', 'Lembrete_Ativo', 'Dias_De_Antecedência'],
-      data: payload.compromissos || payload.agenda || []
+      aliases: ['Agenda', 'Compromissos', 'AgendaECompromissos', '19_Agenda_E_Compromissos'],
+      headers: ['ID', 'Titulo', 'Data', 'Hora', 'Descrição', 'Cor_De_Identificação', 'Efeito_Alerta_(Piscando)', 'Lembrete_Ativo', 'Dias_De_Antecedência', 'Concluído', 'Categoria'],
+      data: payload.compromissos || payload.agenda || payload['19_Agenda_E_Compromissos'] || []
     }
   ];
 
@@ -620,9 +647,9 @@ function extractFieldValue(item, headerName) {
   }
 
   if (hUpper === 'ID') return item.id || item.Id || item.ID || '';
-  if (hUpper === 'DATA') return item.data || item.Data || item.dataEmissao || item.dataRegistro || item.dataAlvo || '';
-  if (hUpper === 'DESCRICAO') return item.descricao || item['Descrição'] || item.nome || item.nomeTitulo || item.item || item.titulo || '';
-  if (hUpper === 'VALOR') return item.valor !== undefined ? item.valor : (item.Valor !== undefined ? item.Valor : (item.valorEstimado !== undefined ? item.valorEstimado : 0));
+  if (hUpper === 'DATA') return item.data || item.Data || item.dataEmissao || item.dataRegistro || item.dataAlvo || item.dataOcorrencia || '';
+  if (hUpper === 'DESCRICAO') return item.descricao || item['Descrição'] || item.nome || item.nomeTitulo || item.item || item.titulo || item.justificativa || '';
+  if (hUpper === 'VALOR') return item.valor !== undefined ? item.valor : (item.Valor !== undefined ? item.Valor : (item.valorEstimado !== undefined ? item.valorEstimado : (item.valorMulta !== undefined ? item.valorMulta : 0)));
   if (hUpper === 'VALORPG' || hUpper === 'VALORPAGO') return item.valorPago !== undefined ? item.valorPago : (item.valorPg !== undefined ? item.valorPg : (item.Valor_PG !== undefined ? item.Valor_PG : 0));
   if (hUpper === 'VALORAPG' || hUpper === 'VALORAPAGAR') return item.valorAPG !== undefined ? item.valorAPG : (item.Valor_A_PG !== undefined ? item.Valor_A_PG : 0);
   if (hUpper === 'BANCOID') return item.bancoId || item.Banco_Id || '';
@@ -644,14 +671,14 @@ function extractFieldValue(item, headerName) {
   if (hUpper === 'DESCRICAODOVEICULO') return item.descricaoVeiculo || item['Descrição_Do_Veículo'] || item.descricaoDoVeiculo || '';
   if (hUpper === 'MOTORISTA') return item.motorista || item.Motorista || '';
   if (hUpper === 'NOMEPOSTO') return item.nomePosto || item.Nome_Posto || '';
-  if (hUpper === 'LOCALIZACAODOPOSTO' || hUpper === 'LOCAL') return item.localizacaoPosto || item.local || item['Localização_Do_Posto'] || '';
+  if (hUpper === 'LOCALIZACAODOPOSTO' || hUpper === 'LOCAL' || hUpper === 'LOCALIZACAO') return item.localizacaoPosto || item.local || item.localizacao || item['Localização_Do_Posto'] || '';
   if (hUpper === 'COMPROVANTEURL') return item.comprovanteUrl || item.Comprovante_Url || '';
-  if (hUpper === 'OBS' || hUpper === 'OBSERVACAO' || hUpper === 'OBSERVACOES') return item.obs || item.observacoes || item.observacao || item.OBS || '';
-  if (hUpper === 'TITULO') return item.titulo || item.Titulo || item.item || '';
+  if (hUpper === 'OBS' || hUpper === 'OBSERVACAO' || hUpper === 'OBSERVACOES') return item.obs || item.observacoes || item.observacao || item.OBS || item.instrucoes || '';
+  if (hUpper === 'TITULO') return item.titulo || item.Titulo || item.item || item.title || '';
   if (hUpper === 'HORA' || hUpper === 'HORAS' || hUpper === 'HORARIO') return item.hora || item.horario || item.Horas || item.Horario || '';
   if (hUpper === 'MEDICO') return item.medico || item.Medico || item['Médico'] || '';
   if (hUpper === 'ESPECIALIDADE') return item.especialidade || item.Especialidade || '';
-  if (hUpper === 'MEDICAMENTO') return item.medicamento || item.Medicamento || '';
+  if (hUpper === 'MEDICAMENTO') return item.medicamento || item.Medicamento || item.medicamentos || '';
   if (hUpper === 'DOSAGEM') return item.dosagem || item.Dosagem || '';
   if (hUpper === 'FREQUENCIA') return item.frequencia || item.Frequência || '';
   if (hUpper === 'DATAEMISSAO') return item.dataEmissao || item['Data Emissão'] || item.data || '';
@@ -679,15 +706,39 @@ function extractFieldValue(item, headerName) {
   if (hUpper === 'MENSAGEMDEALERTA') return item.mensagemDeAlerta || item.mensagem || '';
   if (hUpper === 'DATAREGISTRO') return item.dataRegistro || item.data || '';
   if (hUpper === 'LIMITE') return item.limite || item.Limite || 0;
-  if (hUpper === 'FECHAMENTO') return item.fechamento || item.Fechamento || 1;
-  if (hUpper === 'VENCIMENTO') return item.vencimento || item.Vencimento || 10;
+  if (hUpper === 'FECHAMENTO') return item.fechamento || item.diaFechamento || item.Fechamento || 1;
+  if (hUpper === 'VENCIMENTO') return item.vencimento || item.diaVencimento || item.Vencimento || 10;
   if (hUpper === 'COR' || hUpper === 'CORDEIDENTIFICACAO') return item.cor || item.Cor || item.corIdentificacao || '#22c55e';
   if (hUpper === 'ICONE') return item.icone || item.Icone || 'account_balance';
   if (hUpper === 'SALDOINICIAL') return item.saldoInicial || item.saldo || 0;
   if (hUpper === 'EFEITOALERTAPISCANDO') return (item.piscando === true || String(item.piscando).toUpperCase() === 'SIM') ? 'SIM' : 'NÃO';
   if (hUpper === 'LEMBRETEATIVO') return (item.lembreteAtivo === true || String(item.lembreteAtivo).toUpperCase() === 'SIM') ? 'SIM' : 'NÃO';
   if (hUpper === 'DIASDEANTECEDENCIA') return item.diasAntecedencia || 2;
+  if (hUpper === 'CONCLUIDO') return (item.concluido === true || String(item.concluido).toUpperCase() === 'SIM') ? 'SIM' : 'NÃO';
+  if (hUpper === 'AGENCIA') return item.agencia || '';
+  if (hUpper === 'CONTA') return item.conta || '';
+  if (hUpper === 'PONTOS') return item.pontos || item.pontosCnh || 0;
+  if (hUpper === 'PROTOCOLO') return item.protocolo || '';
+  if (hUpper === 'GASTO') return item.gasto || 0;
 
   return '';
+}
+
+function handleUploadBackup(ss, payload) {
+  try {
+    var rawData = payload.data || payload.jsonData;
+    if (!rawData) {
+      return { status: 'error', error: 'Nenhum dado de backup fornecido no payload.' };
+    }
+    var sheet = findOrCreateSheet(ss, 'Backup_Configuracoes', ['Backup', 'Backups']);
+    sheet.clearContents();
+    sheet.getRange(1, 1).setValue('Data_Backup');
+    sheet.getRange(1, 2).setValue('Conteudo_JSON');
+    sheet.getRange(2, 1).setValue(new Date().toISOString());
+    sheet.getRange(2, 2).setValue(typeof rawData === 'string' ? rawData : JSON.stringify(rawData));
+    return { status: 'success', message: 'Backup salvo com sucesso na planilha!' };
+  } catch (err) {
+    return { status: 'error', error: 'Erro ao salvar backup: ' + err.toString() };
+  }
 }
 `;

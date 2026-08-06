@@ -2603,24 +2603,6 @@ export default function App() {
 
     const syncStartTime = Date.now();
 
-    // Check state sync key to avoid redundant or duplicate sync cycles on identical states
-    const txsJson = JSON.stringify(currentTxs);
-    const infsJson = JSON.stringify(currentInfracs);
-    const zonesJson = JSON.stringify(currentZones);
-    const apptsJson = JSON.stringify(currentAppts);
-    const prescsJson = JSON.stringify(currentPrescs);
-    const compJson = JSON.stringify(currentCompromissos);
-    const vehJson = JSON.stringify(currentVehicles);
-    const perfJson = JSON.stringify(currentPerfServices);
-    const schedJson = JSON.stringify(currentSchedServices);
-    const bankJson = JSON.stringify(currentBanks);
-    const cardJson = JSON.stringify(currentCards);
-    const grocJson = JSON.stringify(currentGroceryItems);
-    const syncKey = `${txsJson}_${infsJson}_${zonesJson}_${apptsJson}_${prescsJson}_${compJson}_${vehJson}_${perfJson}_${schedJson}_${bankJson}_${cardJson}_${grocJson}`;
-    if (lastSyncedTxRef.current === syncKey && !forceOverwriteSpreadsheet) {
-      return;
-    }
-
     // Check concurrency lock to avoid simultaneous sync requests (race conditions)
     if (syncLockRef.current) {
       // Queue the sync request for execution as soon as current sync finishes
@@ -2656,54 +2638,67 @@ export default function App() {
         sheetId = DEFAULT_SPREADSHEET_ID;
       }
       
-      // 1. Always fetch current spreadsheet data to ensure two-way sync (what was edited on spreadsheet comes straight to phone)
-      let sheetTxs: any[] = [];
+      // 1. Always fetch complete spreadsheet data to treat Google Sheets as official source of truth
+      let sheetData: any = {};
       try {
-        const rawSheetTxs = await sheetsService.buscarTransacoes(activeToken, sheetId);
-        sheetTxs = Array.isArray(rawSheetTxs) ? rawSheetTxs : [];
+        sheetData = await sheetsService.buscarTodosDados(activeToken, sheetId);
       } catch (fetchErr) {
-        console.warn("Aviso ao buscar transações da planilha durante sincronização:", fetchErr);
-        sheetTxs = [];
+        console.warn("Aviso ao buscar todos os dados da planilha durante sincronização:", fetchErr);
+        sheetData = {};
       }
 
+      // Load deleted transaction IDs
+      let deletedIds: (number | string)[] = [];
+      try {
+        const deletedIdsStr = localStorage.getItem('wealthflow_deleted_tx_ids') || '[]';
+        deletedIds = JSON.parse(deletedIdsStr);
+      } catch (e) {}
+
+      const lastSyncedTimestampStr = localStorage.getItem('wealthflow_last_synced_timestamp') || '0';
+      const lastSyncedTimestamp = parseInt(lastSyncedTimestampStr, 10);
+
+      // --- MERGE TRANSACTIONS ---
       let cleanMergedTxs = currentTxs;
-
       if (!forceOverwriteSpreadsheet) {
-        // 2. Perform safe Two-way Merge
-        // Load list of locally deleted transaction IDs from localStorage to prevent re-importing deleted rows
-        let deletedIds: number[] = [];
-        try {
-          const deletedIdsStr = localStorage.getItem('wealthflow_deleted_tx_ids') || '[]';
-          deletedIds = JSON.parse(deletedIdsStr);
-        } catch (e) {}
+        const rawSheetTxs = Array.isArray(sheetData?.transactions) 
+          ? sheetData.transactions 
+          : (Array.isArray(sheetData?.abastecimentos) ? sheetData.abastecimentos : []);
 
-        // Retrieve last synced timestamp to determine whether local changes are newer than spreadsheet
-        const lastSyncedTimestampStr = localStorage.getItem('wealthflow_last_synced_timestamp') || '0';
-        const lastSyncedTimestamp = parseInt(lastSyncedTimestampStr, 10);
-
-        // Start with current local state transactions
-        const txMap = new Map<number, any>();
-        (Array.isArray(currentTxs) ? currentTxs : []).forEach(t => {
-          if (t && typeof t === 'object' && t.id) txMap.set(t.id, t);
+        const validSheetTxs = rawSheetTxs.map((st: any, idx: number) => {
+          const norm = normalizeTransactionObject(st);
+          if (!norm.id) {
+            norm.id = Date.now() + Math.floor(Math.random() * 100000) + idx;
+          }
+          return norm;
         });
 
-        // Identify spreadsheet transaction IDs for fast lookup
-        const validSheetTxs = Array.isArray(sheetTxs) ? sheetTxs : [];
-        const sheetTxIds = new Set<number>(validSheetTxs.map(st => st?.id).filter(Boolean));
+        const txMap = new Map<number | string, any>();
+        (Array.isArray(currentTxs) ? currentTxs : []).forEach(t => {
+          if (t && typeof t === 'object' && t.id) {
+            txMap.set(t.id, t);
+            txMap.set(String(t.id), t);
+          }
+        });
 
-        // Track transactions deleted in Google Sheets
-        const deletedInSheetIds: number[] = [];
+        const sheetTxIds = new Set<number | string>();
+        validSheetTxs.forEach((st: any) => {
+          if (st.id) {
+            sheetTxIds.add(st.id);
+            sheetTxIds.add(String(st.id));
+          }
+        });
+
+        const deletedInSheetIds: (number | string)[] = [];
         if (lastSyncedTimestamp > 0 && validSheetTxs.length > 0) {
           (Array.isArray(currentTxs) ? currentTxs : []).forEach(localTx => {
             if (!localTx || !localTx.id) return;
-            const existsInSheet = sheetTxIds.has(localTx.id);
+            const existsInSheet = sheetTxIds.has(localTx.id) || sheetTxIds.has(String(localTx.id));
             const localUpdatedAt = localTx.updatedAt || 0;
             const isNewlyCreatedLocally = localUpdatedAt > lastSyncedTimestamp;
 
-            // If a transaction was already synced to the spreadsheet before, but is now missing from it,
-            // it means the user deleted it in Google Sheets directly.
             if (!existsInSheet && !isNewlyCreatedLocally) {
               txMap.delete(localTx.id);
+              txMap.delete(String(localTx.id));
               deletedInSheetIds.push(localTx.id);
             }
           });
@@ -2712,43 +2707,41 @@ export default function App() {
         let hasNewOrUpdatedFromSheet = false;
         const txsToSaveDb: any[] = [];
 
-        validSheetTxs.forEach(st => {
+        validSheetTxs.forEach((st: any) => {
           if (!st || typeof st !== 'object' || !st.id) return;
-          // Skip if this transaction was explicitly deleted in the app
-          if (deletedIds.includes(st.id)) return;
+          const stId = st.id;
 
-          const localTx = txMap.get(st.id);
+          if (deletedIds.includes(stId) || deletedIds.includes(String(stId))) return;
+
+          const localTx = txMap.get(stId) || txMap.get(String(stId));
           if (!localTx) {
-            // New transaction entered by the user in the spreadsheet!
-            txMap.set(st.id, st);
+            // New record pasted/added directly in Google Sheets!
+            txMap.set(stId, st);
             txsToSaveDb.push(st);
             hasNewOrUpdatedFromSheet = true;
           } else {
-            // Already exists locally. Compare fields to see if user modified it in the spreadsheet.
+            // Compare fields to detect manual edits in Google Sheets
             const isDifferent = 
-              localTx.descricao !== st.descricao ||
-              localTx.valor !== st.valor ||
-              localTx.categoria !== st.categoria ||
-              localTx.data !== st.data ||
-              localTx.status !== st.status ||
-              localTx.tipo !== st.tipo ||
-              localTx.obs !== st.obs ||
-              localTx.km !== st.km ||
-              localTx.litros !== st.litros ||
-              localTx.precoLitro !== st.precoLitro ||
-              localTx.veiculo !== st.veiculo;
+              String(localTx.descricao || '').trim() !== String(st.descricao || '').trim() ||
+              Number(localTx.valor || 0) !== Number(st.valor || 0) ||
+              String(localTx.categoria || '').trim() !== String(st.categoria || '').trim() ||
+              String(localTx.data || '').trim() !== String(st.data || '').trim() ||
+              String(localTx.status || '').trim() !== String(st.status || '').trim() ||
+              String(localTx.tipo || '').trim() !== String(st.tipo || '').trim() ||
+              String(localTx.obs || '').trim() !== String(st.obs || '').trim() ||
+              Number(localTx.km || 0) !== Number(st.km || 0) ||
+              Number(localTx.litros || 0) !== Number(st.litros || 0) ||
+              Number(localTx.precoLitro || 0) !== Number(st.precoLitro || 0) ||
+              String(localTx.veiculo || '').trim() !== String(st.veiculo || '').trim();
 
             if (isDifferent) {
               const localUpdatedAt = localTx.updatedAt || 0;
               const isLocalNewer = localUpdatedAt > lastSyncedTimestamp;
 
-              if (isLocalNewer) {
-                // Local is newer! Keep localTx, don't overwrite with st.
-                // It will be written back to the spreadsheet automatically in Step 3.
-              } else {
-                // Spreadsheet is newer! Merge st over localTx
+              if (!isLocalNewer) {
+                // Google Sheets is newer! Update local record
                 const updatedTx = { ...localTx, ...st, updatedAt: 0 };
-                txMap.set(st.id, updatedTx);
+                txMap.set(stId, updatedTx);
                 txsToSaveDb.push(updatedTx);
                 hasNewOrUpdatedFromSheet = true;
               }
@@ -2756,53 +2749,131 @@ export default function App() {
           }
         });
 
-        // Unified sorted list
-        const mergedTxs = Array.from(txMap.values()).sort((a, b) => b.id - a.id);
-        cleanMergedTxs = cleanDuplicateTransactions(mergedTxs);
+        const mergedTxsList = Array.from(new Set(txMap.values())).sort((a, b) => Number(b.id || 0) - Number(a.id || 0));
+        cleanMergedTxs = cleanDuplicateTransactions(mergedTxsList);
+        const hasDuplicatesCleaned = cleanMergedTxs.length < mergedTxsList.length;
 
-        const hasDuplicatesCleaned = cleanMergedTxs.length < mergedTxs.length;
-
-        // If updates came from the sheet, deletions occurred, or duplicates were cleaned, save them to state & DB
         if (hasNewOrUpdatedFromSheet || hasDuplicatesCleaned || deletedInSheetIds.length > 0) {
           setTransactions(cleanMergedTxs);
           localStorage.setItem('wealthflow_transactions', JSON.stringify(cleanMergedTxs));
-          
-          // Save new/updated transactions that are still in the clean list
+
           for (const tx of txsToSaveDb) {
-            if (cleanMergedTxs.some(t => t.id === tx.id)) {
+            if (cleanMergedTxs.some(t => String(t.id) === String(tx.id))) {
               await saveTransactionToDb(tx);
             }
           }
 
-          // Delete any transactions from local storage that the user deleted directly in Google Sheets
           for (const idToDel of deletedInSheetIds) {
-            await deleteTransactionFromDb(idToDel);
+            await deleteTransactionFromDb(Number(idToDel) || idToDel);
           }
 
-          // Permanently delete any removed duplicates from local storage
           if (hasDuplicatesCleaned) {
-            const cleanIds = new Set(cleanMergedTxs.map(t => t.id));
-            const duplicateTxs = mergedTxs.filter(t => !cleanIds.has(t.id));
+            const cleanIds = new Set(cleanMergedTxs.map(t => String(t.id)));
+            const duplicateTxs = mergedTxsList.filter(t => !cleanIds.has(String(t.id)));
             for (const dup of duplicateTxs) {
-              await deleteTransactionFromDb(dup.id);
+              await deleteTransactionFromDb(Number(dup.id) || dup.id);
             }
           }
         }
       }
 
-      // Update stable reference to prevent redundant loop triggers
+      // --- GENERIC TWO-WAY MERGE HELPER FOR ALL OTHER MODULES ---
+      const mergeModuleArray = <T extends { id?: any; updatedAt?: number }>(
+        localList: T[],
+        sheetList: any[],
+        storageKey: string,
+        setStateFn: (val: T[]) => void
+      ): T[] => {
+        if (!Array.isArray(sheetList) || sheetList.length === 0) {
+          return Array.isArray(localList) ? localList : [];
+        }
+
+        const map = new Map<string | number, T>();
+        (Array.isArray(localList) ? localList : []).forEach(item => {
+          if (!item) return;
+          const raw = item.id || (item as any).Id || (item as any).ID;
+          if (raw !== undefined && raw !== null && raw !== '') {
+            map.set(raw, item);
+            map.set(String(raw), item);
+          }
+        });
+
+        const sheetIdsSet = new Set<string | number>();
+        let changed = false;
+
+        sheetList.forEach((st: any, idx: number) => {
+          if (!st || typeof st !== 'object') return;
+          let rawId = st.id || st.Id || st.ID;
+          if (!rawId) {
+            rawId = Date.now() + Math.floor(Math.random() * 1000) + idx;
+            st.id = rawId;
+          }
+          sheetIdsSet.add(rawId);
+          sheetIdsSet.add(String(rawId));
+
+          const existing = map.get(rawId) || map.get(String(rawId));
+          if (!existing) {
+            map.set(rawId, st);
+            changed = true;
+          } else {
+            const localUp = (existing as any).updatedAt || 0;
+            if (localUp <= lastSyncedTimestamp) {
+              map.set(rawId, { ...existing, ...st });
+              changed = true;
+            }
+          }
+        });
+
+        if (lastSyncedTimestamp > 0 && sheetList.length > 0) {
+          (Array.isArray(localList) ? localList : []).forEach(item => {
+            if (!item) return;
+            const raw = item.id || (item as any).Id || (item as any).ID;
+            if (!raw) return;
+            const existsInSheet = sheetIdsSet.has(raw) || sheetIdsSet.has(String(raw));
+            const localUp = (item as any).updatedAt || 0;
+            if (!existsInSheet && localUp <= lastSyncedTimestamp) {
+              map.delete(raw);
+              map.delete(String(raw));
+              changed = true;
+            }
+          });
+        }
+
+        const result = Array.from(new Set(map.values()));
+        if (changed) {
+          setStateFn(result);
+          try {
+            localStorage.setItem(storageKey, JSON.stringify(result));
+          } catch (e) {}
+        }
+        return result;
+      };
+
+      const mergedInfracs = mergeModuleArray(currentInfracs, sheetData?.infractions || [], 'wealthflow_infractions', setInfractions);
+      const mergedZones = mergeModuleArray(currentZones, sheetData?.riskZones || [], 'wealthflow_riskzones', setRiskZones);
+      const mergedAppts = mergeModuleArray(currentAppts, sheetData?.appointments || sheetData?.consultas || [], 'wealthflow_appointments', setAppointments);
+      const mergedPrescs = mergeModuleArray(currentPrescs, sheetData?.prescriptions || [], 'wealthflow_prescriptions', setPrescriptions);
+      const mergedCompromissos = mergeModuleArray(currentCompromissos, sheetData?.compromissos || sheetData?.agenda || [], 'wealthflow_compromissos', setCompromissos);
+      const mergedVehicles = mergeModuleArray(currentVehicles, sheetData?.registeredVehicles || sheetData?.veiculos || [], 'wealthflow_registered_vehicles', setRegisteredVehicles);
+      const mergedPerfServices = mergeModuleArray(currentPerfServices, sheetData?.performedServices || sheetData?.workshop || [], 'wealthflow_car_services_performed', setPerformedServices);
+      const mergedSchedServices = mergeModuleArray(currentSchedServices, sheetData?.scheduledServices || [], 'wealthflow_car_services_scheduled', setScheduledServices);
+      const mergedBanks = mergeModuleArray(currentBanks, sheetData?.bankAccounts || [], 'wealthflow_bank_accounts', setBankAccountsState);
+      const mergedCards = mergeModuleArray(currentCards, sheetData?.creditCards || [], 'wealthflow_credit_cards', setCreditCardsState);
+      const mergedGroceryItems = mergeModuleArray(currentGroceryItems, sheetData?.groceryItems || [], 'wealthflow_grocery_items', setGroceryItems);
+
+      // Update stable reference
       const finalTxsJson = JSON.stringify(cleanMergedTxs);
-      const finalInfsJson = JSON.stringify(currentInfracs);
-      const finalZonesJson = JSON.stringify(currentZones);
-      const finalApptsJson = JSON.stringify(currentAppts);
-      const finalPrescsJson = JSON.stringify(currentPrescs);
-      const finalCompJson = JSON.stringify(currentCompromissos);
-      const finalVehJson = JSON.stringify(currentVehicles);
-      const finalPerfJson = JSON.stringify(currentPerfServices);
-      const finalSchedJson = JSON.stringify(currentSchedServices);
-      const finalBankJson = JSON.stringify(currentBanks);
-      const finalCardJson = JSON.stringify(currentCards);
-      const finalGrocJson = JSON.stringify(currentGroceryItems);
+      const finalInfsJson = JSON.stringify(mergedInfracs);
+      const finalZonesJson = JSON.stringify(mergedZones);
+      const finalApptsJson = JSON.stringify(mergedAppts);
+      const finalPrescsJson = JSON.stringify(mergedPrescs);
+      const finalCompJson = JSON.stringify(mergedCompromissos);
+      const finalVehJson = JSON.stringify(mergedVehicles);
+      const finalPerfJson = JSON.stringify(mergedPerfServices);
+      const finalSchedJson = JSON.stringify(mergedSchedServices);
+      const finalBankJson = JSON.stringify(mergedBanks);
+      const finalCardJson = JSON.stringify(mergedCards);
+      const finalGrocJson = JSON.stringify(mergedGroceryItems);
       lastSyncedTxRef.current = `${finalTxsJson}_${finalInfsJson}_${finalZonesJson}_${finalApptsJson}_${finalPrescsJson}_${finalCompJson}_${finalVehJson}_${finalPerfJson}_${finalSchedJson}_${finalBankJson}_${finalCardJson}_${finalGrocJson}`;
 
       // 3. Write the fully updated merged list back to the spreadsheet
@@ -2810,19 +2881,19 @@ export default function App() {
         activeToken, 
         sheetId, 
         cleanMergedTxs, 
-        currentInfracs,
-        currentZones,
-        currentAppts,
-        currentPrescs,
-        currentCompromissos,
-        currentVehicles,
-        currentPerfServices,
-        currentSchedServices,
-        currentBanks,
-        currentCards,
+        mergedInfracs,
+        mergedZones,
+        mergedAppts,
+        mergedPrescs,
+        mergedCompromissos,
+        mergedVehicles,
+        mergedPerfServices,
+        mergedSchedServices,
+        mergedBanks,
+        mergedCards,
         categoryBudgets,
         [],
-        currentGroceryItems
+        mergedGroceryItems
       );
       
       setSpreadsheetUrl(url);

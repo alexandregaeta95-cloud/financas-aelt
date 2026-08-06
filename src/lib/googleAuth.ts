@@ -649,5 +649,5 @@ export const fetchAllDataFromSpreadsheet = async (
 ): Promise<any> => {
   const cleanSheetId = toSafeString(spreadsheetId) || DEFAULT_SPREADSHEET_ID;
   const res = await callAppsScript(DEFAULT_APPS_SCRIPT_URL, { action: 'fetchAllData', spreadsheetId: cleanSheetId }, 'GET');
-  return res || {};
+  return res?.data || res || {};
 };
