@@ -29,12 +29,58 @@ export const toSafeString = (val: any): string => {
   return String(val);
 };
 
+export const sanitizeAppsScriptUrl = (inputUrl?: any): string => {
+  const str = toSafeString(inputUrl).trim();
+  const storedScriptUrl = typeof localStorage !== 'undefined' ? localStorage.getItem('wealthflow_apps_script_url') : null;
+  
+  let candidate = str;
+  if (!candidate || candidate === 'wealthflow_direct_sheets_connected' || candidate.includes('docs.google.com/spreadsheets')) {
+    if (storedScriptUrl && storedScriptUrl.trim() && storedScriptUrl.includes('script.google.com')) {
+      candidate = storedScriptUrl.trim();
+    } else {
+      candidate = DEFAULT_APPS_SCRIPT_URL;
+    }
+  }
+
+  let clean = candidate;
+
+  // Raw ID starting with AKfy...
+  if (!clean.startsWith('http') && (clean.startsWith('AKfy') || clean.length > 20)) {
+    clean = `https://script.google.com/macros/s/${clean}/exec`;
+  }
+
+  // If user pasted script.googleusercontent.com temporary URL, extract macro ID or fallback
+  if (clean.includes('script.googleusercontent.com')) {
+    const match = clean.match(/s\/([a-zA-Z0-9_-]+)/);
+    if (match && match[1]) {
+      clean = `https://script.google.com/macros/s/${match[1]}/exec`;
+    } else {
+      clean = storedScriptUrl && storedScriptUrl.includes('script.google.com') ? storedScriptUrl : DEFAULT_APPS_SCRIPT_URL;
+    }
+  }
+
+  // Replace /dev with /exec and clean query params
+  if (clean.includes('script.google.com')) {
+    const queryParts = clean.split('?');
+    let baseUrl = queryParts[0].replace(/\/+$/, '');
+    if (baseUrl.endsWith('/dev')) {
+      baseUrl = baseUrl.slice(0, -4) + '/exec';
+    } else if (!baseUrl.endsWith('/exec')) {
+      baseUrl = `${baseUrl}/exec`;
+    }
+    const query = queryParts.length > 1 ? '?' + queryParts.slice(1).join('?') : '';
+    clean = baseUrl + query;
+  }
+
+  return clean.startsWith('http') ? clean : DEFAULT_APPS_SCRIPT_URL;
+};
+
 export const callAppsScript = async (
   scriptUrl: any,
   payloadOrAction: any,
   method: 'GET' | 'POST' = 'POST'
 ): Promise<any> => {
-  const cleanUrl = toSafeString(scriptUrl).trim() || DEFAULT_APPS_SCRIPT_URL;
+  const cleanUrl = sanitizeAppsScriptUrl(scriptUrl);
   const savedSheetId = typeof localStorage !== 'undefined' ? toSafeString(localStorage.getItem('wealthflow_sheet_id')) : '';
   const paramSheetId = typeof payloadOrAction === 'object' && payloadOrAction?.spreadsheetId ? toSafeString(payloadOrAction.spreadsheetId) : '';
   const candidateId = paramSheetId || savedSheetId;
@@ -46,6 +92,59 @@ export const callAppsScript = async (
     }
   }
 
+  // 1. Try server-side proxy endpoint first (bypasses browser CORS and handles 302 redirects)
+  try {
+    let proxyBody: any = payloadOrAction;
+    let targetUrl = cleanUrl;
+
+    if (method === 'GET') {
+      const actionParam = typeof payloadOrAction === 'string' ? payloadOrAction : (payloadOrAction?.action || 'fetchAllData');
+      let query = `action=${encodeURIComponent(actionParam)}`;
+      if (cleanSheetId) query += `&spreadsheetId=${encodeURIComponent(cleanSheetId)}`;
+      targetUrl = `${cleanUrl}${cleanUrl.includes('?') ? '&' : '?'}${query}`;
+      proxyBody = undefined;
+    }
+
+    const proxyRes = await fetch('/api/google-proxy', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        url: targetUrl,
+        method,
+        headers: {
+          'Content-Type': 'text/plain;charset=utf-8'
+        },
+        body: proxyBody
+      })
+    });
+
+    if (proxyRes.ok) {
+      const proxyResult = await proxyRes.json();
+      if (proxyResult.ok) {
+        const rawData = proxyResult.data;
+        let parsed: any = null;
+        if (typeof rawData === 'string') {
+          parsed = safeJsonParse(rawData, null);
+        } else {
+          parsed = rawData;
+        }
+        if (parsed) {
+          return parsed.data || parsed;
+        }
+      } else {
+        console.warn(`[Apps Script Proxy HTTP ${proxyResult.status}] Error:`, proxyResult.statusText || proxyResult.data);
+        return {
+          status: 'error',
+          httpCode: proxyResult.status,
+          error: `Google Apps Script retornou erro HTTP ${proxyResult.status} (${proxyResult.statusText || 'Não encontrado'})`
+        };
+      }
+    }
+  } catch (proxyErr) {
+    console.warn("Proxy endpoint unavailable, falling back to direct fetch:", proxyErr);
+  }
+
+  // 2. Direct fetch fallback
   try {
     let fetchUrl = cleanUrl;
     const fetchOptions: RequestInit = {
@@ -66,17 +165,22 @@ export const callAppsScript = async (
 
     const directRes = await fetch(fetchUrl, fetchOptions);
     if (directRes.ok) {
-      let parsed: any = null;
-      try {
-        parsed = await directRes.json();
-      } catch (e) {
-        const text = await directRes.text();
-        parsed = safeJsonParse(text, null);
-      }
-      return parsed?.data || parsed;
+      const text = await directRes.text();
+      const parsed = safeJsonParse(text, null);
+      if (parsed) return parsed.data || parsed;
+    } else {
+      return {
+        status: 'error',
+        httpCode: directRes.status,
+        error: `Falha na comunicação com o Google Apps Script (HTTP ${directRes.status} ${directRes.statusText})`
+      };
     }
-  } catch (directErr) {
-    console.warn("Conexão direta com Apps Script falhou:", directErr);
+  } catch (directErr: any) {
+    console.error("Erro na comunicação com o Google Apps Script:", directErr);
+    return {
+      status: 'error',
+      error: `Falha na comunicação com o Google Apps Script: ${directErr?.message || 'Failed to fetch'}`
+    };
   }
 
   return { status: 'error', error: 'Falha na comunicação com o Google Apps Script.' };

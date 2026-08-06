@@ -66,13 +66,16 @@ async function startServer() {
       });
 
       // 2. Handle Google Apps Script 301, 302, 303, 307, 308 redirects manually
+      // Note: Google Apps Script Web App redirects to script.googleusercontent.com/macros/echo?...
+      // That redirected endpoint MUST ALWAYS be fetched with method GET and NO body!
       if ([301, 302, 303, 307, 308].includes(googleResponse.status)) {
         const redirectUrl = googleResponse.headers.get('location');
         if (redirectUrl) {
           googleResponse = await fetch(redirectUrl, {
-            method: reqMethod,
-            headers: fetchHeaders,
-            body: reqMethod !== "GET" && reqMethod !== "HEAD" ? reqBody : undefined
+            method: 'GET',
+            headers: {
+              'Accept': 'application/json, text/plain, */*'
+            }
           });
         }
       }
