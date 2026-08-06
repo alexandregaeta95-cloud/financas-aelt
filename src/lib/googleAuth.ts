@@ -253,13 +253,168 @@ export const syncDataToSpreadsheet = async (
     };
   });
 
+  const rawApptsSource = Array.isArray(appointments) && appointments.length > 0 ? appointments : [];
+  const mappedAppointments = rawApptsSource.map((item: any) => {
+    let rawDate = item.data || item.Data || '';
+    if (rawDate && rawDate.includes('-')) {
+      const parts = rawDate.split('T')[0].split('-');
+      if (parts.length === 3 && parts[0].length === 4) {
+        rawDate = `${parts[2]}/${parts[1]}/${parts[0]}`;
+      }
+    }
+    const idStr = item.id !== undefined && item.id !== null && String(item.id).trim() !== '' ? String(item.id) : (item.ID ? String(item.ID) : String(Date.now()));
+    const espStr = item.especialidade || item.Especialidade || '';
+    const medStr = item.medico || item.Medico || item.Médico || '';
+    const horaStr = item.hora || item.Hora || item.horas || item.Horas || item.horario || item.Horario || '';
+    const localStr = item.local || item.Local || '';
+    const lembreteVal = (item.lembreteAtivo === true || String(item.lembreteAtivo).toUpperCase() === 'SIM' || String(item['Lembrete_Ativo']).toUpperCase() === 'SIM') ? 'SIM' : 'NÃO';
+    const statusStr = item.status || item.Status || 'Agendada';
+    const obsStr = item.observacoes || item.observacao || item['Observação'] || item['Observações'] || item.obs || item.OBS || '';
+
+    return {
+      id: idStr,
+      especialidade: espStr,
+      medico: medStr,
+      data: rawDate,
+      hora: horaStr,
+      local: localStr,
+      lembreteAtivo: item.lembreteAtivo ?? (lembreteVal === 'SIM'),
+      status: statusStr,
+      observacoes: obsStr,
+
+      // Column Header Aliases for Aba 6_Consultas_Médicas
+      // A: ID | B: Especialidade | C: Médico | D: Data | E: Horas | F: Local | G: Lembrete_Ativo | H: Status | I: Observação
+      ID: idStr,
+      Especialidade: espStr,
+      "Médico": medStr,
+      Medico: medStr,
+      Data: rawDate,
+      Horas: horaStr,
+      Hora: horaStr,
+      Local: localStr,
+      "Lembrete_Ativo": lembreteVal,
+      Status: statusStr,
+      "Observação": obsStr,
+      "Observações": obsStr,
+      Observacao: obsStr,
+      Observacoes: obsStr
+    };
+  });
+
+  const mappedTransactions = (Array.isArray(transactions) ? transactions : []).map((t: any) => {
+    let rawDate = t.data || t.Data || '';
+    if (rawDate && rawDate.includes('-')) {
+      const parts = rawDate.split('T')[0].split('-');
+      if (parts.length === 3) rawDate = `${parts[2]}/${parts[1]}/${parts[0]}`;
+    }
+    if (!rawDate) rawDate = new Date().toLocaleDateString('pt-BR');
+
+    const idStr = t.id !== undefined && t.id !== null && String(t.id).trim() !== '' ? String(t.id) : (t.ID ? String(t.ID) : String(Date.now()));
+    const descStr = t.descricao || t.Descrição || '';
+    const valorNum = typeof t.valor === 'number' ? t.valor : (parseFloat(String(t.valor || 0).replace(',', '.')) || 0);
+    const valorPgNum = typeof t.valorPg === 'number' ? t.valorPg : (typeof t.valorPago === 'number' ? t.valorPago : (typeof t.Valor_PG === 'number' ? t.Valor_PG : (t.status === 'PAGO' ? valorNum : 0)));
+    const bancoIdVal = t.bancoId || t.Banco_Id || '';
+    const cartaoIdVal = t.cartaoid || t.cartaoId || t.Cartão_Id || '';
+    const formaPagVal = t.formaPagamento || t.Forma_Pagamento || '';
+    const tipoVal = t.tipo || t.Tipo || 'DESPESA';
+    const catVal = t.categoria || t.Categoria || 'OUTROS';
+    const statusVal = t.status || t.Status || 'PAGO';
+
+    const kmVal = t.km !== undefined && t.km !== null ? t.km : (t.KM !== undefined ? t.KM : '');
+    const litrosVal = t.litros !== undefined && t.litros !== null ? t.litros : (t.Litros !== undefined ? t.Litros : '');
+    const precoLitroVal = t.precoLitro !== undefined && t.precoLitro !== null ? t.precoLitro : (t.Preço_Litro !== undefined ? t.Preço_Litro : '');
+    const compTanqueVal = t.completouTanque === true || String(t.completouTanque).toUpperCase() === 'SIM' || String(t.Completou_O_Tanque).toUpperCase() === 'SIM' ? 'SIM' : 'NÃO';
+    const kmPercVal = t.kmPercorrido !== undefined && t.kmPercorrido !== null ? t.kmPercorrido : (t.KM_Percorrido !== undefined ? t.KM_Percorrido : '');
+    const mediaVal = t.mediaKmL !== undefined && t.mediaKmL !== null ? t.mediaKmL : (t['Média_(Km/L)'] !== undefined ? t['Média_(Km/L)'] : '');
+
+    const veiculoVal = t.veiculo || t.Veiculo || '';
+    const descVeiculoVal = t.descricaoVeiculo || t.Descrição_Do_Veículo || t['Descrição_Do_Viculo'] || '';
+    const motoristaVal = t.motorista || t.Motorista || '';
+    const nomePostoVal = t.nomePosto || t.Nome_Posto || '';
+    const localPostoVal = t.localizacaoPosto || t.Localização_Do_Posto || '';
+    const compUrlVal = t.comprovanteUrl || t.Comprovante_Url || '';
+    const obsVal = t.obs || t.OBS || t.observacoes || '';
+
+    return {
+      ...t,
+      id: idStr,
+      data: rawDate,
+      descricao: descStr,
+      valor: valorNum,
+      valorPg: valorPgNum,
+      bancoId: bancoIdVal,
+      cartaoId: cartaoIdVal,
+      formaPagamento: formaPagVal,
+      tipo: tipoVal,
+      categoria: catVal,
+      status: statusVal,
+      km: kmVal,
+      litros: litrosVal,
+      precoLitro: precoLitroVal,
+      completouTanque: t.completouTanque ?? (compTanqueVal === 'SIM'),
+      kmPercorrido: kmPercVal,
+      mediaKmL: mediaVal,
+      veiculo: veiculoVal,
+      descricaoVeiculo: descVeiculoVal,
+      motorista: motoristaVal,
+      nomePosto: nomePostoVal,
+      localizacaoPosto: localPostoVal,
+      comprovanteUrl: compUrlVal,
+      obs: obsVal,
+
+      // Explicit 24 Column Aliases for Aba 4_Abastecimentos
+      // A: ID | B: Data | C: Descrição | D: Valor | E: Valor_Pago | F: Banco_Id | G: Cartão_Id | H: Forma_Pagamento
+      // I: Tipo | J: Categoria | K: Status | L: KM | M: Litros | N: Preço_Litro | O: Completou_O_Tanque | P: KM_Percorrido
+      // Q: Média_(Km/L) | R: Veiculo | S: Descrição_Do_Viculo | T: Motorista | U: Nome_Posto | V: Localização_Do_Posto
+      // W: Comprovante_Url | X: OBS
+      ID: idStr,
+      Data: rawDate,
+      Descrição: descStr,
+      Valor: valorNum,
+      Valor_PG: valorPgNum,
+      Valor_Pago: valorPgNum,
+      Banco_Id: bancoIdVal,
+      "Cartão_Id": cartaoIdVal,
+      Cartao_Id: cartaoIdVal,
+      Forma_Pagamento: formaPagVal,
+      Tipo: tipoVal,
+      Categoria: catVal,
+      Status: statusVal,
+      KM: kmVal,
+      Litros: litrosVal,
+      "Preço_Litro": precoLitroVal,
+      Preco_Litro: precoLitroVal,
+      Completou_O_Tanque: compTanqueVal,
+      KM_Percorrido: kmPercVal,
+      "Média_(Km/L)": mediaVal,
+      "Media_(Km/L)": mediaVal,
+      Veiculo: veiculoVal,
+      "Descrição_Do_Veículo": descVeiculoVal,
+      "Descrição_Do_Viculo": descVeiculoVal,
+      Descricao_Do_Veiculo: descVeiculoVal,
+      Motorista: motoristaVal,
+      Nome_Posto: nomePostoVal,
+      "Localização_Do_Posto": localPostoVal,
+      Localizacao_Do_Posto: localPostoVal,
+      Comprovante_Url: compUrlVal,
+      OBS: obsVal
+    };
+  });
+
+  const mappedFuelings = mappedTransactions.filter((t: any) => String(t.categoria || t.Categoria || '').toUpperCase() === 'ABASTECIMENTO');
+
   const payload = {
     action: 'syncData',
     spreadsheetId: cleanSheetId,
-    transactions: Array.isArray(transactions) ? transactions : [],
+    transactions: mappedTransactions,
+    abastecimentos: mappedFuelings,
+    "4_Abastecimentos": mappedFuelings,
     infractions: Array.isArray(infractions) ? infractions : [],
     riskZones: mappedRiskZones,
-    appointments: Array.isArray(appointments) ? appointments : [],
+    appointments: mappedAppointments,
+    consultas: mappedAppointments,
+    consultasMedicas: mappedAppointments,
+    "6_Consultas_Médicas": mappedAppointments,
     prescriptions: Array.isArray(prescriptions) ? prescriptions : [],
     compromissos: mappedCompromissos,
     registeredVehicles: mappedVehicles,

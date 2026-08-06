@@ -313,13 +313,13 @@ export default function MedicalAppointmentsTab({
 
   const handleStartEdit = (appt: MedicalAppointment) => {
     setEditingId(appt.id);
-    setEspecialidade(appt.especialidade);
-    setMedico(appt.medico);
-    setData(appt.data);
-    setHora(appt.hora);
-    setLocal(appt.local);
-    setObservacoes(appt.observacoes || '');
-    setLembreteAtivo(appt.lembreteAtivo);
+    setEspecialidade(appt.especialidade || (appt as any).Especialidade || '');
+    setMedico(appt.medico || (appt as any).Medico || (appt as any).Médico || '');
+    setData(appt.data || (appt as any).Data || '');
+    setHora(appt.hora || (appt as any).Hora || (appt as any).Horas || (appt as any).horario || '');
+    setLocal(appt.local || (appt as any).Local || '');
+    setObservacoes(appt.observacoes || appt.obs || (appt as any)['Observação'] || (appt as any)['Observações'] || '');
+    setLembreteAtivo(appt.lembreteAtivo ?? (String((appt as any).Lembrete_Ativo).toUpperCase() === 'SIM'));
     setShowAddForm(true);
     
     const element = document.getElementById('medical-appointments-tab-panel');
@@ -638,11 +638,16 @@ export default function MedicalAppointmentsTab({
     if (filter !== 'Todas' && appt.status !== filter) return false;
     if (!appointmentSearch) return true;
     const s = String(appointmentSearch || '').toLowerCase();
+    const formattedDate = appt.data && appt.data.includes('-') ? appt.data.split('-').reverse().join('/') : (appt.data || '');
     return (
-      String(appt.medico || '').toLowerCase().includes(s) ||
-      String(appt.especialidade || '').toLowerCase().includes(s) ||
-      String(appt.local || '').toLowerCase().includes(s) ||
-      String(appt.observacoes || appt.obs || '').toLowerCase().includes(s)
+      String(appt.medico || (appt as any).Medico || '').toLowerCase().includes(s) ||
+      String(appt.especialidade || (appt as any).Especialidade || '').toLowerCase().includes(s) ||
+      String(appt.local || (appt as any).Local || '').toLowerCase().includes(s) ||
+      String(appt.observacoes || appt.obs || (appt as any)['Observação'] || '').toLowerCase().includes(s) ||
+      String(appt.data || '').toLowerCase().includes(s) ||
+      String(formattedDate).toLowerCase().includes(s) ||
+      String(appt.hora || (appt as any).Horas || '').toLowerCase().includes(s) ||
+      String(appt.status || '').toLowerCase().includes(s)
     );
   });
 

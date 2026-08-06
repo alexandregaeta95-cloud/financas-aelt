@@ -1440,29 +1440,47 @@ export default function TransactionsTab({
   };
 
   const getLiveStats = () => {
-    if (!km || isNaN(parseInt(km, 10)) || !veiculo) return { kmPercorrido: 0, mediaKmL: 0 };
+    if (!km || isNaN(parseInt(km, 10))) return { kmPercorrido: 0, mediaKmL: 0 };
     const currentKm = parseInt(km, 10);
-    const vehicleUpper = String(veiculo || '').toUpperCase();
+    const vUpper = String(veiculo || '').toUpperCase().trim();
+    const dUpper = String(descricaoVeiculo || '').toUpperCase().trim();
     
     // Find all fueling transactions for this vehicle with km < currentKm
-    const prevFuelings = transactions
-      .filter(t => t.categoria === 'ABASTECIMENTO' && t.veiculo && String(t.veiculo || '').toUpperCase() === vehicleUpper && t.km && t.km < currentKm);
+    const prevFuelings = transactions.filter(t => {
+      const isAbast = String(t.categoria || t.Categoria || '').toUpperCase() === 'ABASTECIMENTO';
+      if (!isAbast) return false;
+      const tKm = t.km !== undefined && t.km !== null ? Number(t.km) : (t.KM !== undefined && t.KM !== null ? Number(t.KM) : 0);
+      if (!tKm || isNaN(tKm) || tKm >= currentKm) return false;
+
+      const tV = String(t.veiculo || t.Veiculo || '').toUpperCase().trim();
+      const tD = String(t.descricaoVeiculo || t.Descrição_Do_Veículo || t['Descrição_Do_Viculo'] || '').toUpperCase().trim();
+
+      if (!vUpper && !dUpper) return true;
+      if (vUpper && (tV === vUpper || tD === vUpper)) return true;
+      if (dUpper && (tV === dUpper || tD === dUpper)) return true;
+      if ((registeredVehicles || []).length <= 1) return true;
+      return false;
+    });
       
     if (prevFuelings.length === 0) return { kmPercorrido: 0, mediaKmL: 0 };
     
     // Sort descending by KM to get the most recent one
-    prevFuelings.sort((a, b) => (b.km || 0) - (a.km || 0));
+    prevFuelings.sort((a, b) => {
+      const kmA = a.km !== undefined && a.km !== null ? Number(a.km) : (a.KM !== undefined && a.KM !== null ? Number(a.KM) : 0);
+      const kmB = b.km !== undefined && b.km !== null ? Number(b.km) : (b.KM !== undefined && b.KM !== null ? Number(b.KM) : 0);
+      return kmB - kmA;
+    });
     
     const lastFueling = prevFuelings[0];
-    const prevKmVal = lastFueling.km || 0;
+    const prevKmVal = lastFueling.km !== undefined && lastFueling.km !== null ? Number(lastFueling.km) : (lastFueling.KM !== undefined && lastFueling.KM !== null ? Number(lastFueling.KM) : 0);
     const distance = currentKm - prevKmVal;
     
-    const lts = parseFloat(litros.replace(/\./g, "").replace(',', '.'));
+    const lts = parseFloat(String(litros || '0').replace(/\./g, "").replace(',', '.'));
     const calculatedMedia = lts > 0 ? distance / lts : 0;
     
     return {
-      kmPercorrido: distance,
-      mediaKmL: calculatedMedia
+      kmPercorrido: distance > 0 ? distance : 0,
+      mediaKmL: calculatedMedia > 0 ? calculatedMedia : 0
     };
   };
 
@@ -1727,7 +1745,10 @@ export default function TransactionsTab({
 
     const stats = getLiveStats();
     const finalKmPerc = (parsedManualKmPerc !== undefined && !isNaN(parsedManualKmPerc)) ? parsedManualKmPerc : (stats.kmPercorrido > 0 ? stats.kmPercorrido : undefined);
-    const finalMedia = (parsedManualMedia !== undefined && !isNaN(parsedManualMedia)) ? parsedManualMedia : (stats.mediaKmL > 0 ? stats.mediaKmL : undefined);
+    let finalMedia = (parsedManualMedia !== undefined && !isNaN(parsedManualMedia)) ? parsedManualMedia : (stats.mediaKmL > 0 ? stats.mediaKmL : undefined);
+    if ((finalMedia === undefined || isNaN(finalMedia) || finalMedia === 0) && finalKmPerc && finalKmPerc > 0 && parsedLitros && parsedLitros > 0) {
+      finalMedia = Math.round((finalKmPerc / parsedLitros) * 100) / 100;
+    }
 
     const getInstallmentDate = (startDateStr: string, index: number) => {
       const parts = startDateStr.split('-');
@@ -2587,7 +2608,54 @@ export default function TransactionsTab({
                 </div>
               </div>
 
-              {/* KM / Odômetro & Veículo in a grid */}
+              {/* Veículo Selecionável Vinculado à Aba 9_Veiculos */}
+              <div className="space-y-1.5 bg-slate-950/60 p-3 rounded-xl border border-slate-800">
+                <label className="block text-xs font-semibold text-slate-300 flex justify-between items-center">
+                  <span className="flex items-center gap-1.5 text-emerald-400 font-bold">
+                    <span className="material-symbols-outlined text-sm">directions_car</span>
+                    Veículo Cadastrado (Aba 9_Veiculos)
+                  </span>
+                  <span className="text-[10px] text-slate-400 font-mono">
+                    {registeredVehicles && registeredVehicles.length > 0 ? `${registeredVehicles.length} veículo(s)` : 'Sem veículos'}
+                  </span>
+                </label>
+                <div className="relative">
+                  <select
+                    value=""
+                    onChange={(e) => {
+                      const selectedVal = e.target.value;
+                      if (!selectedVal) return;
+                      const matched = (registeredVehicles || []).find(v => v && (String(v.id) === selectedVal || v.placa === selectedVal || v.descricao === selectedVal));
+                      if (matched) {
+                        const vDesc = matched.descricao || matched.modelo || matched.placa || '';
+                        setDescricaoVeiculo(vDesc);
+                        setVeiculo(matched.placa || matched.descricao || matched.id || 'CARRO');
+                        if (matched.motorista) setMotorista(matched.motorista);
+                      }
+                    }}
+                    className="w-full bg-slate-900 border border-slate-800 rounded-xl px-3 py-2 text-xs text-white focus:border-emerald-500 outline-none appearance-none cursor-pointer font-sans"
+                  >
+                    <option value="" className="bg-slate-900 text-slate-400 font-sans">
+                      {registeredVehicles && registeredVehicles.length > 0
+                        ? `-- CLIQUE PARA SELECCIONAR VEÍCULO DA ABA 9_VEICULOS --`
+                        : "-- NENHUM VEÍCULO CADASTRADO NA ABA 9_VEICULOS --"}
+                    </option>
+                    {(registeredVehicles || []).filter(Boolean).map(v => {
+                      const label = `[${v.descricao || v.modelo || 'Veículo'}] ${v.placa ? `Placa: ${v.placa}` : ''} ${v.motorista ? `| Motorista: ${v.motorista}` : ''}`;
+                      return (
+                        <option key={v.id || v.placa || v.descricao} value={String(v.id || v.placa || v.descricao)} className="bg-slate-900 text-white font-sans">
+                          {label}
+                        </option>
+                      );
+                    })}
+                  </select>
+                  <div className="absolute inset-y-0 right-0 flex items-center pr-2 pointer-events-none text-slate-400">
+                    <span className="material-symbols-outlined text-sm">expand_more</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* KM / Odômetro & Tipo de Veículo */}
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1.5">
                   <label className="block text-xs font-semibold text-slate-300">KM / Odômetro</label>
@@ -2601,7 +2669,7 @@ export default function TransactionsTab({
                 </div>
 
                 <div className="space-y-1.5">
-                  <label className="block text-xs font-semibold text-slate-300">Veículo</label>
+                  <label className="block text-xs font-semibold text-slate-300">Tipo de Veículo (Veiculo)</label>
                   <div className="relative">
                     <select
                       value={veiculo}
@@ -2610,6 +2678,11 @@ export default function TransactionsTab({
                     >
                       <option value="CARRO" className="bg-slate-900 text-white font-sans">CARRO</option>
                       <option value="MOTO" className="bg-slate-900 text-white font-sans">MOTO</option>
+                      {(registeredVehicles || []).map(v => (v.placa || v.descricao ? (
+                        <option key={v.id || v.placa} value={v.placa || v.descricao} className="bg-slate-900 text-white font-sans">
+                          {v.placa ? `PLACA: ${v.placa}` : v.descricao}
+                        </option>
+                      ) : null))}
                     </select>
                     <div className="absolute inset-y-0 right-0 flex items-center pr-2 pointer-events-none text-slate-400">
                       <span className="material-symbols-outlined text-sm">expand_more</span>
@@ -2619,9 +2692,9 @@ export default function TransactionsTab({
               </div>
 
               {/* Vehicle Description field */}
-              <div className="space-y-1.5 mt-2.5">
+              <div className="space-y-1.5">
                 <label className="block text-xs font-semibold text-slate-300">
-                  Descrição do Veículo (<span className="font-mono text-emerald-400">Descrição_do_Veículo</span>)
+                  Descrição do Veículo (<span className="font-mono text-emerald-400">Descrição_Do_Veículo</span>)
                 </label>
                 <div className="relative">
                   <input
@@ -2631,13 +2704,13 @@ export default function TransactionsTab({
                     onChange={(e) => {
                       const val = e.target.value;
                       setDescricaoVeiculo(val);
-                      const matched = (registeredVehicles || []).find(v => v && (v.descricao === val || v.modelo === val));
+                      const matched = (registeredVehicles || []).find(v => v && (v.descricao === val || v.modelo === val || v.placa === val));
                       if (matched) {
                         if (matched.motorista) setMotorista(matched.motorista);
                         if (String(matched.descricao || matched.modelo || '').toUpperCase().includes('MOTO')) {
                           setVeiculo('MOTO');
                         } else {
-                          setVeiculo('CARRO');
+                          setVeiculo(matched.placa || matched.descricao || 'CARRO');
                         }
                       }
                     }}

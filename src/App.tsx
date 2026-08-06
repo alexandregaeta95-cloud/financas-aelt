@@ -1077,9 +1077,49 @@ export default function App() {
               setRiskZones(sheetData.riskZones);
               localStorage.setItem('wealthflow_riskzones', JSON.stringify(sheetData.riskZones));
             }
-            if (sheetData && Array.isArray(sheetData.appointments) && sheetData.appointments.length > 0) {
-              setAppointments(sheetData.appointments);
-              localStorage.setItem('wealthflow_appointments', JSON.stringify(sheetData.appointments));
+            const rawAppointments = (sheetData && Array.isArray(sheetData.appointments) && sheetData.appointments.length > 0)
+              ? sheetData.appointments
+              : (sheetData && Array.isArray(sheetData.consultas) && sheetData.consultas.length > 0)
+                ? sheetData.consultas
+                : (sheetData && Array.isArray(sheetData.consultasMedicas) && sheetData.consultasMedicas.length > 0)
+                  ? sheetData.consultasMedicas
+                  : (sheetData && Array.isArray(sheetData["6_Consultas_Médicas"]) && sheetData["6_Consultas_Médicas"].length > 0)
+                    ? sheetData["6_Consultas_Médicas"]
+                    : null;
+
+            if (rawAppointments && rawAppointments.length > 0) {
+              const parsedAppointments: MedicalAppointment[] = rawAppointments.filter(Boolean).map((item: any) => {
+                let rawDate = item.data || item.Data || '';
+                if (rawDate && rawDate.includes('/')) {
+                  const parts = rawDate.split('/');
+                  if (parts.length === 3) {
+                    rawDate = `${parts[2]}-${parts[1].padStart(2, '0')}-${parts[0].padStart(2, '0')}`;
+                  }
+                }
+                const idStr = item.id !== undefined && item.id !== null && String(item.id).trim() !== '' ? String(item.id) : (item.ID ? String(item.ID) : String(Date.now()));
+                const espStr = item.especialidade || item.Especialidade || '';
+                const medStr = item.medico || item.Medico || item.Médico || '';
+                const horaStr = item.hora || item.Hora || item.horas || item.Horas || item.horario || item.Horario || '';
+                const localStr = item.local || item.Local || '';
+                const lembreteVal = item.lembreteAtivo === true || String(item.lembreteAtivo).toUpperCase() === 'SIM' || String(item['Lembrete_Ativo']).toUpperCase() === 'SIM' || String(item.lembreteAtivo) === 'true';
+                const statusStr = item.status || item.Status || 'Agendada';
+                const obsStr = item.observacoes || item.observacao || item['Observação'] || item['Observações'] || item.obs || item.OBS || '';
+
+                return {
+                  id: idStr,
+                  especialidade: espStr,
+                  medico: medStr,
+                  data: rawDate,
+                  hora: horaStr,
+                  local: localStr,
+                  observacoes: obsStr,
+                  status: (statusStr === 'Realizada' || statusStr === 'Cancelada') ? statusStr : 'Agendada',
+                  lembreteAtivo: lembreteVal,
+                  updatedAt: item.updatedAt ? Number(item.updatedAt) : Date.now()
+                };
+              });
+              setAppointments(parsedAppointments);
+              localStorage.setItem('wealthflow_appointments', JSON.stringify(parsedAppointments));
             }
             if (sheetData && Array.isArray(sheetData.prescriptions) && sheetData.prescriptions.length > 0) {
               setPrescriptions(sheetData.prescriptions);
@@ -1128,15 +1168,42 @@ export default function App() {
               setCompromissos(parsedCompromissos);
               localStorage.setItem('wealthflow_compromissos', JSON.stringify(parsedCompromissos));
             }
-            if (sheetData && Array.isArray(sheetData.registeredVehicles) && sheetData.registeredVehicles.length > 0) {
-              const safeVehs = sheetData.registeredVehicles.filter(Boolean).map((v: any) => ({
-                ...v,
-                descricao: (v.descricao || v.modelo || v.nome || '').toString().toUpperCase(),
-                placa: (v.placa || '').toString().toUpperCase(),
-                motorista: (v.motorista || '').toString().toUpperCase(),
-                marca: (v.marca || '').toString().toUpperCase(),
-                modelo: (v.modelo || '').toString().toUpperCase()
-              }));
+            const rawVehicles = (sheetData && Array.isArray(sheetData.registeredVehicles) && sheetData.registeredVehicles.length > 0)
+              ? sheetData.registeredVehicles
+              : (sheetData && Array.isArray(sheetData.veiculos) && sheetData.veiculos.length > 0)
+                ? sheetData.veiculos
+                : (sheetData && Array.isArray(sheetData["9_Veiculos"]) && sheetData["9_Veiculos"].length > 0)
+                  ? sheetData["9_Veiculos"]
+                  : null;
+
+            if (rawVehicles && rawVehicles.length > 0) {
+              const safeVehs: RegisteredVehicle[] = rawVehicles.filter(Boolean).map((v: any) => {
+                const idStr = v.id !== undefined && v.id !== null && String(v.id).trim() !== '' ? String(v.id) : (v.ID ? String(v.ID) : String(Date.now()));
+                const descStr = (v.descricao || v['Descrição'] || v.modelo || v.nome || '').toString().toUpperCase();
+                const motStr = (v.motorista || v['Motorista'] || '').toString().toUpperCase();
+                const placaStr = (v.placa || v['Placa'] || '').toString().toUpperCase();
+                const renavanStr = (v.renavan || v.renavam || v['Renavan'] || v['Renavam'] || '').toString().toUpperCase();
+                const chassiStr = (v.chassi || v['Chassi'] || '').toString().toUpperCase();
+                const marcaStr = (v.marca || v['Marca'] || '').toString().toUpperCase();
+                const modeloStr = (v.modelo || v['Modelo'] || '').toString().toUpperCase();
+                const anoVal = v.ano !== undefined && v.ano !== null ? String(v.ano) : (v['Ano'] ? String(v['Ano']) : '');
+                const anoFabVal = v.anoFabricacao !== undefined && v.anoFabricacao !== null ? String(v.anoFabricacao) : (v['Ano_Fabricação'] ? String(v['Ano_Fabricação']) : (v['Ano_Fabricacao'] ? String(v['Ano_Fabricacao']) : ''));
+
+                return {
+                  id: idStr,
+                  descricao: descStr,
+                  motorista: motStr,
+                  placa: placaStr,
+                  renavan: renavanStr,
+                  renavam: renavanStr,
+                  chassi: chassiStr,
+                  marca: marcaStr,
+                  modelo: modeloStr,
+                  ano: anoVal,
+                  anoFabricacao: anoFabVal,
+                  Ano_Fabricação: anoFabVal
+                };
+              });
               setRegisteredVehicles(safeVehs);
               localStorage.setItem('wealthflow_registered_vehicles', JSON.stringify(safeVehs));
             }
@@ -3498,6 +3565,10 @@ export default function App() {
     } catch (e) {
       console.error('Erro ao salvar veículo no DB:', e);
     }
+    const activeToken = getEffectiveGoogleToken();
+    if (activeToken) {
+      triggerSync(activeToken, true, undefined, undefined, undefined, undefined, undefined, true, undefined, updated);
+    }
   };
 
   const handleEditVehicle = async (id: string, updatedFields: Partial<RegisteredVehicle>) => {
@@ -3514,6 +3585,10 @@ export default function App() {
         console.error('Erro ao atualizar veículo no DB:', e);
       }
     }
+    const activeToken = getEffectiveGoogleToken();
+    if (activeToken) {
+      triggerSync(activeToken, true, undefined, undefined, undefined, undefined, undefined, true, undefined, updated);
+    }
   };
 
   const handleDeleteVehicle = async (id: string) => {
@@ -3526,6 +3601,10 @@ export default function App() {
       });
     } catch (e) {
       console.error('Erro ao excluir veículo no DB:', e);
+    }
+    const activeToken = getEffectiveGoogleToken();
+    if (activeToken) {
+      triggerSync(activeToken, true, undefined, undefined, undefined, undefined, undefined, true, undefined, updated);
     }
   };
 
@@ -3879,13 +3958,14 @@ export default function App() {
     }
     const activeToken = getEffectiveGoogleToken();
     if (activeToken) {
-      triggerSync(activeToken, true, undefined, undefined, undefined, updated);
+      triggerSync(activeToken, true, undefined, undefined, undefined, updated, undefined, true);
     }
   };
 
   const handleEditAppointment = async (id: string, updatedFields: Partial<MedicalAppointment>) => {
     const updated = appointments.map(appt => appt.id === id ? { ...appt, ...updatedFields, updatedAt: Date.now() } : appt);
     setAppointments(updated);
+    localStorage.setItem('wealthflow_appointments', JSON.stringify(updated));
     const item = updated.find(appt => appt.id === id);
     if (item) {
       try {
@@ -3900,7 +3980,7 @@ export default function App() {
     }
     const activeToken = getEffectiveGoogleToken();
     if (activeToken) {
-      triggerSync(activeToken, true, undefined, undefined, undefined, updated);
+      triggerSync(activeToken, true, undefined, undefined, undefined, updated, undefined, true);
     }
   };
 
@@ -3908,11 +3988,12 @@ export default function App() {
     const backup = [...appointments];
     const updated = appointments.filter(appt => appt.id !== id);
     setAppointments(updated);
+    localStorage.setItem('wealthflow_appointments', JSON.stringify(updated));
     try {
       await deleteMedicalAppointmentFromDb(id);
       const activeToken = getEffectiveGoogleToken();
       if (activeToken) {
-        triggerSync(activeToken, true, undefined, undefined, undefined, updated);
+        triggerSync(activeToken, true, undefined, undefined, undefined, updated, undefined, true);
       }
     } catch (error) {
       console.error("Error deleting medical appointment:", error);

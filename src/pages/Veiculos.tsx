@@ -165,29 +165,29 @@ export const VeiculosPage: React.FC<VeiculosPageProps> = ({
   };
 
   return (
-    <div className="space-y-6 pb-12 max-w-7xl mx-auto px-4 font-sans text-slate-100">
+    <div className="space-y-4 sm:space-y-6 pb-16 max-w-7xl mx-auto px-2.5 sm:px-4 font-sans text-slate-100">
       {/* Header Section */}
-      <div className="bg-slate-900/60 border border-slate-800 p-6 rounded-3xl backdrop-blur-md flex flex-col md:flex-row md:items-center justify-between gap-4 shadow-xl">
-        <div>
-          <div className="flex items-center gap-3">
-            <span className="material-symbols-outlined text-amber-400 text-3xl">directions_car</span>
-            <div>
-              <h1 className="text-xl font-bold text-white tracking-tight font-display uppercase">
-                Cadastro de Veículos
-              </h1>
-              <p className="text-xs text-slate-400 font-mono">
-                Mapeado com a aba <span className="text-amber-400 font-bold">9_Veiculos</span> (Colunas A a J)
-              </p>
-            </div>
+      <div className="bg-slate-900/80 border border-slate-800 p-4 sm:p-6 rounded-2xl sm:rounded-3xl backdrop-blur-md flex flex-col md:flex-row md:items-center justify-between gap-3 shadow-xl">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-2xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center flex-shrink-0">
+            <span className="material-symbols-outlined text-amber-400 text-2xl sm:text-3xl">directions_car</span>
+          </div>
+          <div>
+            <h1 className="text-base sm:text-xl font-extrabold text-white tracking-tight font-display uppercase">
+              Cadastro de Veículos
+            </h1>
+            <p className="text-[10px] sm:text-xs text-slate-400 font-mono">
+              Planilha Finança Data <span className="text-amber-400 font-bold">Aba 9_Veiculos</span> (Colunas A a J)
+            </p>
           </div>
         </div>
 
-        <div className="flex items-center gap-2 flex-wrap">
+        <div className="flex items-center gap-2 w-full sm:w-auto">
           {onReindexVehicles && (
             <button
               type="button"
               onClick={onReindexVehicles}
-              className="px-3 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold text-xs rounded-xl transition-colors cursor-pointer flex items-center gap-1.5 border border-slate-700 font-mono"
+              className="flex-1 sm:flex-initial px-3 py-2.5 bg-slate-800 hover:bg-slate-700 active:scale-95 text-slate-300 font-bold text-xs rounded-xl transition-all cursor-pointer flex items-center justify-center gap-1.5 border border-slate-700 font-mono"
             >
               <span className="material-symbols-outlined text-sm">format_list_numbered</span>
               Renumerar (#1, #2...)
@@ -197,7 +197,7 @@ export const VeiculosPage: React.FC<VeiculosPageProps> = ({
           <button
             type="button"
             onClick={handleOpenAddModal}
-            className="px-4 py-2 bg-amber-500 hover:bg-amber-400 text-slate-950 font-extrabold text-xs rounded-xl shadow-lg shadow-amber-500/10 transition-all cursor-pointer flex items-center gap-2 uppercase tracking-wider font-mono"
+            className="flex-1 sm:flex-initial px-4 py-2.5 bg-amber-500 hover:bg-amber-400 active:scale-95 text-slate-950 font-black text-xs rounded-xl shadow-lg shadow-amber-500/10 transition-all cursor-pointer flex items-center justify-center gap-1.5 uppercase tracking-wider font-mono"
           >
             <span className="material-symbols-outlined text-base">add</span>
             Novo Veículo
@@ -206,36 +206,45 @@ export const VeiculosPage: React.FC<VeiculosPageProps> = ({
       </div>
 
       {/* Search & Counter Filter */}
-      <div className="flex flex-col sm:flex-row gap-3 items-center justify-between bg-slate-950 border border-slate-900 p-3.5 rounded-2xl">
+      <div className="flex flex-col sm:flex-row gap-2.5 items-center justify-between bg-slate-950 border border-slate-900 p-3 rounded-2xl">
         <div className="relative w-full sm:w-80">
-          <span className="material-symbols-outlined absolute left-3 top-2.5 text-slate-500 text-lg">search</span>
+          <span className="material-symbols-outlined absolute left-3 top-2.5 text-slate-500 text-lg pointer-events-none">search</span>
           <input
             type="text"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="Buscar veículo por descrição, placa, renavan, motorista..."
-            className="w-full bg-slate-900 border border-slate-800 rounded-xl py-2 pl-9 pr-3 text-xs text-white placeholder-slate-500 outline-none focus:border-amber-500 font-mono"
+            placeholder="Buscar por descrição, placa, renavan, motorista..."
+            className="w-full bg-slate-900 border border-slate-800 rounded-xl py-2 pl-9 pr-8 text-xs text-white placeholder-slate-500 outline-none focus:border-amber-500 font-mono"
           />
+          {searchQuery && (
+            <button
+              type="button"
+              onClick={() => setSearchQuery('')}
+              className="absolute right-2.5 top-2.5 text-slate-400 hover:text-white p-0.5 rounded"
+            >
+              <span className="material-symbols-outlined text-sm">close</span>
+            </button>
+          )}
         </div>
 
-        <div className="text-xs font-mono text-slate-400">
+        <div className="text-xs font-mono text-slate-400 self-end sm:self-center">
           Total: <span className="text-amber-400 font-bold">{filteredVehicles.length}</span> veículo(s)
         </div>
       </div>
 
       {/* Grid of Vehicles */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3.5 sm:gap-4">
         {filteredVehicles.length === 0 ? (
-          <div className="col-span-full bg-slate-950/40 border border-slate-900 p-12 rounded-3xl text-center space-y-3">
+          <div className="col-span-full bg-slate-950/40 border border-slate-900 p-8 sm:p-12 rounded-2xl sm:rounded-3xl text-center space-y-3">
             <span className="material-symbols-outlined text-slate-700 text-5xl">no_crash</span>
-            <p className="text-sm text-slate-400 italic font-mono">
+            <p className="text-xs sm:text-sm text-slate-400 italic font-mono">
               {searchQuery ? 'Nenhum veículo encontrado para a busca.' : 'Nenhum veículo cadastrado ainda.'}
             </p>
             {!searchQuery && (
               <button
                 type="button"
                 onClick={handleOpenAddModal}
-                className="px-4 py-2 bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs rounded-xl cursor-pointer inline-flex items-center gap-1.5"
+                className="px-4 py-2.5 bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs rounded-xl cursor-pointer inline-flex items-center gap-1.5"
               >
                 <span className="material-symbols-outlined text-sm">add</span>
                 Cadastrar Primeiro Veículo
@@ -252,67 +261,67 @@ export const VeiculosPage: React.FC<VeiculosPageProps> = ({
             return (
               <div
                 key={veh.id || index}
-                className="bg-slate-900/80 border border-slate-800 hover:border-amber-500/40 p-5 rounded-2xl flex flex-col justify-between space-y-4 transition-all shadow-md group"
+                className="bg-slate-900/90 border border-slate-800 hover:border-amber-500/40 p-4 sm:p-5 rounded-2xl flex flex-col justify-between space-y-3.5 transition-all shadow-md group"
               >
                 <div className="space-y-3">
                   <div className="flex justify-between items-start gap-2 border-b border-slate-800/80 pb-2.5">
-                    <div>
-                      <span className="text-[10px] font-mono font-bold text-amber-400 bg-amber-500/10 px-2 py-0.5 rounded border border-amber-500/20">
-                        ID: #{veh.id}
+                    <div className="min-w-0 flex-1">
+                      <span className="text-[10px] font-mono font-bold text-amber-400 bg-amber-500/10 px-2 py-0.5 rounded border border-amber-500/20 inline-block mb-1">
+                        A: ID #{veh.id}
                       </span>
-                      <h3 className="font-bold text-white text-sm uppercase tracking-tight font-display mt-1">
+                      <h3 className="font-bold text-white text-sm uppercase tracking-tight font-display truncate">
                         {labelDesc}
                       </h3>
                     </div>
-                    <div className="flex items-center gap-1">
+                    <div className="flex items-center gap-1 flex-shrink-0">
                       <button
                         type="button"
                         onClick={() => handleOpenEditModal(veh)}
-                        className="p-1.5 text-slate-400 hover:text-amber-400 hover:bg-slate-800 rounded-lg transition-colors cursor-pointer"
+                        className="w-9 h-9 flex items-center justify-center text-slate-400 hover:text-amber-400 hover:bg-slate-800 rounded-xl transition-colors cursor-pointer active:scale-95"
                         title="Editar Veículo"
                       >
-                        <span className="material-symbols-outlined text-base">edit</span>
+                        <span className="material-symbols-outlined text-lg">edit</span>
                       </button>
                       <button
                         type="button"
                         onClick={() => handleDelete(veh)}
-                        className="p-1.5 text-slate-400 hover:text-rose-400 hover:bg-slate-800 rounded-lg transition-colors cursor-pointer"
+                        className="w-9 h-9 flex items-center justify-center text-slate-400 hover:text-rose-400 hover:bg-slate-800 rounded-xl transition-colors cursor-pointer active:scale-95"
                         title="Excluir Veículo"
                       >
-                        <span className="material-symbols-outlined text-base">delete</span>
+                        <span className="material-symbols-outlined text-lg">delete</span>
                       </button>
                     </div>
                   </div>
 
                   <div className="grid grid-cols-2 gap-2 text-[11px] font-mono">
                     <div className="bg-slate-950 p-2 rounded-xl border border-slate-850">
-                      <span className="text-slate-500 text-[9px] block uppercase">Placa (Col D)</span>
-                      <span className="text-white font-bold">{veh.placa || '-'}</span>
+                      <span className="text-slate-500 text-[9px] block uppercase font-bold">Col D • Placa</span>
+                      <span className="text-white font-bold text-xs">{veh.placa || '-'}</span>
                     </div>
 
                     <div className="bg-slate-950 p-2 rounded-xl border border-slate-850">
-                      <span className="text-slate-500 text-[9px] block uppercase">Motorista (Col C)</span>
-                      <span className="text-slate-300">{veh.motorista || '-'}</span>
+                      <span className="text-slate-500 text-[9px] block uppercase font-bold">Col C • Motorista</span>
+                      <span className="text-slate-300 truncate block text-xs">{veh.motorista || '-'}</span>
                     </div>
 
                     <div className="bg-slate-950 p-2 rounded-xl border border-slate-850">
-                      <span className="text-slate-500 text-[9px] block uppercase">Renavan (Col E)</span>
-                      <span className="text-amber-400/90 font-bold">{renavanVal}</span>
+                      <span className="text-slate-500 text-[9px] block uppercase font-bold">Col E • Renavan</span>
+                      <span className="text-amber-400/90 font-bold text-xs">{renavanVal}</span>
                     </div>
 
                     <div className="bg-slate-950 p-2 rounded-xl border border-slate-850">
-                      <span className="text-slate-500 text-[9px] block uppercase">Chassi (Col F)</span>
-                      <span className="text-slate-300 truncate block">{veh.chassi || '-'}</span>
+                      <span className="text-slate-500 text-[9px] block uppercase font-bold">Col F • Chassi</span>
+                      <span className="text-slate-300 truncate block text-xs">{veh.chassi || '-'}</span>
                     </div>
 
                     <div className="bg-slate-950 p-2 rounded-xl border border-slate-850">
-                      <span className="text-slate-500 text-[9px] block uppercase">Marca / Modelo (G/H)</span>
-                      <span className="text-slate-300">{veh.marca || '-'} / {veh.modelo || '-'}</span>
+                      <span className="text-slate-500 text-[9px] block uppercase font-bold">Cols G/H • Marca / Modelo</span>
+                      <span className="text-slate-300 truncate block text-xs">{veh.marca || '-'} / {veh.modelo || '-'}</span>
                     </div>
 
                     <div className="bg-slate-950 p-2 rounded-xl border border-slate-850">
-                      <span className="text-slate-500 text-[9px] block uppercase">Ano / Ano Fab (I/J)</span>
-                      <span className="text-slate-300">{anoVal} / {anoFabVal}</span>
+                      <span className="text-slate-500 text-[9px] block uppercase font-bold">Cols I/J • Ano / Fab</span>
+                      <span className="text-slate-300 text-xs">{anoVal} / {anoFabVal}</span>
                     </div>
                   </div>
                 </div>
@@ -325,26 +334,26 @@ export const VeiculosPage: React.FC<VeiculosPageProps> = ({
       {/* Modal: Cadastro / Edição de Veículo */}
       <AnimatePresence>
         {isModalOpen && (
-          <div className="fixed inset-0 z-[999] flex items-center justify-center p-4 font-sans">
-            <div className="absolute inset-0 bg-slate-950/80 backdrop-blur-sm" onClick={() => setIsModalOpen(false)} />
-            <div className="relative bg-slate-900 border border-slate-800 rounded-3xl w-full max-w-lg p-6 shadow-2xl space-y-4 z-10 max-h-[90vh] overflow-y-auto">
-              <div className="flex justify-between items-center border-b border-slate-800 pb-3">
+          <div className="fixed inset-0 z-[999] flex items-center justify-center p-3 sm:p-4 font-sans">
+            <div className="absolute inset-0 bg-slate-950/85 backdrop-blur-sm" onClick={() => setIsModalOpen(false)} />
+            <div className="relative bg-slate-900 border border-slate-800 rounded-2xl sm:rounded-3xl w-full max-w-lg p-4 sm:p-6 shadow-2xl space-y-4 z-10 max-h-[92vh] flex flex-col justify-between">
+              <div className="flex justify-between items-center border-b border-slate-800 pb-3 flex-shrink-0">
                 <div className="flex items-center gap-2">
                   <span className="material-symbols-outlined text-amber-400">directions_car</span>
-                  <h3 className="text-sm font-bold text-white uppercase tracking-wider font-display">
+                  <h3 className="text-xs sm:text-sm font-bold text-white uppercase tracking-wider font-display">
                     {editingVehicle ? 'Editar Veículo (Aba 9_Veiculos)' : 'Novo Veículo (Aba 9_Veiculos)'}
                   </h3>
                 </div>
                 <button
                   type="button"
                   onClick={() => setIsModalOpen(false)}
-                  className="text-slate-400 hover:text-white transition-colors"
+                  className="w-8 h-8 flex items-center justify-center text-slate-400 hover:text-white transition-colors"
                 >
-                  <span className="material-symbols-outlined">close</span>
+                  <span className="material-symbols-outlined text-lg">close</span>
                 </button>
               </div>
 
-              <form onSubmit={handleSave} className="space-y-3.5 text-left text-xs">
+              <form onSubmit={handleSave} className="space-y-3 text-left text-xs overflow-y-auto pr-1 flex-1 custom-scrollbar">
                 {/* ID (A) */}
                 <div>
                   <label className="text-[10px] text-slate-400 uppercase font-mono block mb-1">
@@ -369,12 +378,12 @@ export const VeiculosPage: React.FC<VeiculosPageProps> = ({
                     onChange={(e) => setFormDescricao(e.target.value)}
                     placeholder="Ex: FOX ROCK RIO 1.6"
                     required
-                    className="w-full bg-slate-950 border border-slate-800 rounded-xl p-2.5 text-xs text-white outline-none focus:border-amber-500 uppercase font-mono"
+                    className="w-full bg-slate-950 border border-slate-800 rounded-xl p-2.5 text-sm sm:text-xs text-white outline-none focus:border-amber-500 uppercase font-mono"
                   />
                 </div>
 
                 {/* Motorista (C) & Placa (D) */}
-                <div className="grid grid-cols-2 gap-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div>
                     <label className="text-[10px] text-slate-400 uppercase font-mono block mb-1">
                       Coluna C: Motorista
@@ -384,7 +393,7 @@ export const VeiculosPage: React.FC<VeiculosPageProps> = ({
                       value={formMotorista}
                       onChange={(e) => setFormMotorista(e.target.value)}
                       placeholder="Ex: ALEXANDRE"
-                      className="w-full bg-slate-950 border border-slate-800 rounded-xl p-2.5 text-xs text-white outline-none focus:border-amber-500 uppercase font-mono"
+                      className="w-full bg-slate-950 border border-slate-800 rounded-xl p-2.5 text-sm sm:text-xs text-white outline-none focus:border-amber-500 uppercase font-mono"
                     />
                   </div>
 
@@ -397,13 +406,13 @@ export const VeiculosPage: React.FC<VeiculosPageProps> = ({
                       value={formPlaca}
                       onChange={(e) => setFormPlaca(e.target.value)}
                       placeholder="Ex: ABC-1234"
-                      className="w-full bg-slate-950 border border-slate-800 rounded-xl p-2.5 text-xs text-white outline-none focus:border-amber-500 uppercase font-mono"
+                      className="w-full bg-slate-950 border border-slate-800 rounded-xl p-2.5 text-sm sm:text-xs text-white outline-none focus:border-amber-500 uppercase font-mono"
                     />
                   </div>
                 </div>
 
                 {/* Renavan (E) & Chassi (F) */}
-                <div className="grid grid-cols-2 gap-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div>
                     <label className="text-[10px] text-amber-400 font-bold uppercase font-mono block mb-1">
                       Coluna E: Renavan
@@ -413,7 +422,7 @@ export const VeiculosPage: React.FC<VeiculosPageProps> = ({
                       value={formRenavan}
                       onChange={(e) => setFormRenavan(e.target.value)}
                       placeholder="Ex: 00123456789"
-                      className="w-full bg-slate-950 border border-slate-800 rounded-xl p-2.5 text-xs text-amber-400 outline-none focus:border-amber-500 font-mono font-bold uppercase"
+                      className="w-full bg-slate-950 border border-slate-800 rounded-xl p-2.5 text-sm sm:text-xs text-amber-400 outline-none focus:border-amber-500 font-mono font-bold uppercase"
                     />
                   </div>
 
@@ -426,13 +435,13 @@ export const VeiculosPage: React.FC<VeiculosPageProps> = ({
                       value={formChassi}
                       onChange={(e) => setFormChassi(e.target.value)}
                       placeholder="Ex: 9BWZZZ..."
-                      className="w-full bg-slate-950 border border-slate-800 rounded-xl p-2.5 text-xs text-white outline-none focus:border-amber-500 uppercase font-mono"
+                      className="w-full bg-slate-950 border border-slate-800 rounded-xl p-2.5 text-sm sm:text-xs text-white outline-none focus:border-amber-500 uppercase font-mono"
                     />
                   </div>
                 </div>
 
                 {/* Marca (G) & Modelo (H) */}
-                <div className="grid grid-cols-2 gap-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div>
                     <label className="text-[10px] text-slate-400 uppercase font-mono block mb-1">
                       Coluna G: Marca
@@ -442,7 +451,7 @@ export const VeiculosPage: React.FC<VeiculosPageProps> = ({
                       value={formMarca}
                       onChange={(e) => setFormMarca(e.target.value)}
                       placeholder="Ex: VOLKSWAGEN"
-                      className="w-full bg-slate-950 border border-slate-800 rounded-xl p-2.5 text-xs text-white outline-none focus:border-amber-500 uppercase font-mono"
+                      className="w-full bg-slate-950 border border-slate-800 rounded-xl p-2.5 text-sm sm:text-xs text-white outline-none focus:border-amber-500 uppercase font-mono"
                     />
                   </div>
 
@@ -455,13 +464,13 @@ export const VeiculosPage: React.FC<VeiculosPageProps> = ({
                       value={formModelo}
                       onChange={(e) => setFormModelo(e.target.value)}
                       placeholder="Ex: FOX"
-                      className="w-full bg-slate-950 border border-slate-800 rounded-xl p-2.5 text-xs text-white outline-none focus:border-amber-500 uppercase font-mono"
+                      className="w-full bg-slate-950 border border-slate-800 rounded-xl p-2.5 text-sm sm:text-xs text-white outline-none focus:border-amber-500 uppercase font-mono"
                     />
                   </div>
                 </div>
 
                 {/* Ano (I) & Ano_Fabricação (J) */}
-                <div className="grid grid-cols-2 gap-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div>
                     <label className="text-[10px] text-slate-400 uppercase font-mono block mb-1">
                       Coluna I: Ano
@@ -471,7 +480,7 @@ export const VeiculosPage: React.FC<VeiculosPageProps> = ({
                       value={formAno}
                       onChange={(e) => setFormAno(e.target.value)}
                       placeholder="Ex: 2014"
-                      className="w-full bg-slate-950 border border-slate-800 rounded-xl p-2.5 text-xs text-white outline-none focus:border-amber-500 font-mono"
+                      className="w-full bg-slate-950 border border-slate-800 rounded-xl p-2.5 text-sm sm:text-xs text-white outline-none focus:border-amber-500 font-mono"
                     />
                   </div>
 
@@ -484,22 +493,22 @@ export const VeiculosPage: React.FC<VeiculosPageProps> = ({
                       value={formAnoFabricacao}
                       onChange={(e) => setFormAnoFabricacao(e.target.value)}
                       placeholder="Ex: 2013"
-                      className="w-full bg-slate-950 border border-slate-800 rounded-xl p-2.5 text-xs text-white outline-none focus:border-amber-500 font-mono"
+                      className="w-full bg-slate-950 border border-slate-800 rounded-xl p-2.5 text-sm sm:text-xs text-white outline-none focus:border-amber-500 font-mono"
                     />
                   </div>
                 </div>
 
-                <div className="flex items-center justify-end gap-2 pt-3 border-t border-slate-800">
+                <div className="flex items-center justify-end gap-2 pt-3 border-t border-slate-800 flex-shrink-0">
                   <button
                     type="button"
                     onClick={() => setIsModalOpen(false)}
-                    className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold text-xs rounded-xl transition-colors cursor-pointer"
+                    className="flex-1 sm:flex-initial px-4 py-2.5 bg-slate-800 hover:bg-slate-700 active:scale-95 text-slate-300 font-bold text-xs rounded-xl transition-colors cursor-pointer"
                   >
                     Cancelar
                   </button>
                   <button
                     type="submit"
-                    className="px-5 py-2 bg-amber-500 hover:bg-amber-400 text-slate-950 font-extrabold text-xs rounded-xl shadow-lg transition-all cursor-pointer font-mono uppercase"
+                    className="flex-1 sm:flex-initial px-5 py-2.5 bg-amber-500 hover:bg-amber-400 active:scale-95 text-slate-950 font-extrabold text-xs rounded-xl shadow-lg transition-all cursor-pointer font-mono uppercase"
                   >
                     Salvar Veículo
                   </button>
