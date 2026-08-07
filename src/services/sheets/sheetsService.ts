@@ -28,7 +28,9 @@ export class SheetsService {
     creditCards: any[] = [],
     categoryBudgets: { [category: string]: number } = {},
     customCategories: string[] = [],
-    groceryItems: any[] = []
+    groceryItems: any[] = [],
+    forceOverwrite: boolean = false,
+    sheetTxCount?: number
   ) {
     const safeToken = toSafeString(token);
     const safeSheetId = toSafeString(spreadsheetId);
@@ -48,7 +50,9 @@ export class SheetsService {
       creditCards,
       categoryBudgets,
       customCategories,
-      groceryItems
+      groceryItems,
+      forceOverwrite,
+      sheetTxCount
     );
   }
 

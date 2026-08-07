@@ -105,7 +105,9 @@ function cleanDuplicateTransactions(txs: any[]): Transaction[] {
     }
 
     if (seenIds.has(idNum)) {
-      return; // Skip duplicate ID
+      // Re-assign a new unique ID so pasted rows with copied IDs are never dropped!
+      idNum = Date.now() + Math.floor(Math.random() * 1000000);
+      t.id = idNum;
     }
     seenIds.add(idNum);
 
@@ -2664,8 +2666,8 @@ export default function App() {
         ? sheetData.transactions 
         : (Array.isArray(sheetData?.abastecimentos) ? sheetData.abastecimentos : []);
 
-      console.log(`[SYNC LOG - APÓS LEITURA DA PLANILHA] Total de lançamentos brutos lidos da planilha: ${rawSheetTxs.length}`);
-      console.log('[SYNC LOG - APÓS LEITURA DA PLANILHA] IDs lidos da planilha:', rawSheetTxs.map((t: any) => t.id || t.Id || t.ID));
+      console.log('=== [ETAPA 1] Registros retornados por buscarTodosDados() ===');
+      console.log(JSON.stringify(rawSheetTxs, null, 2));
 
       const validSheetTxs = rawSheetTxs.map((st: any, idx: number) => {
         const norm = normalizeTransactionObject(st);
@@ -2676,6 +2678,9 @@ export default function App() {
         return norm;
       });
 
+      console.log('=== [ETAPA 2] Registros após normalizeTransactionObject() ===');
+      console.log(JSON.stringify(validSheetTxs, null, 2));
+
       console.log(`[SYNC LOG - LOCAL BEFORE MERGE] Total de lançamentos locais na memória do app: ${currentTxs?.length || 0}`);
       console.log('[SYNC LOG - LOCAL BEFORE MERGE] IDs locais:', (currentTxs || []).map(t => t.id));
       console.log('[SYNC LOG - LOCAL BEFORE MERGE] IDs excluídos no app (deletedIds):', deletedIds);
@@ -2683,12 +2688,21 @@ export default function App() {
 
       // --- MERGE TRANSACTIONS ---
       let cleanMergedTxs = currentTxs;
+      let hasAppChanges = forceOverwriteSpreadsheet || Boolean(overrideTxs || overrideInfracs || overrideZones || overrideAppts || overridePrescs || overrideCompromissos || overrideVehicles || overridePerfServices || overrideSchedServices || overrideBanks || overrideCards || overrideGroceryItems);
+
+      if (deletedIds.length > 0) {
+        hasAppChanges = true;
+      }
+
       if (!forceOverwriteSpreadsheet) {
         const txMap = new Map<number | string, any>();
         (Array.isArray(currentTxs) ? currentTxs : []).forEach(t => {
           if (t && typeof t === 'object' && t.id) {
             txMap.set(t.id, t);
             txMap.set(String(t.id), t);
+            if ((t.updatedAt || 0) > lastSyncedTimestamp) {
+              hasAppChanges = true;
+            }
           }
         });
 
@@ -2700,23 +2714,6 @@ export default function App() {
           }
         });
 
-        const deletedInSheetIds: (number | string)[] = [];
-        if (lastSyncedTimestamp > 0 && validSheetTxs.length > 0) {
-          (Array.isArray(currentTxs) ? currentTxs : []).forEach(localTx => {
-            if (!localTx || !localTx.id) return;
-            const existsInSheet = sheetTxIds.has(localTx.id) || sheetTxIds.has(String(localTx.id));
-            const localUpdatedAt = localTx.updatedAt || 0;
-            const isNewlyCreatedLocally = localUpdatedAt > lastSyncedTimestamp;
-
-            if (!existsInSheet && !isNewlyCreatedLocally) {
-              console.log(`[SYNC LOG - MERGE] Removendo registro local (ID ${localTx.id} - ${localTx.descricao}) porque não existe mais na planilha (excluído na planilha)`);
-              txMap.delete(localTx.id);
-              txMap.delete(String(localTx.id));
-              deletedInSheetIds.push(localTx.id);
-            }
-          });
-        }
-
         let hasNewOrUpdatedFromSheet = false;
         const txsToSaveDb: any[] = [];
 
@@ -2725,7 +2722,7 @@ export default function App() {
           const stId = st.id;
 
           if (deletedIds.includes(stId) || deletedIds.includes(String(stId))) {
-            console.log(`[SYNC LOG - MERGE] Ignorando registro da planilha (ID ${stId} - ${st.descricao}) pois está na lista de deletados localmente (deletedIds)`);
+            console.log(`[SYNC LOG - MERGE] Ignorando registro da planilha (ID ${stId} - ${st.descricao}) pois foi excluído pelo usuário no aplicativo`);
             return;
           }
 
@@ -2762,7 +2759,8 @@ export default function App() {
                 txsToSaveDb.push(updatedTx);
                 hasNewOrUpdatedFromSheet = true;
               } else {
-                console.log(`[SYNC LOG - MERGE] ID ${stId} foi alterado localmente mais recentemente do que a planilha. Mantendo local.`);
+                console.log(`[SYNC LOG - MERGE] ID ${stId} foi alterado localmente mais recentemente no aplicativo. Mantendo local.`);
+                hasAppChanges = true;
               }
             }
           }
@@ -2773,9 +2771,8 @@ export default function App() {
         const hasDuplicatesCleaned = cleanMergedTxs.length < mergedTxsList.length;
 
         console.log(`[SYNC LOG - APÓS MESCLAGEM] Total de lançamentos após mesclagem: ${cleanMergedTxs.length}`);
-        console.log('[SYNC LOG - APÓS MESCLAGEM] IDs após mesclagem:', cleanMergedTxs.map(t => t.id));
 
-        if (hasNewOrUpdatedFromSheet || hasDuplicatesCleaned || deletedInSheetIds.length > 0) {
+        if (hasNewOrUpdatedFromSheet || hasDuplicatesCleaned) {
           setTransactions(cleanMergedTxs);
           localStorage.setItem('wealthflow_transactions', JSON.stringify(cleanMergedTxs));
 
@@ -2783,10 +2780,6 @@ export default function App() {
             if (cleanMergedTxs.some(t => String(t.id) === String(tx.id))) {
               await saveTransactionToDb(tx);
             }
-          }
-
-          for (const idToDel of deletedInSheetIds) {
-            await deleteTransactionFromDb(Number(idToDel) || idToDel);
           }
 
           if (hasDuplicatesCleaned) {
@@ -2848,21 +2841,6 @@ export default function App() {
           }
         });
 
-        if (lastSyncedTimestamp > 0 && sheetList.length > 0) {
-          (Array.isArray(localList) ? localList : []).forEach(item => {
-            if (!item) return;
-            const raw = item.id || (item as any).Id || (item as any).ID;
-            if (!raw) return;
-            const existsInSheet = sheetIdsSet.has(raw) || sheetIdsSet.has(String(raw));
-            const localUp = (item as any).updatedAt || 0;
-            if (!existsInSheet && localUp <= lastSyncedTimestamp) {
-              map.delete(raw);
-              map.delete(String(raw));
-              changed = true;
-            }
-          });
-        }
-
         const result = Array.from(new Set(map.values()));
         if (changed) {
           setStateFn(result);
@@ -2900,11 +2878,25 @@ export default function App() {
       const finalGrocJson = JSON.stringify(mergedGroceryItems);
       lastSyncedTxRef.current = `${finalTxsJson}_${finalInfsJson}_${finalZonesJson}_${finalApptsJson}_${finalPrescsJson}_${finalCompJson}_${finalVehJson}_${finalPerfJson}_${finalSchedJson}_${finalBankJson}_${finalCardJson}_${finalGrocJson}`;
 
-      console.log('=== [DIAGNOSTIC LOG - STEP 2] Enviando dados mesclados para Google Sheets ===');
-      console.log(`[SYNC LOG - ANTES DO ENVIO] Total de lançamentos sendo enviados para gravação: ${cleanMergedTxs.length}`);
-      console.log('[SYNC LOG - ANTES DO ENVIO] IDs sendo enviados para gravação:', cleanMergedTxs.map(t => t.id));
+      const generatedUrl = `https://docs.google.com/spreadsheets/d/${sheetId}/edit`;
+      const nowStr = new Date().toLocaleString('pt-BR');
 
-      // 3. Write the fully updated merged list back to the spreadsheet
+      // ALTERAÇÃO 1: Se a alteração veio da Google Sheets (hasAppChanges === false), Apenas atualizar a memória do aplicativo, NÃO gravar na planilha.
+      if (!hasAppChanges) {
+        console.log('=== [SYNC LOG - ALTERAÇÃO 1] Nenhuma alteração realizada pelo aplicativo. Memória local atualizada a partir do Google Sheets. Gravação na planilha ignorada. ===');
+        setSpreadsheetUrl(generatedUrl);
+        setLastSyncedTime(nowStr);
+        localStorage.setItem('wealthflow_spreadsheet_url', generatedUrl);
+        localStorage.setItem('wealthflow_last_synced_time', nowStr);
+        localStorage.setItem('wealthflow_last_synced_timestamp', String(syncStartTime));
+        await saveSyncTimestampToDb(syncStartTime);
+        return;
+      }
+
+      console.log('=== [ETAPA 3] Conteúdo completo do txMap / cleanMergedTxs imediatamente antes de chamar sincronizarTudo() ===');
+      console.log(JSON.stringify(cleanMergedTxs, null, 2));
+
+      // 3. Somente se houver alteração feita PELO APLICATIVO chamar sincronizarTudo()
       const url = await sheetsService.sincronizarTudo(
         activeToken, 
         sheetId, 
@@ -2921,11 +2913,12 @@ export default function App() {
         mergedCards,
         categoryBudgets,
         [],
-        mergedGroceryItems
+        mergedGroceryItems,
+        forceOverwriteSpreadsheet,
+        validSheetTxs.length
       );
       
       setSpreadsheetUrl(url);
-      const nowStr = new Date().toLocaleString('pt-BR');
       setLastSyncedTime(nowStr);
       
       localStorage.setItem('wealthflow_spreadsheet_url', url);

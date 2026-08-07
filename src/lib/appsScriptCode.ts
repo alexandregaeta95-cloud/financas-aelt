@@ -216,7 +216,7 @@ function readTransactions(ss) {
   ];
 
   var allTx = [];
-  var seenIds = {};
+  var seenTxMap = {}; // idStr -> { sheetName, sig }
 
   sheetsToRead.forEach(function(sConfig) {
     var items = readGenericSheet(ss, sConfig.name, sConfig.aliases, txHeaders);
@@ -224,15 +224,48 @@ function readTransactions(ss) {
 
     items.forEach(function(item, idx) {
       var rawId = item.id || item.Id || item.ID;
-      if (!rawId) {
-        rawId = (new Date().getTime() + Math.floor(Math.random() * 100000) + idx);
-        item.id = rawId;
-      }
-      var idStr = String(rawId).trim();
-      if (seenIds[idStr]) return;
-      seenIds[idStr] = true;
+      var idStr = rawId ? String(rawId).trim() : '';
 
-      allTx.push(item);
+      var desc = String(item.descricao || item.Descrição || '').trim().toUpperCase();
+      var valor = String(item.valor || item.Valor || '0').trim();
+      var dataStr = String(item.data || item.Data || '').trim();
+      var sig = desc + '|' + valor + '|' + dataStr;
+
+      if (!idStr) {
+        // Sem ID -> Linha colada manualmente sem ID -> Atribui novo ID único
+        var newId = String(new Date().getTime() + Math.floor(Math.random() * 100000) + idx);
+        item.id = newId;
+        item.Id = newId;
+        item.ID = newId;
+        seenTxMap[newId] = { sheetName: sConfig.name, sig: sig };
+        allTx.push(item);
+      } else if (seenTxMap[idStr]) {
+        var prev = seenTxMap[idStr];
+        if (prev.sheetName === sConfig.name) {
+          // Mesmo ID na mesma aba -> Linha copiada e colada na planilha -> Gera novo ID para preservar a nova linha
+          var newId = String(new Date().getTime() + Math.floor(Math.random() * 100000) + idx);
+          item.id = newId;
+          item.Id = newId;
+          item.ID = newId;
+          seenTxMap[newId] = { sheetName: sConfig.name, sig: sig };
+          allTx.push(item);
+        } else {
+          // Abas diferentes (ex: 1_Lancamentos vs 3_Despesas)
+          if (prev.sig !== sig) {
+            // Assinatura diferente -> Linha nova colada com ID herdado -> Gera novo ID!
+            var newId = String(new Date().getTime() + Math.floor(Math.random() * 100000) + idx);
+            item.id = newId;
+            item.Id = newId;
+            item.ID = newId;
+            seenTxMap[newId] = { sheetName: sConfig.name, sig: sig };
+            allTx.push(item);
+          }
+          // Se for mesma assinatura entre 1_Lancamentos e 3_Despesas, é o mesmo lançamento replicado por saveAllDataToSheet (ignora duplicata entre abas).
+        }
+      } else {
+        seenTxMap[idStr] = { sheetName: sConfig.name, sig: sig };
+        allTx.push(item);
+      }
     });
   });
 
@@ -385,6 +418,9 @@ function parseTypedValue(key, val) {
 function saveAllDataToSheet(ss, payload) {
   if (!ss) ss = SpreadsheetApp.getActiveSpreadsheet();
 
+  Logger.log('=== [ETAPA 5] JSON completo recebido pelo Apps Script ===');
+  Logger.log(JSON.stringify(payload ? payload.transactions : []));
+
   var report = [];
 
   var modules = [
@@ -523,16 +559,22 @@ function saveAllDataToSheet(ss, payload) {
     }
   ];
 
+  var forceOverwrite = (payload && (payload.forceOverwrite === true || payload.forceOverwrite === 'true'));
+
   modules.forEach(function(mod) {
     try {
-      var res = writeRowsToSheet(ss, mod.primaryName, mod.aliases, mod.headers, mod.data);
+      var res = writeRowsToSheet(ss, mod.primaryName, mod.aliases, mod.headers, mod.data, forceOverwrite);
       report.push({
         module: mod.name,
         sheet: mod.primaryName,
-        status: 'ok',
+        status: res.protected ? 'protected' : 'ok',
         count: res.saved
       });
-      Logger.log('Módulo [' + mod.name + '] salvo com sucesso: ' + res.saved + ' registros.');
+      if (res.protected) {
+        Logger.log('Módulo [' + mod.name + '] protegido contra perda de dados (gravação ignorada).');
+      } else {
+        Logger.log('Módulo [' + mod.name + '] salvo com sucesso: ' + res.saved + ' registros.');
+      }
     } catch (mErr) {
       Logger.log('Erro ao salvar módulo [' + mod.name + ']: ' + mErr.toString());
       report.push({
@@ -582,7 +624,7 @@ function convertObjectOrArray(obj) {
   return [];
 }
 
-function writeRowsToSheet(ss, primaryName, aliases, defaultHeaders, items) {
+function writeRowsToSheet(ss, primaryName, aliases, defaultHeaders, items, forceOverwrite) {
   var sheet = findOrCreateSheet(ss, primaryName, aliases);
 
   var existingData = sheet.getDataRange().getValues();
@@ -602,8 +644,29 @@ function writeRowsToSheet(ss, primaryName, aliases, defaultHeaders, items) {
     }
   }
 
+  // 1. Ler novamente toda a aba e contar registros atuais existentes
+  var registrosExistentes = 0;
+  if (existingData && existingData.length > 1) {
+    for (var r = 1; r < existingData.length; r++) {
+      var row = existingData[r];
+      if (row && row.some(function(cell) { return cell !== undefined && cell !== null && String(cell).trim() !== ''; })) {
+        registrosExistentes++;
+      }
+    }
+  }
+
+  // 2. Contar registros recebidos
+  var registrosRecebidos = items ? items.length : 0;
+
+  // 3. Se registrosRecebidos < registrosExistentes e NÃO for forceOverwrite
+  if (registrosRecebidos < registrosExistentes && forceOverwrite !== true) {
+    Logger.log("Proteção contra perda de dados ativada para aba [" + primaryName + "]. Registros existentes: " + registrosExistentes + " | Registros recebidos: " + registrosRecebidos + ". Gravação CANCELADA.");
+    return { saved: registrosExistentes, protected: true };
+  }
+
   var itemIds = (items || []).map(function(item) { return item ? (item.id || item.Id || item.ID) : null; });
-  Logger.log('[APPS SCRIPT WRITE BEFORE CLEAR] Planilha: ' + primaryName + ' | Registros a gravar: ' + (items ? items.length : 0) + ' | IDs: ' + JSON.stringify(itemIds));
+  Logger.log('=== [ETAPA 6] Lista que será gravada na aba ' + primaryName + ' imediatamente antes de sheet.clearContents() ===');
+  Logger.log(JSON.stringify(items || []));
 
   sheet.clearContents();
 

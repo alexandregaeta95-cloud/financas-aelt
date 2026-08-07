@@ -203,6 +203,8 @@ export const syncDataToSpreadsheet = async (
   categoryBudgets: any = {},
   customCategories: any = [],
   groceryItems: any[] = [],
+  forceOverwrite: boolean = false,
+  sheetTxCount?: number,
   scheduledMaintenance: any[] = [],
   agenda: any[] = [],
   workshop: any[] = [],
@@ -405,7 +407,7 @@ export const syncDataToSpreadsheet = async (
     };
   });
 
-  const mappedTransactions = (Array.isArray(transactions) ? transactions : []).map((t: any) => {
+  const mappedTransactions = (Array.isArray(transactions) ? transactions : []).map((t: any, idx: number) => {
     let rawDate = t.data || t.Data || '';
     if (rawDate && rawDate.includes('-')) {
       const parts = rawDate.split('T')[0].split('-');
@@ -413,7 +415,11 @@ export const syncDataToSpreadsheet = async (
     }
     if (!rawDate) rawDate = new Date().toLocaleDateString('pt-BR');
 
-    const idStr = t.id !== undefined && t.id !== null && String(t.id).trim() !== '' ? String(t.id) : (t.ID ? String(t.ID) : String(Date.now()));
+    const idStr = (t.id !== undefined && t.id !== null && String(t.id).trim() !== '') 
+      ? String(t.id) 
+      : ((t.ID !== undefined && t.ID !== null && String(t.ID).trim() !== '') 
+        ? String(t.ID) 
+        : String(Date.now() + Math.floor(Math.random() * 10000000) + idx));
     const descStr = t.descricao || t.Descrição || '';
     const valorNum = typeof t.valor === 'number' ? t.valor : (parseFloat(String(t.valor || 0).replace(',', '.')) || 0);
     const valorPgNum = typeof t.valorPg === 'number' ? t.valorPg : (typeof t.valorPago === 'number' ? t.valorPago : (typeof t.Valor_PG === 'number' ? t.Valor_PG : (t.status === 'PAGO' ? valorNum : 0)));
@@ -507,12 +513,32 @@ export const syncDataToSpreadsheet = async (
 
   const mappedFuelings = mappedTransactions.filter((t: any) => String(t.categoria || t.Categoria || '').toUpperCase() === 'ABASTECIMENTO');
 
-  console.log(`[SYNC LOG - GOOGLE AUTH] syncDataToSpreadsheet chamado. Total de transações mapeadas: ${mappedTransactions.length}`);
-  console.log('[SYNC LOG - GOOGLE AUTH] IDs enviados no payload:', mappedTransactions.map((t: any) => t.id || t.ID));
+  // ALTERAÇÃO 2 - Validação de segurança: comparar quantidade de registros locais com a planilha
+  const localCount = mappedTransactions.length;
+  let currentSheetCount = sheetTxCount;
+  if (currentSheetCount === undefined) {
+    try {
+      const sheetTxs = await fetchTransactionsFromSpreadsheet(accessToken, cleanSheetId);
+      currentSheetCount = Array.isArray(sheetTxs) ? sheetTxs.length : 0;
+    } catch (e) {
+      currentSheetCount = 0;
+    }
+  }
+
+  console.log(`[SYNC PROTECTION CHECK] Registros locais: ${localCount} | Registros na planilha: ${currentSheetCount} | forceOverwrite: ${forceOverwrite}`);
+
+  if (localCount < currentSheetCount && !forceOverwrite) {
+    console.warn("Sincronização cancelada: lista local menor que Google Sheets.");
+    throw new Error(`Sincronização cancelada: lista local menor que Google Sheets. (Local: ${localCount}, Planilha: ${currentSheetCount})`);
+  }
+
+  console.log('=== [ETAPA 4] JSON completo enviado para syncDataToSpreadsheet() ===');
+  console.log(JSON.stringify(mappedTransactions, null, 2));
 
   const payload = {
     action: 'syncData',
     spreadsheetId: cleanSheetId,
+    forceOverwrite: forceOverwrite,
     transactions: mappedTransactions,
     abastecimentos: mappedFuelings,
     "4_Abastecimentos": mappedFuelings,
