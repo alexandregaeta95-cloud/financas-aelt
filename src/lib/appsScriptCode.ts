@@ -602,6 +602,9 @@ function writeRowsToSheet(ss, primaryName, aliases, defaultHeaders, items) {
     }
   }
 
+  var itemIds = (items || []).map(function(item) { return item ? (item.id || item.Id || item.ID) : null; });
+  Logger.log('[APPS SCRIPT WRITE BEFORE CLEAR] Planilha: ' + primaryName + ' | Registros a gravar: ' + (items ? items.length : 0) + ' | IDs: ' + JSON.stringify(itemIds));
+
   sheet.clearContents();
 
   var rows = (items || []).map(function(item) {

@@ -507,6 +507,9 @@ export const syncDataToSpreadsheet = async (
 
   const mappedFuelings = mappedTransactions.filter((t: any) => String(t.categoria || t.Categoria || '').toUpperCase() === 'ABASTECIMENTO');
 
+  console.log(`[SYNC LOG - GOOGLE AUTH] syncDataToSpreadsheet chamado. Total de transações mapeadas: ${mappedTransactions.length}`);
+  console.log('[SYNC LOG - GOOGLE AUTH] IDs enviados no payload:', mappedTransactions.map((t: any) => t.id || t.ID));
+
   const payload = {
     action: 'syncData',
     spreadsheetId: cleanSheetId,
@@ -541,7 +544,9 @@ export const syncDataToSpreadsheet = async (
     customCategories: Array.isArray(customCategories) ? customCategories : []
   };
 
+  console.log('[SYNC LOG - GOOGLE AUTH] Disparando requisição POST para Apps Script...');
   const res = await callAppsScript(DEFAULT_APPS_SCRIPT_URL, payload, 'POST');
+  console.log('[SYNC LOG - GOOGLE AUTH] Resposta do Apps Script recebida:', res);
   if (res && res.status === 'error') {
     throw new Error(res.error || 'Erro ao gravar dados na planilha do Google Apps Script');
   }
