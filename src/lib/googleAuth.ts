@@ -209,7 +209,9 @@ export const syncDataToSpreadsheet = async (
   agenda: any[] = [],
   workshop: any[] = [],
   analysis: any[] = [],
-  profile: any[] = []
+  profile: any[] = [],
+  deletedIds: (string | number)[] = [],
+  origem: string = 'syncDataToSpreadsheet'
 ): Promise<string> => {
   const cleanSheetId = toSafeString(spreadsheetId) || DEFAULT_SPREADSHEET_ID;
 
@@ -513,32 +515,14 @@ export const syncDataToSpreadsheet = async (
 
   const mappedFuelings = mappedTransactions.filter((t: any) => String(t.categoria || t.Categoria || '').toUpperCase() === 'ABASTECIMENTO');
 
-  // ALTERAÇÃO 2 - Validação de segurança: comparar quantidade de registros locais com a planilha
   const localCount = mappedTransactions.length;
-  let currentSheetCount = sheetTxCount;
-  if (currentSheetCount === undefined) {
-    try {
-      const sheetTxs = await fetchTransactionsFromSpreadsheet(accessToken, cleanSheetId);
-      currentSheetCount = Array.isArray(sheetTxs) ? sheetTxs.length : 0;
-    } catch (e) {
-      currentSheetCount = 0;
-    }
-  }
-
-  console.log(`[SYNC PROTECTION CHECK] Registros locais: ${localCount} | Registros na planilha: ${currentSheetCount} | forceOverwrite: ${forceOverwrite}`);
-
-  if (localCount < currentSheetCount && !forceOverwrite) {
-    console.warn("Sincronização cancelada: lista local menor que Google Sheets.");
-    throw new Error(`Sincronização cancelada: lista local menor que Google Sheets. (Local: ${localCount}, Planilha: ${currentSheetCount})`);
-  }
-
-  console.log('=== [ETAPA 4] JSON completo enviado para syncDataToSpreadsheet() ===');
-  console.log(JSON.stringify(mappedTransactions, null, 2));
+  console.log(`[SYNC AUDIT - GOOGLE AUTH] Registros mapeados locais: ${localCount} | Deleted IDs: ${deletedIds.length} | forceOverwrite: ${forceOverwrite}`);
 
   const payload = {
     action: 'syncData',
     spreadsheetId: cleanSheetId,
     forceOverwrite: forceOverwrite,
+    deletedIds: deletedIds,
     transactions: mappedTransactions,
     abastecimentos: mappedFuelings,
     "4_Abastecimentos": mappedFuelings,
@@ -569,6 +553,21 @@ export const syncDataToSpreadsheet = async (
     categoryBudgets: categoryBudgets || {},
     customCategories: Array.isArray(customCategories) ? customCategories : []
   };
+
+  const stackStr = new Error().stack || '';
+  const nowStr = new Date().toLocaleString('pt-BR');
+  const count = Array.isArray(transactions) ? transactions.length : 0;
+  const txIds = mappedTransactions.map((t: any) => t.id);
+
+  console.log('=========================');
+  console.log(`ORIGEM: ${origem}`);
+  console.log(`Quantidade de registros: ${count}`);
+  console.log(`IDs dos registros (${count}):`, txIds);
+  console.log(`IDs excluídos explicitamente (${deletedIds.length}):`, deletedIds);
+  console.log(`Horário: ${nowStr}`);
+  console.log(`Call Stack completo:\n${stackStr}`);
+  console.log('JSON do Payload enviado ao Apps Script:\n', JSON.stringify(payload, null, 2));
+  console.log('====================');
 
   console.log('[SYNC LOG - GOOGLE AUTH] Disparando requisição POST para Apps Script...');
   const res = await callAppsScript(DEFAULT_APPS_SCRIPT_URL, payload, 'POST');

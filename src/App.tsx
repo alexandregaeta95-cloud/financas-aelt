@@ -87,7 +87,7 @@ import { normalizeTransactionObject, DEFAULT_SPREADSHEET_ID, DEFAULT_SPREADSHEET
 // Helper to deduplicate transactions securely (checks IDs and normalizes properties)
 function cleanDuplicateTransactions(txs: any[]): Transaction[] {
   if (!Array.isArray(txs)) return [];
-  const seenIds = new Set<number>();
+  const seenIds = new Set<string>();
   const uniqueTxs: Transaction[] = [];
 
   txs.forEach(rawItem => {
@@ -97,19 +97,18 @@ function cleanDuplicateTransactions(txs: any[]): Transaction[] {
     const t = normalizeTransactionObject(rawItem) || rawItem;
     if (!t || typeof t !== 'object') return;
 
-    let idNum = Number(t.id);
-    if (isNaN(idNum) || idNum <= 0) {
-      // Assign a temporary safe unique ID so it is not deduplicated against other blank ones
-      idNum = Math.floor(Math.random() * 1000000000) + 1000000000;
-      t.id = idNum;
+    let idKey = t.id !== undefined && t.id !== null ? String(t.id).trim() : '';
+    if (!idKey) {
+      idKey = 'TX_' + Date.now() + '_' + Math.floor(Math.random() * 1000000);
+      t.id = idKey;
     }
 
-    if (seenIds.has(idNum)) {
-      // Re-assign a new unique ID so pasted rows with copied IDs are never dropped!
-      idNum = Date.now() + Math.floor(Math.random() * 1000000);
-      t.id = idNum;
+    if (seenIds.has(idKey)) {
+      // Re-assign a new unique ID so duplicated pasted rows with copied IDs get new IDs
+      idKey = 'TX_' + Date.now() + '_' + Math.floor(Math.random() * 1000000);
+      t.id = idKey;
     }
-    seenIds.add(idNum);
+    seenIds.add(idKey);
 
     // Sanitize string and numeric fields to ensure non-null types
     t.data = String(t.data || t.Data || new Date().toLocaleDateString('pt-BR'));
@@ -202,6 +201,7 @@ export default function App() {
     overrideBanks?: BankAccount[];
     overrideCards?: CreditCard[];
     overrideGroceryItems?: GroceryItem[];
+    origem?: string;
   } | null>(null);
 
   // Live state synchronized lists (backed by Local Storage as an immediate fallback)
@@ -1697,7 +1697,7 @@ export default function App() {
       const promises: Promise<any>[] = [];
 
       if (googleToken) {
-        promises.push(triggerSync(googleToken, false, transactions, [], riskZones, appointments, prescriptions, true));
+        promises.push(triggerSync(googleToken, false, transactions, [], riskZones, appointments, prescriptions, true, undefined, undefined, undefined, undefined, undefined, undefined, undefined, 'handleRetryAllSync'));
       }
 
       // Re-save critical collections to ensure local storage is up to date
@@ -2066,7 +2066,7 @@ export default function App() {
       if (queuedSync) {
         console.log("Conexão com a internet restabelecida. Processando fila de sincronização pendente...");
         try {
-          await triggerSync(activeToken, true);
+          await triggerSync(activeToken, true, undefined, undefined, undefined, undefined, undefined, false, undefined, undefined, undefined, undefined, undefined, undefined, undefined, 'processOfflineQueue');
           localStorage.removeItem('wealthflow_sync_queue');
         } catch (e) {
           console.error("Erro ao sincronizar fila offline:", e);
@@ -2095,7 +2095,7 @@ export default function App() {
     // Trigger sync when app becomes visible / focused
     const handleVisibilityChange = () => {
       if (document.visibilityState === 'visible' && navigator.onLine) {
-        triggerSync(activeToken, true);
+        triggerSync(activeToken, true, undefined, undefined, undefined, undefined, undefined, false, undefined, undefined, undefined, undefined, undefined, undefined, undefined, 'visibilityChange');
       }
     };
 
@@ -2105,7 +2105,7 @@ export default function App() {
     // Periodic interval every 2 minutes while app is running
     const syncInterval = setInterval(() => {
       if (navigator.onLine) {
-        triggerSync(activeToken, true);
+        triggerSync(activeToken, true, undefined, undefined, undefined, undefined, undefined, false, undefined, undefined, undefined, undefined, undefined, undefined, undefined, 'autoSyncInterval');
       }
     }, 2 * 60 * 1000);
 
@@ -2119,7 +2119,7 @@ export default function App() {
   // Auto-sync other collections to Google Sheets whenever they change
   useEffect(() => {
     if (googleToken && isDbLoaded && autoSync) {
-      triggerSync(googleToken, true);
+      triggerSync(googleToken, true, undefined, undefined, undefined, undefined, undefined, false, undefined, undefined, undefined, undefined, undefined, undefined, undefined, 'autoSyncStateEffect');
     }
   }, [
     compromissos,
@@ -2569,7 +2569,8 @@ export default function App() {
     overrideSchedServices?: CarServiceScheduled[],
     overrideBanks?: BankAccount[],
     overrideCards?: CreditCard[],
-    overrideGroceryItems?: GroceryItem[]
+    overrideGroceryItems?: GroceryItem[],
+    origem: string = 'triggerSync'
   ) => {
     const activeToken = tokenToUse || getEffectiveGoogleToken();
     if (!activeToken) return;
@@ -2623,7 +2624,8 @@ export default function App() {
         overrideSchedServices: currentSchedServices,
         overrideBanks: currentBanks,
         overrideCards: currentCards,
-        overrideGroceryItems: currentGroceryItems
+        overrideGroceryItems: currentGroceryItems,
+        origem: `${origem} (Queued)`
       };
       syncPendingRef.current = true;
       return;
@@ -2695,22 +2697,16 @@ export default function App() {
       }
 
       if (!forceOverwriteSpreadsheet) {
-        const txMap = new Map<number | string, any>();
+        const txMap = new Map<string, any>();
         (Array.isArray(currentTxs) ? currentTxs : []).forEach(t => {
-          if (t && typeof t === 'object' && t.id) {
-            txMap.set(t.id, t);
-            txMap.set(String(t.id), t);
-            if ((t.updatedAt || 0) > lastSyncedTimestamp) {
-              hasAppChanges = true;
+          if (t && typeof t === 'object' && t.id !== undefined && t.id !== null) {
+            const key = String(t.id).trim();
+            if (key) {
+              txMap.set(key, t);
+              if ((t.updatedAt || 0) > lastSyncedTimestamp) {
+                hasAppChanges = true;
+              }
             }
-          }
-        });
-
-        const sheetTxIds = new Set<number | string>();
-        validSheetTxs.forEach((st: any) => {
-          if (st.id) {
-            sheetTxIds.add(st.id);
-            sheetTxIds.add(String(st.id));
           }
         });
 
@@ -2718,19 +2714,20 @@ export default function App() {
         const txsToSaveDb: any[] = [];
 
         validSheetTxs.forEach((st: any) => {
-          if (!st || typeof st !== 'object' || !st.id) return;
-          const stId = st.id;
+          if (!st || typeof st !== 'object' || st.id === undefined || st.id === null) return;
+          const stIdKey = String(st.id).trim();
+          if (!stIdKey) return;
 
-          if (deletedIds.includes(stId) || deletedIds.includes(String(stId))) {
-            console.log(`[SYNC LOG - MERGE] Ignorando registro da planilha (ID ${stId} - ${st.descricao}) pois foi excluído pelo usuário no aplicativo`);
+          if (deletedIds.includes(stIdKey) || deletedIds.includes(st.id)) {
+            console.log(`[SYNC LOG - MERGE] Ignorando registro da planilha (ID ${stIdKey} - ${st.descricao}) pois foi excluído pelo usuário no aplicativo`);
             return;
           }
 
-          const localTx = txMap.get(stId) || txMap.get(String(stId));
+          const localTx = txMap.get(stIdKey);
           if (!localTx) {
             // New record pasted/added directly in Google Sheets!
-            console.log(`[SYNC LOG - MERGE] NOVO registro detectado da planilha! ID: ${stId}, Descrição: ${st.descricao}, Valor: ${st.valor}`);
-            txMap.set(stId, st);
+            console.log(`[SYNC LOG - MERGE] NOVO registro detectado da planilha! ID: ${stIdKey}, Descrição: ${st.descricao}, Valor: ${st.valor}`);
+            txMap.set(stIdKey, st);
             txsToSaveDb.push(st);
             hasNewOrUpdatedFromSheet = true;
           } else {
@@ -2753,20 +2750,20 @@ export default function App() {
               const isLocalNewer = localUpdatedAt > lastSyncedTimestamp;
 
               if (!isLocalNewer) {
-                console.log(`[SYNC LOG - MERGE] Alteração detectada na planilha para ID ${stId}! Atualizando dados locais.`);
+                console.log(`[SYNC LOG - MERGE] Alteração detectada na planilha para ID ${stIdKey}! Atualizando dados locais.`);
                 const updatedTx = { ...localTx, ...st, updatedAt: 0 };
-                txMap.set(stId, updatedTx);
+                txMap.set(stIdKey, updatedTx);
                 txsToSaveDb.push(updatedTx);
                 hasNewOrUpdatedFromSheet = true;
               } else {
-                console.log(`[SYNC LOG - MERGE] ID ${stId} foi alterado localmente mais recentemente no aplicativo. Mantendo local.`);
+                console.log(`[SYNC LOG - MERGE] ID ${stIdKey} foi alterado localmente mais recentemente no aplicativo. Mantendo local.`);
                 hasAppChanges = true;
               }
             }
           }
         });
 
-        const mergedTxsList = Array.from(new Set(txMap.values())).sort((a, b) => Number(b.id || 0) - Number(a.id || 0));
+        const mergedTxsList = Array.from(txMap.values()).sort((a, b) => Number(b.id || 0) - Number(a.id || 0));
         cleanMergedTxs = cleanDuplicateTransactions(mergedTxsList);
         const hasDuplicatesCleaned = cleanMergedTxs.length < mergedTxsList.length;
 
@@ -2805,43 +2802,40 @@ export default function App() {
           return Array.isArray(localList) ? localList : [];
         }
 
-        const map = new Map<string | number, T>();
+        const map = new Map<string, T>();
         (Array.isArray(localList) ? localList : []).forEach(item => {
           if (!item) return;
           const raw = item.id || (item as any).Id || (item as any).ID;
           if (raw !== undefined && raw !== null && raw !== '') {
-            map.set(raw, item);
-            map.set(String(raw), item);
+            map.set(String(raw).trim(), item);
           }
         });
 
-        const sheetIdsSet = new Set<string | number>();
         let changed = false;
 
         sheetList.forEach((st: any, idx: number) => {
           if (!st || typeof st !== 'object') return;
           let rawId = st.id || st.Id || st.ID;
-          if (!rawId) {
-            rawId = Date.now() + Math.floor(Math.random() * 1000) + idx;
+          if (rawId === undefined || rawId === null || rawId === '') {
+            rawId = 'MOD_' + Date.now() + '_' + Math.floor(Math.random() * 1000) + '_' + idx;
             st.id = rawId;
           }
-          sheetIdsSet.add(rawId);
-          sheetIdsSet.add(String(rawId));
+          const idKey = String(rawId).trim();
 
-          const existing = map.get(rawId) || map.get(String(rawId));
+          const existing = map.get(idKey);
           if (!existing) {
-            map.set(rawId, st);
+            map.set(idKey, st);
             changed = true;
           } else {
             const localUp = (existing as any).updatedAt || 0;
             if (localUp <= lastSyncedTimestamp) {
-              map.set(rawId, { ...existing, ...st });
+              map.set(idKey, { ...existing, ...st });
               changed = true;
             }
           }
         });
 
-        const result = Array.from(new Set(map.values()));
+        const result = Array.from(map.values());
         if (changed) {
           setStateFn(result);
           try {
@@ -2896,6 +2890,17 @@ export default function App() {
       console.log('=== [ETAPA 3] Conteúdo completo do txMap / cleanMergedTxs imediatamente antes de chamar sincronizarTudo() ===');
       console.log(JSON.stringify(cleanMergedTxs, null, 2));
 
+      const stackTrace = new Error().stack || '';
+      const formattedNow = new Date().toLocaleString('pt-BR');
+      const totalCount = Array.isArray(cleanMergedTxs) ? cleanMergedTxs.length : 0;
+
+      console.log('=========================');
+      console.log(`ORIGEM: ${origem}`);
+      console.log(`Quantidade de registros: ${totalCount}`);
+      console.log(`Horário: ${formattedNow}`);
+      console.log(`Call Stack completo:\n${stackTrace}`);
+      console.log('====================');
+
       // 3. Somente se houver alteração feita PELO APLICATIVO chamar sincronizarTudo()
       const url = await sheetsService.sincronizarTudo(
         activeToken, 
@@ -2915,7 +2920,9 @@ export default function App() {
         [],
         mergedGroceryItems,
         forceOverwriteSpreadsheet,
-        validSheetTxs.length
+        validSheetTxs.length,
+        deletedIds,
+        origem
       );
       
       setSpreadsheetUrl(url);
@@ -2924,6 +2931,9 @@ export default function App() {
       localStorage.setItem('wealthflow_spreadsheet_url', url);
       localStorage.setItem('wealthflow_last_synced_time', nowStr);
       localStorage.setItem('wealthflow_last_synced_timestamp', String(syncStartTime));
+      if (deletedIds.length > 0) {
+        localStorage.setItem('wealthflow_deleted_tx_ids', '[]');
+      }
       await saveSyncTimestampToDb(syncStartTime);
 
       // Auto-clear pending changes queue after successful sync to Google Sheets
@@ -2983,7 +2993,8 @@ export default function App() {
           params.overrideSchedServices,
           params.overrideBanks,
           params.overrideCards,
-          params.overrideGroceryItems
+          params.overrideGroceryItems,
+          params.origem || 'triggerSync (Queued)'
         );
       }
     }
@@ -3311,7 +3322,7 @@ export default function App() {
           await saveTransactionToDb(txObj);
         }
         if (activeToken) {
-          await triggerSync(activeToken, true, currentTransactions, undefined, undefined, undefined, undefined, true);
+          await triggerSync(activeToken, true, currentTransactions, undefined, undefined, undefined, undefined, true, undefined, undefined, undefined, undefined, undefined, undefined, undefined, 'handleAddTransactionMultiple');
         }
       });
     } else {
@@ -3323,7 +3334,7 @@ export default function App() {
       await runTrackedSync('Adição de Lançamento', `${txObj.descricao || 'Lançamento'} (R$ ${txObj.valor.toLocaleString('pt-BR', { minimumFractionDigits: 2 })})`, async () => {
         await saveTransactionToDb(txObj);
         if (activeToken) {
-          await triggerSync(activeToken, true, updated, undefined, undefined, undefined, undefined, true);
+          await triggerSync(activeToken, true, updated, undefined, undefined, undefined, undefined, true, undefined, undefined, undefined, undefined, undefined, undefined, undefined, 'handleAddTransaction');
         }
       });
     }
@@ -3344,7 +3355,7 @@ export default function App() {
         await saveTransactionToDb(item);
       }
       if (activeToken) {
-        await triggerSync(activeToken, true, updated, undefined, undefined, undefined, undefined, true);
+        await triggerSync(activeToken, true, updated, undefined, undefined, undefined, undefined, true, undefined, undefined, undefined, undefined, undefined, undefined, undefined, 'handleEditTransaction');
       }
     });
   };
@@ -3375,7 +3386,7 @@ export default function App() {
     await runTrackedSync('Remoção de Lançamento', txDesc, async () => {
       await deleteTransactionFromDb(id);
       if (activeToken) {
-        await triggerSync(activeToken, true, updated, undefined, undefined, undefined, undefined, true);
+        await triggerSync(activeToken, true, updated, undefined, undefined, undefined, undefined, true, undefined, undefined, undefined, undefined, undefined, undefined, undefined, 'handleDeleteTransaction');
       }
     });
   };
@@ -3407,7 +3418,7 @@ export default function App() {
           
           const activeToken = getEffectiveGoogleToken();
           if (activeToken) {
-            await triggerSync(activeToken, true, [], undefined, undefined, undefined, undefined, true);
+            await triggerSync(activeToken, true, [], undefined, undefined, undefined, undefined, true, undefined, undefined, undefined, undefined, undefined, undefined, undefined, 'handleWipeTransactions');
           }
 
           showAlert("Sucesso", "Planilha de finanças limpa completamente do aplicativo!");

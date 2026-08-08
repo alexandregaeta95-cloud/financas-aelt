@@ -48,10 +48,22 @@ export class TransactionService {
    */
   static async sincronizarGoogleSheets(token: string, spreadsheetId: string, transactions?: Transaction[]): Promise<void> {
     const txs = transactions || await this.listarTransacoes();
+    const stackStr = new Error().stack || '';
+    const nowStr = new Date().toLocaleString('pt-BR');
+    const txCount = Array.isArray(txs) ? txs.length : 0;
+
+    console.log('=========================');
+    console.log('ORIGEM: transactionService');
+    console.log(`Quantidade de registros: ${txCount}`);
+    console.log(`Horário: ${nowStr}`);
+    console.log(`Call Stack completo:\n${stackStr}`);
+    console.log('====================');
+
     await sheetsService.sincronizarTudo(
       token,
       spreadsheetId,
-      txs
+      txs,
+      [], [], [], [], [], [], [], [], [], [], {}, [], [], false, undefined, [], 'transactionService'
     );
   }
 }

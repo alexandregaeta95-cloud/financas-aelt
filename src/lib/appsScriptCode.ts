@@ -1,12 +1,12 @@
 /**
  * ==============================================================================
- * GOOGLE APPS SCRIPT BACKEND ENGINE - WEALTHFLOW / FINANÇAS GAETA (v3.0 - FULL)
+ * GOOGLE APPS SCRIPT BACKEND ENGINE - WEALTHFLOW / FINANÇAS GAETA (v4.0 - INCREMENTAL UPSERT)
  * ==============================================================================
  */
 
 export const APPS_SCRIPT_CODE = `/**
  * ==============================================================================
- * GOOGLE APPS SCRIPT BACKEND ENGINE - WEALTHFLOW / FINANÇAS GAETA (v3.0 - FULL)
+ * GOOGLE APPS SCRIPT BACKEND ENGINE - WEALTHFLOW / FINANÇAS GAETA (v4.0 - INCREMENTAL UPSERT)
  * ==============================================================================
  */
 
@@ -75,11 +75,13 @@ function doPost(e) {
     }
 
     var report = saveAllDataToSheet(ss, postData);
+    var updatedData = fetchAllDataFromSheet(ss);
     var endTime = new Date().getTime();
 
     return createJsonResponse({
       status: 'success',
-      message: 'Dados sincronizados com sucesso na planilha!',
+      message: 'Dados sincronizados com sucesso na planilha (upsert incremental)!',
+      data: updatedData,
       stats: {
         executionTimeMs: endTime - startTime,
         timestamp: new Date().toISOString()
@@ -164,6 +166,7 @@ function fetchAllDataFromSheet(ss) {
   if (!ss) ss = SpreadsheetApp.getActiveSpreadsheet();
 
   var txs = readTransactions(ss);
+  var abastecimentos = readAbastecimentos(ss, txs);
   var riskZones = readGenericSheet(ss, '17_Zonas_De_Risco', ['ZonasDeRisco', 'ZonaDeRisco', 'Zona de risco', 'RiskZones'], ['ID', 'Tipo_Registro', 'Nome_Título', 'Nível_De_Risco', 'Latitude', 'Longitude', 'Raio (m)', 'Ativo', 'Mensagem_De_Alerta', 'Data_Registro', 'Observação']);
   var appointments = readGenericSheet(ss, '6_Consultas_Médicas', ['6_Consultas_Medicas', 'ConsultasMedicas', 'Consultas Médicas', 'Consultas', 'Appointments'], ['ID', 'Especialidade', 'Médico', 'Data', 'Horas', 'Local', 'Lembrete_Ativo', 'Status', 'Observação']);
   var prescriptions = readGenericSheet(ss, '7_Receitas_Médicas', ['7_Receitas_Medicas', 'ReceitasMedicas', 'Receitas Médicas', 'Prescriptions'], ['ID', 'Medicamento', 'Dosagem', 'Frequência', 'Médico', 'Especialidade', 'Data_Emissão', 'Data_Vencimento', 'Instruções', 'Observação', 'Arquivo_Anexo']);
@@ -180,9 +183,12 @@ function fetchAllDataFromSheet(ss) {
   var analysis = readGenericSheet(ss, '12_Analises', ['12_Análises', 'Analises', 'Análises', 'Analysis'], ['ID', 'Título', 'Data', 'Resultado', 'Observação']);
   var profile = readGenericSheet(ss, '13_Perfil', ['Perfil', 'Profile'], ['ID', 'Nome', 'Email', 'Telefone', 'Configurações']);
 
+  Logger.log('[AUDIT - FETCH ALL DATA] Lidos da planilha: Transações=' + txs.length + ', Abastecimentos=' + abastecimentos.length + ', Agenda=' + compromissos.length + ', Veículos=' + vehicles.length + ', Mercado=' + groceryItems.length);
+
   return {
     transactions: txs,
-    abastecimentos: txs.filter(function(t) { return String(t.categoria || '').toUpperCase() === 'ABASTECIMENTO' || String(t.Categoria || '').toUpperCase() === 'ABASTECIMENTO'; }),
+    abastecimentos: abastecimentos,
+    "4_Abastecimentos": abastecimentos,
     riskZones: riskZones,
     appointments: appointments,
     consultas: appointments,
@@ -208,220 +214,142 @@ function fetchAllDataFromSheet(ss) {
 }
 
 function readTransactions(ss) {
-  var sheetsToRead = [
-    { name: '1_Lancamentos', aliases: ['Lançamentos', 'Lancamentos', 'Transacoes'] },
-    { name: '2_Receitas', aliases: ['Receitas'] },
-    { name: '3_Despesas', aliases: ['Despesas'] },
-    { name: '4_Abastecimentos', aliases: ['Abastecimentos', 'Abastecimento'] }
-  ];
+  var items = readGenericSheet(ss, '1_Lancamentos', ['Lançamentos', 'Lancamentos', 'Transacoes'], txHeaders);
+  Logger.log('[AUDIT - READ TRANSACTIONS] Aba 1_Lancamentos lida. Total de registros: ' + items.length);
+  return items;
+}
 
-  var allTx = [];
-  var seenTxMap = {}; // idStr -> { sheetName, sig }
-
-  sheetsToRead.forEach(function(sConfig) {
-    var items = readGenericSheet(ss, sConfig.name, sConfig.aliases, txHeaders);
-    if (!items || items.length === 0) return;
-
-    items.forEach(function(item, idx) {
-      var rawId = item.id || item.Id || item.ID;
-      var idStr = rawId ? String(rawId).trim() : '';
-
-      var desc = String(item.descricao || item.Descrição || '').trim().toUpperCase();
-      var valor = String(item.valor || item.Valor || '0').trim();
-      var dataStr = String(item.data || item.Data || '').trim();
-      var sig = desc + '|' + valor + '|' + dataStr;
-
-      if (!idStr) {
-        // Sem ID -> Linha colada manualmente sem ID -> Atribui novo ID único
-        var newId = String(new Date().getTime() + Math.floor(Math.random() * 100000) + idx);
-        item.id = newId;
-        item.Id = newId;
-        item.ID = newId;
-        seenTxMap[newId] = { sheetName: sConfig.name, sig: sig };
-        allTx.push(item);
-      } else if (seenTxMap[idStr]) {
-        var prev = seenTxMap[idStr];
-        if (prev.sheetName === sConfig.name) {
-          // Mesmo ID na mesma aba -> Linha copiada e colada na planilha -> Gera novo ID para preservar a nova linha
-          var newId = String(new Date().getTime() + Math.floor(Math.random() * 100000) + idx);
-          item.id = newId;
-          item.Id = newId;
-          item.ID = newId;
-          seenTxMap[newId] = { sheetName: sConfig.name, sig: sig };
-          allTx.push(item);
-        } else {
-          // Abas diferentes (ex: 1_Lancamentos vs 3_Despesas)
-          if (prev.sig !== sig) {
-            // Assinatura diferente -> Linha nova colada com ID herdado -> Gera novo ID!
-            var newId = String(new Date().getTime() + Math.floor(Math.random() * 100000) + idx);
-            item.id = newId;
-            item.Id = newId;
-            item.ID = newId;
-            seenTxMap[newId] = { sheetName: sConfig.name, sig: sig };
-            allTx.push(item);
-          }
-          // Se for mesma assinatura entre 1_Lancamentos e 3_Despesas, é o mesmo lançamento replicado por saveAllDataToSheet (ignora duplicata entre abas).
-        }
-      } else {
-        seenTxMap[idStr] = { sheetName: sConfig.name, sig: sig };
-        allTx.push(item);
-      }
-    });
+function readAbastecimentos(ss, optionalTxs) {
+  var abs = readGenericSheet(ss, '4_Abastecimentos', ['Abastecimentos', 'Abastecimento', '4_Abastecimentos'], txHeaders);
+  var txs = optionalTxs || readTransactions(ss);
+  var txAbs = txs.filter(function(t) {
+    var cat = String(t.categoria || t.Categoria || '').toUpperCase();
+    return cat === 'ABASTECIMENTO';
   });
 
-  return allTx;
+  var absMap = {};
+  var result = [];
+
+  for (var i = 0; i < abs.length; i++) {
+    var item = abs[i];
+    var idKey = String(item.id || item.Id || item.ID || '').trim();
+    if (idKey) {
+      absMap[idKey] = item;
+      result.push(item);
+    }
+  }
+
+  for (var j = 0; j < txAbs.length; j++) {
+    var txItem = txAbs[j];
+    var txIdKey = String(txItem.id || txItem.Id || txItem.ID || '').trim();
+    if (txIdKey && !absMap[txIdKey]) {
+      absMap[txIdKey] = txItem;
+      result.push(txItem);
+    }
+  }
+
+  Logger.log('[AUDIT - READ ABASTECIMENTOS] Lidos de 4_Abastecimentos: ' + abs.length + ' | Lidos de 1_Lancamentos: ' + txAbs.length + ' | Total deduplicado: ' + result.length);
+  return result;
 }
 
 function readGenericSheet(ss, primaryName, aliases, defaultHeaders) {
-  try {
-    var sheet = findOrCreateSheet(ss, primaryName, aliases);
-    var data = sheet.getDataRange().getValues();
-    if (!data || data.length <= 1) return [];
+  var sheet = findOrCreateSheet(ss, primaryName, aliases);
+  var data = sheet.getDataRange().getValues();
+  if (!data || data.length <= 1) return [];
 
-    var headers = data[0].map(function(h) { return String(h || '').trim(); });
-    var result = [];
+  var rawHeadersRow = data[0];
+  var headerMap = {};
+  var headersList = [];
+  var idColIndex = -1;
 
-    for (var i = 1; i < data.length; i++) {
-      var row = data[i];
-      if (!row || row.length === 0) continue;
+  for (var col = 0; col < rawHeadersRow.length; col++) {
+    var hName = String(rawHeadersRow[col] || '').trim();
+    if (!hName) continue;
 
-      var hasContent = row.some(function(cell) {
-        return cell !== null && cell !== undefined && String(cell).trim() !== '';
-      });
-      if (!hasContent) continue;
+    headersList.push({ name: hName, colIndex: col });
+    headerMap[hName] = col;
+    headerMap[hName.toUpperCase()] = col;
 
-      var item = {};
-      for (var j = 0; j < headers.length; j++) {
-        var headerKey = headers[j];
-        if (!headerKey) continue;
-
-        var val = row[j];
-        if (val instanceof Date) {
-          var y = val.getFullYear();
-          var m = ('0' + (val.getMonth() + 1)).slice(-2);
-          var d = ('0' + val.getDate()).slice(-2);
-          val = d + '/' + m + '/' + y;
-        } else if (val !== null && val !== undefined) {
-          val = String(val).trim();
-        } else {
-          val = '';
-        }
-
-        item[headerKey] = val;
-
-        var normKey = normalizeHeaderKey(headerKey);
-        if (normKey && !(normKey in item)) {
-          item[normKey] = parseTypedValue(normKey, val);
-        }
-      }
-
-      if (!item.id && (item.Id || item.ID)) {
-        item.id = item.Id || item.ID;
-      }
-      if (!item.id) {
-        item.id = new Date().getTime() + Math.floor(Math.random() * 100000) + i;
-      }
-
-      result.push(item);
+    if (hName.toUpperCase() === 'ID') {
+      idColIndex = col;
     }
-    return result;
-  } catch (err) {
-    Logger.log('Erro ao ler aba ' + primaryName + ': ' + err.toString());
-    return [];
   }
+
+  if (idColIndex === -1) {
+    idColIndex = 0;
+  }
+
+  var result = [];
+  var idsAssignedCount = 0;
+
+  for (var i = 1; i < data.length; i++) {
+    var row = data[i];
+    if (!row) continue;
+
+    var hasContent = row.some(function(cell) {
+      return cell !== undefined && cell !== null && String(cell).trim() !== '';
+    });
+    if (!hasContent) continue;
+
+    var item = {};
+    for (var hIdx = 0; hIdx < headersList.length; hIdx++) {
+      var hObj = headersList[hIdx];
+      var headerKey = hObj.name;
+      var colIndex = hObj.colIndex;
+
+      var val = (colIndex < row.length) ? row[colIndex] : '';
+      item[headerKey] = val;
+
+      var normProp = normalizeHeaderKey(headerKey);
+      if (normProp) {
+        item[normProp] = val;
+      }
+    }
+
+    var rawId = item.id || item.Id || item.ID;
+    var idStr = (rawId !== undefined && rawId !== null) ? String(rawId).trim() : '';
+
+    if (!idStr) {
+      // Se a linha existe no Google Sheets mas NÃO tem ID no cabeçalho:
+      // Gera um ID estável e GRAVA IMEDIATAMENTE NA CÉLULA da planilha!
+      idStr = 'ID_' + new Date().getTime() + '_' + Math.floor(Math.random() * 10000) + '_' + i;
+      sheet.getRange(i + 1, idColIndex + 1).setValue(idStr);
+      idsAssignedCount++;
+    }
+
+    item.id = idStr;
+    item.Id = idStr;
+    item.ID = idStr;
+
+    result.push(item);
+  }
+
+  Logger.log('[AUDIT - READ GENERIC SHEET] Aba [' + primaryName + ']: Registros lidos=' + result.length + ' | IDs gerados e gravados na célula=' + idsAssignedCount);
+  return result;
 }
 
-function normalizeHeaderKey(hName) {
-  if (!hName) return '';
-  var clean = String(hName).trim();
-  var upper = clean.toUpperCase().normalize("NFD").replace(/[\\u0300-\\u036f]/g, "").replace(/[^A-Z0-9]/g, "");
-
-  if (upper === 'ID') return 'id';
-  if (upper === 'DATA' || upper === 'DATAEMISSAO' || upper === 'DATAREGISTRO' || upper === 'DATAALVO' || upper === 'DATAOCORRENCIA') return 'data';
-  if (upper === 'DESCRICAO' || upper === 'DESCRICAODOVEICULO' || upper === 'NOMETITULO' || upper === 'JUSTIFICATIVA') return 'descricao';
-  if (upper === 'VALOR' || upper === 'VALORLIMITE' || upper === 'VALORESTIMADO' || upper === 'VALORMULTA' || upper === 'VALORPREMIO' || upper === 'SALDOINICIAL') return 'valor';
-  if (upper === 'VALORPG' || upper === 'VALORPAGO') return 'valorPago';
-  if (upper === 'VALORAPG' || upper === 'VALORAPAGAR') return 'valorAPG';
-  if (upper === 'BANCOID') return 'bancoId';
-  if (upper === 'CARTAID' || upper === 'CARTAOID') return 'cartaoId';
-  if (upper === 'FORMAPAGAMENTO') return 'formaPagamento';
-  if (upper === 'TIPO') return 'tipo';
-  if (upper === 'CATEGORIA') return 'categoria';
-  if (upper === 'STATUS') return 'status';
-  if (upper === 'KM' || upper === 'KMALVO' || upper === 'KMATUAL') return 'km';
-  if (upper === 'LITROS') return 'litros';
-  if (upper === 'PRECOLITRO') return 'precoLitro';
-  if (upper === 'COMPLETOUOTANQUE') return 'completouTanque';
-  if (upper === 'KMPERCORRIDO') return 'kmPercorrido';
-  if (upper === 'MEDIAKML') return 'mediaKmL';
-  if (upper === 'VEICULO' || upper === 'VEICULOID') return 'veiculoId';
-  if (upper === 'MOTORISTA') return 'motorista';
-  if (upper === 'NOMEPOSTO') return 'nomePosto';
-  if (upper === 'LOCALIZACAODOPOSTO' || upper === 'LOCAL' || upper === 'LOCALIZACAO') return 'local';
-  if (upper === 'COMPROVANTEURL') return 'comprovanteUrl';
-  if (upper === 'OBS' || upper === 'OBSERVACAO' || upper === 'OBSERVACOES' || upper === 'INSTRUCOES') return 'observacoes';
-  if (upper === 'TITULO') return 'titulo';
-  if (upper === 'HORA' || upper === 'HORAS' || upper === 'HORARIO') return 'hora';
-  if (upper === 'MEDICO') return 'medico';
-  if (upper === 'ESPECIALIDADE') return 'especialidade';
-  if (upper === 'MEDICAMENTO' || upper === 'MEDICAMENTOS') return 'medicamento';
-  if (upper === 'DOSAGEM') return 'dosagem';
-  if (upper === 'FREQUENCIA') return 'frequencia';
-  if (upper === 'PLACA') return 'placa';
-  if (upper === 'RENAVAN' || upper === 'RENAMAM') return 'renavan';
-  if (upper === 'CHASSI') return 'chassi';
-  if (upper === 'MARCA') return 'marca';
-  if (upper === 'MODELO') return 'modelo';
-  if (upper === 'ANO') return 'ano';
-  if (upper === 'ANOFABRICACAO') return 'anoFabricacao';
-  if (upper === 'NOME' || upper === 'ITEM') return 'nome';
-  if (upper === 'QUANTIDADE') return 'quantidade';
-  if (upper === 'UNIDADE') return 'unidade';
-  if (upper === 'COMPRADO') return 'comprado';
-  if (upper === 'NIVELDERISCO' || upper === 'NIVELRISCO') return 'nivelDeRisco';
-  if (upper === 'LATITUDE') return 'latitude';
-  if (upper === 'LONGITUDE') return 'longitude';
-  if (upper === 'RAIOM' || upper === 'RAIO') return 'raioMetros';
-  if (upper === 'ATIVO') return 'ativo';
-  if (upper === 'COR' || upper === 'CORDEIDENTIFICACAO') return 'cor';
-  if (upper === 'EFEITOALERTAPISCANDO') return 'piscando';
-  if (upper === 'LEMBRETEATIVO') return 'lembreteAtivo';
-  if (upper === 'DIASDEANTECEDENCIA') return 'diasAntecedencia';
-  if (upper === 'CONCLUIDO') return 'concluido';
-  if (upper === 'FECHAMENTO') return 'fechamento';
-  if (upper === 'VENCIMENTO') return 'vencimento';
-  if (upper === 'LIMITE') return 'limite';
-  if (upper === 'AGENCIA') return 'agencia';
-  if (upper === 'CONTA') return 'conta';
-  if (upper === 'PONTOS') return 'pontos';
-  if (upper === 'PROTOCOLO') return 'protocolo';
-  if (upper === 'MENSAGEMDEALERTA') return 'mensagemDeAlerta';
-  if (upper === 'GASTO') return 'gasto';
-  if (upper === 'PERIODO') return 'periodo';
-  if (upper === 'CONFIGURACOES') return 'configuracoes';
-
-  return clean.toLowerCase();
-}
-
-function parseTypedValue(key, val) {
-  if (val === '' || val === null || val === undefined) return '';
-  if (key === 'completouTanque' || key === 'ativo' || key === 'comprado' || key === 'lembreteAtivo' || key === 'piscando' || key === 'concluido' || key === 'recorrente') {
-    return val === true || val === 'true' || String(val).toUpperCase() === 'SIM' || String(val).toUpperCase() === 'TRUE';
-  }
-  if (key === 'valor' || key === 'valorPago' || key === 'valorAPG' || key === 'litros' || key === 'precoLitro' || key === 'km' || key === 'quantidade' || key === 'latitude' || key === 'longitude' || key === 'raioMetros' || key === 'limite' || key === 'gasto' || key === 'pontos' || key === 'diasAntecedencia' || key === 'saldoInicial') {
-    var num = Number(String(val).replace(/\\./g, '').replace(',', '.'));
-    return !isNaN(num) ? num : val;
-  }
-  return val;
+function normalizeHeaderKey(key) {
+  if (!key) return '';
+  var clean = String(key).trim()
+    .normalize("NFD").replace(/[\\u0300-\\u036f]/g, "")
+    .replace(/[^a-zA-Z0-9]/g, '');
+  if (!clean) return '';
+  return clean.charAt(0).toLowerCase() + clean.slice(1);
 }
 
 function saveAllDataToSheet(ss, payload) {
-  if (!ss) ss = SpreadsheetApp.getActiveSpreadsheet();
-
-  Logger.log('=== [ETAPA 5] JSON completo recebido pelo Apps Script ===');
-  Logger.log(JSON.stringify(payload ? payload.transactions : []));
-
   var report = [];
+  var forceOverwrite = (payload && (payload.forceOverwrite === true || payload.forceOverwrite === 'true'));
+  var deletedIds = (payload && Array.isArray(payload.deletedIds)) ? payload.deletedIds : [];
+
+  Logger.log('================================================================');
+  Logger.log('[AUDIT - SAVE ALL DATA] Início de gravação incremental (UPSERT)');
+  Logger.log('forceOverwrite: ' + forceOverwrite + ' | Total de IDs deletados explicitamente: ' + deletedIds.length);
+  Logger.log('IDs deletados: ' + JSON.stringify(deletedIds));
+  Logger.log('================================================================');
+
+  var rawTxs = payload.transactions || payload.transacoes || payload.lancamentos || [];
+  var allTxs = Array.isArray(rawTxs) ? rawTxs : [];
 
   var modules = [
     {
@@ -429,35 +357,21 @@ function saveAllDataToSheet(ss, payload) {
       primaryName: '1_Lancamentos',
       aliases: ['Lançamentos', 'Lancamentos', 'Transacoes'],
       headers: txHeaders,
-      data: payload.transactions || payload['1_Lancamentos'] || []
-    },
-    {
-      name: 'Receitas',
-      primaryName: '2_Receitas',
-      aliases: ['Receitas'],
-      headers: txHeaders,
-      data: filterTransactions(payload.transactions, 'RECEITA')
-    },
-    {
-      name: 'Despesas',
-      primaryName: '3_Despesas',
-      aliases: ['Despesas'],
-      headers: txHeaders,
-      data: filterTransactions(payload.transactions, 'DESPESA')
+      data: allTxs
     },
     {
       name: 'Abastecimentos',
       primaryName: '4_Abastecimentos',
-      aliases: ['Abastecimentos', 'Abastecimento'],
+      aliases: ['4_Abastecimentos', 'Abastecimentos', 'Abastecimento', '4_Abastecimento'],
       headers: txHeaders,
-      data: payload.abastecimentos || payload['4_Abastecimentos'] || filterTransactions(payload.transactions, 'ABASTECIMENTO')
+      data: payload.abastecimentos || payload['4_Abastecimentos'] || []
     },
     {
-      name: 'Contas Bancárias',
-      primaryName: '5_Contas_Bancarias',
-      aliases: ['5_Contas_Bancárias', 'Contas Bancárias', 'ContasBancarias', 'Contas'],
-      headers: ['ID', 'Nome', 'Saldo_Inicial', 'Cor', 'Ícone', 'Tipo', 'Agência', 'Conta', 'Limite'],
-      data: payload.bankAccounts || payload.contasBancarias || []
+      name: 'Zonas de Risco',
+      primaryName: '17_Zonas_De_Risco',
+      aliases: ['ZonasDeRisco', 'ZonaDeRisco', 'Zona de risco', 'RiskZones'],
+      headers: ['ID', 'Tipo_Registro', 'Nome_Título', 'Nível_De_Risco', 'Latitude', 'Longitude', 'Raio (m)', 'Ativo', 'Mensagem_De_Alerta', 'Data_Registro', 'Observação'],
+      data: payload.riskZones || []
     },
     {
       name: 'Consultas Médicas',
@@ -537,11 +451,11 @@ function saveAllDataToSheet(ss, payload) {
       data: payload.groceryItems || []
     },
     {
-      name: 'Zonas de Risco',
-      primaryName: '17_Zonas_De_Risco',
-      aliases: ['ZonasDeRisco', 'ZonaDeRisco', 'Zona de risco', 'RiskZones'],
-      headers: ['ID', 'Tipo_Registro', 'Nome_Título', 'Nível_De_Risco', 'Latitude', 'Longitude', 'Raio (m)', 'Ativo', 'Mensagem_De_Alerta', 'Data_Registro', 'Observação'],
-      data: payload.riskZones || []
+      name: 'Contas Bancárias',
+      primaryName: '5_Contas_Bancarias',
+      aliases: ['5_Contas_Bancárias', 'Contas Bancárias', 'ContasBancarias', 'Contas'],
+      headers: ['ID', 'Nome', 'Saldo_Inicial', 'Cor', 'Ícone', 'Tipo', 'Agência', 'Conta', 'Limite'],
+      data: payload.bankAccounts || []
     },
     {
       name: 'Cartões de Crédito',
@@ -559,22 +473,19 @@ function saveAllDataToSheet(ss, payload) {
     }
   ];
 
-  var forceOverwrite = (payload && (payload.forceOverwrite === true || payload.forceOverwrite === 'true'));
-
   modules.forEach(function(mod) {
     try {
-      var res = writeRowsToSheet(ss, mod.primaryName, mod.aliases, mod.headers, mod.data, forceOverwrite);
+      var res = upsertRowsToSheet(ss, mod.primaryName, mod.aliases, mod.headers, mod.data, deletedIds, forceOverwrite);
       report.push({
         module: mod.name,
         sheet: mod.primaryName,
-        status: res.protected ? 'protected' : 'ok',
-        count: res.saved
+        status: 'ok',
+        updated: res.updated,
+        inserted: res.inserted,
+        deleted: res.deleted,
+        total: res.total
       });
-      if (res.protected) {
-        Logger.log('Módulo [' + mod.name + '] protegido contra perda de dados (gravação ignorada).');
-      } else {
-        Logger.log('Módulo [' + mod.name + '] salvo com sucesso: ' + res.saved + ' registros.');
-      }
+      Logger.log('Módulo [' + mod.name + '] sincronizado via UPSERT: Atualizados=' + res.updated + ', Inseridos=' + res.inserted + ', Deletados=' + res.deleted + ', Total Atual=' + res.total);
     } catch (mErr) {
       Logger.log('Erro ao salvar módulo [' + mod.name + ']: ' + mErr.toString());
       report.push({
@@ -587,26 +498,6 @@ function saveAllDataToSheet(ss, payload) {
   });
 
   return report;
-}
-
-function filterTransactions(txs, targetCategoryOrType) {
-  if (!txs || !Array.isArray(txs)) return [];
-  return txs.filter(function(t) {
-    if (!t) return false;
-    var cat = String(t.categoria || t.Categoria || '').toUpperCase();
-    var tipo = String(t.tipo || t.Tipo || '').toUpperCase();
-
-    if (targetCategoryOrType === 'ABASTECIMENTO') {
-      return cat === 'ABASTECIMENTO' || cat === 'COMBUSTIVEL';
-    }
-    if (targetCategoryOrType === 'RECEITA') {
-      return tipo === 'RECEITA' || cat === 'RECEITA' || cat === 'RECEITAS';
-    }
-    if (targetCategoryOrType === 'DESPESA') {
-      return tipo === 'DESPESA' && cat !== 'ABASTECIMENTO' && cat !== 'COMBUSTIVEL';
-    }
-    return true;
-  });
 }
 
 function convertObjectOrArray(obj) {
@@ -624,16 +515,34 @@ function convertObjectOrArray(obj) {
   return [];
 }
 
-function writeRowsToSheet(ss, primaryName, aliases, defaultHeaders, items, forceOverwrite) {
+/**
+ * FUNÇÃO DE GRAVAÇÃO INCREMENTAL BASEADA EM ID (UPSERT)
+ * NUNCA USA clearContents() para sincronização normal.
+ * - Atualiza linhas existentes correspondentes pelo ID.
+ * - Insere novas linhas ao final.
+ * - Preserva linhas da planilha que não foram enviadas.
+ * - Deleta APENAS registros cujos IDs estejam explicitamente em deletedIds.
+ */
+function upsertRowsToSheet(ss, primaryName, aliases, defaultHeaders, items, deletedIds, forceOverwrite) {
   var sheet = findOrCreateSheet(ss, primaryName, aliases);
 
+  if (forceOverwrite === true) {
+    Logger.log('FORCE OVERWRITE SOLICITADO para a aba [' + primaryName + ']. Limpando conteúdo...');
+    sheet.clearContents();
+    var overwriteRows = (items || []).map(function(item) {
+      return defaultHeaders.map(function(h) { return extractFieldValue(item, h); });
+    });
+    var allVals = [defaultHeaders].concat(overwriteRows);
+    sheet.getRange(1, 1, allVals.length, defaultHeaders.length).setValues(allVals);
+    return { updated: 0, inserted: items ? items.length : 0, deleted: 0, total: items ? items.length : 0 };
+  }
+
   var existingData = sheet.getDataRange().getValues();
-  var headers = defaultHeaders;
+  var headers = defaultHeaders.slice();
 
   if (existingData && existingData.length > 0 && existingData[0] && existingData[0].length > 0) {
     var existingHeaders = existingData[0].map(function(h) { return String(h || '').trim(); });
     var hasValidHeaders = existingHeaders.some(function(h) { return h.length > 0; });
-
     if (hasValidHeaders) {
       headers = existingHeaders.slice();
       defaultHeaders.forEach(function(dh) {
@@ -642,38 +551,82 @@ function writeRowsToSheet(ss, primaryName, aliases, defaultHeaders, items, force
         }
       });
     }
+  } else {
+    sheet.getRange(1, 1, 1, headers.length).setValues([headers]);
+    existingData = [headers];
   }
 
-  // 1. Ler novamente toda a aba e contar registros atuais existentes
-  var registrosExistentes = 0;
-  if (existingData && existingData.length > 1) {
+  var idColIndex = -1;
+  for (var c = 0; c < headers.length; c++) {
+    if (String(headers[c] || '').toUpperCase() === 'ID') {
+      idColIndex = c;
+      break;
+    }
+  }
+  if (idColIndex === -1) idColIndex = 0;
+
+  var existingIdRowMap = {};
+  if (existingData.length > 1) {
     for (var r = 1; r < existingData.length; r++) {
       var row = existingData[r];
-      if (row && row.some(function(cell) { return cell !== undefined && cell !== null && String(cell).trim() !== ''; })) {
-        registrosExistentes++;
+      var rawId = (idColIndex < row.length && row[idColIndex] !== undefined && row[idColIndex] !== null) ? String(row[idColIndex]).trim() : '';
+      if (rawId) {
+        existingIdRowMap[rawId] = r + 1;
       }
     }
   }
 
-  // 2. Contar registros recebidos
-  var registrosRecebidos = items ? items.length : 0;
+  var deletedCount = 0;
+  var delSet = {};
+  (deletedIds || []).forEach(function(dId) {
+    if (dId !== undefined && dId !== null) {
+      delSet[String(dId).trim()] = true;
+    }
+  });
 
-  // 3. Se registrosRecebidos < registrosExistentes e NÃO for forceOverwrite
-  if (registrosRecebidos < registrosExistentes && forceOverwrite !== true) {
-    Logger.log("Proteção contra perda de dados ativada para aba [" + primaryName + "]. Registros existentes: " + registrosExistentes + " | Registros recebidos: " + registrosRecebidos + ". Gravação CANCELADA.");
-    return { saved: registrosExistentes, protected: true };
+  var rowsToDelete = [];
+  for (var idKey in existingIdRowMap) {
+    if (delSet[idKey] === true) {
+      rowsToDelete.push(existingIdRowMap[idKey]);
+    }
+  }
+  rowsToDelete.sort(function(a, b) { return b - a; });
+  rowsToDelete.forEach(function(rowIdx) {
+    sheet.deleteRow(rowIdx);
+    deletedCount++;
+  });
+
+  if (deletedCount > 0) {
+    existingData = sheet.getDataRange().getValues();
+    existingIdRowMap = {};
+    if (existingData.length > 1) {
+      for (var r2 = 1; r2 < existingData.length; r2++) {
+        var row2 = existingData[r2];
+        var rawId2 = (idColIndex < row2.length && row2[idColIndex] !== undefined && row2[idColIndex] !== null) ? String(row2[idColIndex]).trim() : '';
+        if (rawId2) {
+          existingIdRowMap[rawId2] = r2 + 1;
+        }
+      }
+    }
   }
 
-  var itemIds = (items || []).map(function(item) { return item ? (item.id || item.Id || item.ID) : null; });
-  Logger.log('=== [ETAPA 6] Lista que será gravada na aba ' + primaryName + ' imediatamente antes de sheet.clearContents() ===');
-  Logger.log(JSON.stringify(items || []));
+  var updatedCount = 0;
+  var insertedCount = 0;
 
-  sheet.clearContents();
+  (items || []).forEach(function(item) {
+    if (!item) return;
 
-  var rows = (items || []).map(function(item) {
-    if (!item) return headers.map(function() { return ''; });
+    var rawItemId = item.id || item.Id || item.ID;
+    var itemIdStr = (rawItemId !== undefined && rawItemId !== null) ? String(rawItemId).trim() : '';
 
-    return headers.map(function(h) {
+    if (!itemIdStr) {
+      itemIdStr = 'ID_' + new Date().getTime() + '_' + Math.floor(Math.random() * 10000);
+      item.id = itemIdStr;
+    }
+
+    if (delSet[itemIdStr] === true) return;
+
+    var rowValues = headers.map(function(h) {
       var val = extractFieldValue(item, h);
       if (val instanceof Date) {
         var y = val.getFullYear();
@@ -686,12 +639,28 @@ function writeRowsToSheet(ss, primaryName, aliases, defaultHeaders, items, force
       }
       return val !== undefined && val !== null ? val : '';
     });
+
+    if (existingIdRowMap[itemIdStr] !== undefined) {
+      var targetRow = existingIdRowMap[itemIdStr];
+      sheet.getRange(targetRow, 1, 1, headers.length).setValues([rowValues]);
+      updatedCount++;
+    } else {
+      sheet.appendRow(rowValues);
+      var newLastRow = sheet.getLastRow();
+      existingIdRowMap[itemIdStr] = newLastRow;
+      insertedCount++;
+    }
   });
 
-  var allValues = [headers].concat(rows);
-  sheet.getRange(1, 1, allValues.length, headers.length).setValues(allValues);
+  var finalTotal = Math.max(0, sheet.getLastRow() - 1);
+  Logger.log('[AUDIT - UPSERT SUCCESS] Aba [' + primaryName + ']: Atualizados=' + updatedCount + ', Inseridos=' + insertedCount + ', Deletados=' + deletedCount + ', Total Final na Aba=' + finalTotal);
 
-  return { saved: items ? items.length : 0 };
+  return {
+    updated: updatedCount,
+    inserted: insertedCount,
+    deleted: deletedCount,
+    total: finalTotal
+  };
 }
 
 function extractFieldValue(item, headerName) {

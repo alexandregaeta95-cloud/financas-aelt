@@ -30,10 +30,25 @@ export class SheetsService {
     customCategories: string[] = [],
     groceryItems: any[] = [],
     forceOverwrite: boolean = false,
-    sheetTxCount?: number
+    sheetTxCount?: number,
+    deletedIds: (string | number)[] = [],
+    origem: string = 'sincronizarTudo'
   ) {
     const safeToken = toSafeString(token);
     const safeSheetId = toSafeString(spreadsheetId);
+
+    const stackStr = new Error().stack || '';
+    const nowStr = new Date().toLocaleString('pt-BR');
+    const txCount = Array.isArray(transactions) ? transactions.length : 0;
+
+    console.log('=========================');
+    console.log(`ORIGEM: ${origem}`);
+    console.log(`Quantidade de registros: ${txCount}`);
+    console.log(`IDs excluídos explicitamente (${deletedIds.length}):`, deletedIds);
+    console.log(`Horário: ${nowStr}`);
+    console.log(`Call Stack completo:\n${stackStr}`);
+    console.log('====================');
+
     return await syncDataToSpreadsheet(
       safeToken,
       safeSheetId,
@@ -52,7 +67,14 @@ export class SheetsService {
       customCategories,
       groceryItems,
       forceOverwrite,
-      sheetTxCount
+      sheetTxCount,
+      [],
+      [],
+      [],
+      [],
+      [],
+      deletedIds,
+      origem
     );
   }
 
