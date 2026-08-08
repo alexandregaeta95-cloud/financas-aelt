@@ -1,4 +1,6 @@
 import { describe, it, expect } from 'vitest';
+import { readFileSync } from 'fs';
+import { resolve } from 'path';
 import { buildSyncPayload, GoogleSyncPayload, MappedTransaction } from './googleAuth';
 import type {
   Transaction,
@@ -17,7 +19,7 @@ describe('Synchronization Payload Engine Tests (buildSyncPayload)', () => {
   it('should build a complete sync payload with all required properties for Apps Script', () => {
     const sampleTransactions: Transaction[] = [
       {
-        id: 'tx-1',
+        id: 1,
         data: '2025-05-10',
         descricao: 'Gasolina Shell',
         valor: 250.0,
@@ -39,7 +41,7 @@ describe('Synchronization Payload Engine Tests (buildSyncPayload)', () => {
         obs: 'Abastecimento completo'
       },
       {
-        id: 'tx-2',
+        id: 2,
         data: '2025-05-11',
         descricao: 'Supermercado',
         valor: 180.5,
@@ -73,18 +75,23 @@ describe('Synchronization Payload Engine Tests (buildSyncPayload)', () => {
         hora: '14:30',
         local: 'Hospital Albert Einstein',
         lembreteAtivo: true,
-        status: 'AGENDADO',
+        status: 'Agendada',
         observacoes: 'Exame de rotina'
       }
     ];
 
     const sampleRiskZones: RiskZone[] = [
       {
-        id: 'rz-1',
-        descricao: 'Cruzamento Perigoso',
-        nivelDeRisco: 'ALTO',
+        id: 1,
+        localizacao: '-23.5505, -46.6333',
+        latitude: -23.5505,
+        longitude: -46.6333,
         latitudi: '-23.5505',
-        longitude: '-46.6333',
+        nomeLocal: 'Cruzamento Perigoso',
+        descricao: 'Cruzamento Perigoso',
+        nivelRisco: 'ALTO',
+        nivelDeRisco: 'ALTO',
+        raioMetros: 200,
         raioM: 200,
         ativo: true,
         mensagemDeAlerta: 'Cuidado com assaltos à noite',
@@ -129,39 +136,35 @@ describe('Synchronization Payload Engine Tests (buildSyncPayload)', () => {
         titulo: 'Excesso de Velocidade',
         veiculo: 'Honda Civic',
         placa: 'ABC-1234',
-        data: '2025-03-01',
-        descricao: 'Transitar em velocidade superior à máxima',
-        valor: 195.23,
-        pontos: 5,
-        status: 'PENDENTE',
+        dataSubmissao: '2025-03-01',
+        dataOcorrencia: '2025-03-01',
         localizacao: 'Marginal Pinheiros',
-        observacao: 'Aguardando recurso'
+        status: 'EM_ANALISE',
+        valorMulta: 195.23,
+        pontosCnh: 5,
+        justificativa: 'Aguardando recurso',
+        evidencias: []
       }
     ];
 
     const samplePrescriptions: MedicalPrescription[] = [
       {
         id: 'presc-1',
-        medicamento: 'Dipirona 500mg',
-        dosagem: '1 comprimido',
-        frequencia: '6 em 6 horas',
         medico: 'Dr. Silva',
         especialidade: 'Clínico Geral',
-        dataEmissao: '2025-05-01',
-        dataVencimento: '2025-06-01',
+        data: '2025-05-01',
+        medicamentos: 'Dipirona 500mg - 1 comprimido a cada 6 horas',
         instrucoes: 'Tomar com água após as refeições',
-        observacao: ''
+        dataVencimento: '2025-06-01'
       }
     ];
 
     const sampleBankAccounts: BankAccount[] = [
       {
-        id: 'bank-1',
+        id: 1,
         nome: 'Conta Corrente Itaú',
+        tipo: 'BANCO',
         saldoInicial: 5000,
-        cor: '#ff6600',
-        icone: 'bank',
-        tipo: 'CORRENTE',
         agencia: '1234',
         conta: '56789-0',
         limite: 1000
@@ -170,13 +173,12 @@ describe('Synchronization Payload Engine Tests (buildSyncPayload)', () => {
 
     const sampleCreditCards: CreditCard[] = [
       {
-        id: 'card-1',
+        id: 1,
         nome: 'Itaú Personalité Visa',
+        tipo: 'CARTÃO',
         limite: 15000,
-        fechamento: 25,
-        vencimento: 5,
-        cor: '#000000',
-        bancoId: 'bank-1'
+        gasto: 3000,
+        diaVencimento: 5
       }
     ];
 
@@ -232,13 +234,13 @@ describe('Synchronization Payload Engine Tests (buildSyncPayload)', () => {
 
   it('REGRESSION TEST: 4_Abastecimentos must be sent in payload and retain all 24 explicit column aliases', () => {
     const fuelTransaction: Transaction = {
-      id: 'tx-fuel-99',
+      id: 99,
       data: '2025-05-10',
       descricao: 'Gasolina Grid',
       valor: 300.0,
       valorPg: 300.0,
-      bancoId: 'bank-1',
-      cartaoid: 'card-1',
+      bancoId: 1,
+      cartaoId: 'card-1',
       formaPagamento: 'CARTAO_CREDITO',
       tipo: 'DESPESA',
       categoria: 'ABASTECIMENTO',
@@ -299,36 +301,45 @@ describe('Synchronization Payload Engine Tests (buildSyncPayload)', () => {
 
     for (const alias of expectedAliases) {
       expect(fuelItem).toHaveProperty(alias);
-      expect((fuelItem as Record<string, unknown>)[alias]).not.toBeUndefined();
+      expect((fuelItem as unknown as Record<string, unknown>)[alias]).not.toBeUndefined();
     }
 
-    expect(fuelItem.ID).toBe('tx-fuel-99');
+    expect(fuelItem.ID).toBe('99');
     expect(fuelItem.Data).toBe('10/05/2025');
     expect(fuelItem.Descrição).toBe('Gasolina Grid');
     expect(fuelItem.Valor).toBe(300);
     expect(fuelItem.Completou_O_Tanque).toBe('SIM');
   });
 
-  it('REGRESSION CONTRACT TEST: Every frontend module key sent in payload must be mapped in backend modules', () => {
-    // Array of key mappings sent by buildSyncPayload that correspond to backend tabs
-    const frontendPayloadModuleKeys: Array<{ frontendKey: keyof GoogleSyncPayload; backendPrimaryName: string }> = [
-      { frontendKey: 'transactions', backendPrimaryName: '1_Lancamentos' },
-      { frontendKey: '4_Abastecimentos', backendPrimaryName: '4_Abastecimentos' },
-      { frontendKey: 'riskZones', backendPrimaryName: '17_Zonas_De_Risco' },
-      { frontendKey: '6_Consultas_Médicas', backendPrimaryName: '6_Consultas_Médicas' },
-      { frontendKey: 'prescriptions', backendPrimaryName: '7_Receitas_Médicas' },
-      { frontendKey: 'infractions', backendPrimaryName: '8_Infracoes' },
-      { frontendKey: '9_Veiculos', backendPrimaryName: '9_Veiculos' },
-      { frontendKey: 'categoryBudgets', backendPrimaryName: '10_Metas_De_Categoria' },
-      { frontendKey: 'customCategories', backendPrimaryName: '11_Categorias_Customizadas' },
-      { frontendKey: 'analysis', backendPrimaryName: '12_Analises' },
-      { frontendKey: 'profile', backendPrimaryName: '13_Perfil' },
-      { frontendKey: '14_Oficina', backendPrimaryName: '14_Oficina' },
-      { frontendKey: 'scheduledServices', backendPrimaryName: '15_Manutenções_Agendadas' },
-      { frontendKey: 'groceryItems', backendPrimaryName: '16_Lista_De_Mercado' },
-      { frontendKey: 'bankAccounts', backendPrimaryName: '5_Contas_Bancarias' },
-      { frontendKey: 'creditCards', backendPrimaryName: '18_Cartões_De_Crédito' },
-      { frontendKey: '19_Agenda_E_Compromissos', backendPrimaryName: '19_Agenda_E_Compromissos' }
+  it('REGRESSION CONTRACT TEST: every frontend payload key must still be read by Codigo.gs for the matching aba', () => {
+    // This test reads the REAL Codigo.gs source (single source of truth per
+    // google_apps_script_code.gs) and fails if the backend stops reading a key
+    // that the frontend sends, or stops referencing the sheet it maps to.
+    const codigoGsPath = resolve(__dirname, '../../Codigo.gs');
+    const codigoGsSource = readFileSync(codigoGsPath, 'utf-8');
+
+    const moduleContracts: Array<{
+      frontendKey: keyof GoogleSyncPayload;
+      backendReadPattern: RegExp;
+      backendPrimaryName: string;
+    }> = [
+      { frontendKey: 'transactions', backendReadPattern: /payload\.transactions/, backendPrimaryName: '1_Lancamentos' },
+      { frontendKey: '4_Abastecimentos', backendReadPattern: /payload\['4_Abastecimentos'\]/, backendPrimaryName: '4_Abastecimentos' },
+      { frontendKey: 'riskZones', backendReadPattern: /payload\.riskZones/, backendPrimaryName: '17_Zonas_De_Risco' },
+      { frontendKey: '6_Consultas_Médicas', backendReadPattern: /payload\['6_Consultas_Médicas'\]/, backendPrimaryName: '6_Consultas_Médicas' },
+      { frontendKey: 'prescriptions', backendReadPattern: /payload\.prescriptions/, backendPrimaryName: '7_Receitas_Médicas' },
+      { frontendKey: 'infractions', backendReadPattern: /payload\.infractions/, backendPrimaryName: '8_Infracoes' },
+      { frontendKey: '9_Veiculos', backendReadPattern: /payload\['9_Veiculos'\]/, backendPrimaryName: '9_Veiculos' },
+      { frontendKey: 'categoryBudgets', backendReadPattern: /payload\.categoryBudgets/, backendPrimaryName: '10_Metas_De_Categoria' },
+      { frontendKey: 'customCategories', backendReadPattern: /payload\.customCategories/, backendPrimaryName: '11_Categorias_Customizadas' },
+      { frontendKey: 'analysis', backendReadPattern: /payload\.analysis/, backendPrimaryName: '12_Analises' },
+      { frontendKey: 'profile', backendReadPattern: /payload\.profile/, backendPrimaryName: '13_Perfil' },
+      { frontendKey: '14_Oficina', backendReadPattern: /payload\['14_Oficina'\]/, backendPrimaryName: '14_Oficina' },
+      { frontendKey: 'scheduledServices', backendReadPattern: /payload\.scheduledServices/, backendPrimaryName: '15_Manutenções_Agendadas' },
+      { frontendKey: 'groceryItems', backendReadPattern: /payload\.groceryItems/, backendPrimaryName: '16_Lista_De_Mercado' },
+      { frontendKey: 'bankAccounts', backendReadPattern: /payload\.bankAccounts/, backendPrimaryName: '5_Contas_Bancarias' },
+      { frontendKey: 'creditCards', backendReadPattern: /payload\.creditCards/, backendPrimaryName: '18_Cartões_De_Crédito' },
+      { frontendKey: '19_Agenda_E_Compromissos', backendReadPattern: /payload\['19_Agenda_E_Compromissos'\]/, backendPrimaryName: '19_Agenda_E_Compromissos' }
     ];
 
     const dummyPayload = buildSyncPayload(
@@ -336,8 +347,21 @@ describe('Synchronization Payload Engine Tests (buildSyncPayload)', () => {
       [], [], [], [], [], [], [], [], [], [], [], {}, [], [], false, 0, [], [], [], [], [], []
     );
 
-    frontendPayloadModuleKeys.forEach(({ frontendKey, backendPrimaryName }) => {
-      expect(dummyPayload[frontendKey], `Frontend payload key '${String(frontendKey)}' (maps to backend '${backendPrimaryName}') must exist in buildSyncPayload result`).toBeDefined();
+    moduleContracts.forEach(({ frontendKey, backendReadPattern, backendPrimaryName }) => {
+      expect(
+        dummyPayload[frontendKey],
+        `Payload do frontend deve conter a chave '${String(frontendKey)}'`
+      ).toBeDefined();
+
+      expect(
+        backendReadPattern.test(codigoGsSource),
+        `Codigo.gs não lê mais '${String(frontendKey)}' — contrato quebrado para a aba '${backendPrimaryName}'`
+      ).toBe(true);
+
+      expect(
+        codigoGsSource.includes(backendPrimaryName),
+        `Codigo.gs não referencia mais a aba '${backendPrimaryName}'`
+      ).toBe(true);
     });
   });
 });
