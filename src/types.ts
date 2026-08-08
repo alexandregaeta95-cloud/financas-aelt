@@ -227,3 +227,13 @@ export interface GroceryItem {
   observacao?: string;
   updatedAt?: number;
 }
+
+export interface PendingChange {
+  id: string;
+  tipo?: string; // e.g. "CRIAR_TRANSACAO", "EDITAR_PERFIL", "REMOVER_LOTE"
+  type?: string;
+  title: string;
+  timestamp: number;
+  status: 'PENDING' | 'SYNCING' | 'SYNCED' | 'FAILED';
+  error?: string;
+}

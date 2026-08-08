@@ -15,6 +15,7 @@ import {
 import { Transaction, Infraction, RegisteredVehicle, BankAccount, CreditCard } from '../../../types';
 import { DateComboInput } from '../../../components/DateComboInput';
 import { TransactionAuditLog } from './TransactionAuditLog';
+import { financeStorage } from '../services/financeStorage';
 
 export function formatDateForInput(dateVal: any): string {
   if (!dateVal) {
@@ -790,44 +791,44 @@ export default function TransactionsTab({
   const [baixaValorJuros, setBaixaValorJuros] = useState<string>('0,00');
   const [baixaDataPg, setBaixaDataPg] = useState<string>('');
   const [baixaBankId, setBaixaBankId] = useState<number>(0);
-  const [txType, setTxType] = useState<string>(() => localStorage.getItem('draft_txType') || 'DESPESA');
-  const [newTypeName, setNewTypeName] = useState<string>(() => localStorage.getItem('draft_newTypeName') || '');
-  const [amountStr, setAmountStr] = useState<string>(() => localStorage.getItem('draft_amountStr') || '0,00');
-  const [category, setCategory] = useState<string>(() => localStorage.getItem('draft_category') || 'ABASTECIMENTO');
-  const [newCategoryName, setNewCategoryName] = useState<string>(() => localStorage.getItem('draft_newCategoryName') || '');
-  const [date, setDate] = useState<string>(() => formatDateForInput(localStorage.getItem('draft_date') || new Date()));
-  const [desc, setDesc] = useState<string>(() => localStorage.getItem('draft_desc') || '');
-  const [status, setStatus] = useState<string>(() => localStorage.getItem('draft_status') || 'PAGO');
+  const [txType, setTxType] = useState<string>(() => financeStorage.getDraftValue('draft_txType', 'DESPESA'));
+  const [newTypeName, setNewTypeName] = useState<string>(() => financeStorage.getDraftValue('draft_newTypeName', ''));
+  const [amountStr, setAmountStr] = useState<string>(() => financeStorage.getDraftValue('draft_amountStr', '0,00'));
+  const [category, setCategory] = useState<string>(() => financeStorage.getDraftValue('draft_category', 'ABASTECIMENTO'));
+  const [newCategoryName, setNewCategoryName] = useState<string>(() => financeStorage.getDraftValue('draft_newCategoryName', ''));
+  const [date, setDate] = useState<string>(() => formatDateForInput(financeStorage.getDraftValue('draft_date') || new Date()));
+  const [desc, setDesc] = useState<string>(() => financeStorage.getDraftValue('draft_desc', ''));
+  const [status, setStatus] = useState<string>(() => financeStorage.getDraftValue('draft_status', 'PAGO'));
   const [formBankId, setFormBankId] = useState<number>(() => {
-    const saved = localStorage.getItem('draft_formBankId');
+    const saved = financeStorage.getDraftValue('draft_formBankId');
     return saved ? Number(saved) : 0;
   });
-  const [formCartaoId, setFormCartaoId] = useState<string>(() => localStorage.getItem('draft_formCartaoId') || '');
-  const [formaPagamento, setFormaPagamento] = useState<string>(() => localStorage.getItem('draft_formaPagamento') || '');
-  const [comprovanteUrl, setComprovanteUrl] = useState<string>(() => localStorage.getItem('draft_comprovanteUrl') || '');
+  const [formCartaoId, setFormCartaoId] = useState<string>(() => financeStorage.getDraftValue('draft_formCartaoId', ''));
+  const [formaPagamento, setFormaPagamento] = useState<string>(() => financeStorage.getDraftValue('draft_formaPagamento', ''));
+  const [comprovanteUrl, setComprovanteUrl] = useState<string>(() => financeStorage.getDraftValue('draft_comprovanteUrl', ''));
 
   // Installments states
   const [installments, setInstallments] = useState<string>('1');
   const [comoDividir, setComoDividir] = useState<string>('DIVIDIR_TOTAL'); // 'DIVIDIR_TOTAL' | 'REPETIR_VALOR'
 
   // Fuel-specific states
-  const [fuelType, setFuelType] = useState<string>(() => localStorage.getItem('draft_fuelType') || 'ETANOL');
-  const [km, setKm] = useState<string>(() => localStorage.getItem('draft_km') || '');
-  const [litros, setLitros] = useState<string>(() => localStorage.getItem('draft_litros') || '0,00');
-  const [precoLitro, setPrecoLitro] = useState<string>(() => localStorage.getItem('draft_precoLitro') || '0,00');
-  const [veiculo, setVeiculo] = useState<string>(() => localStorage.getItem('draft_veiculo') || 'CARRO');
-  const [descricaoVeiculo, setDescricaoVeiculo] = useState<string>(() => localStorage.getItem('draft_descricaoVeiculo') || '');
-  const [valorPgStr, setValorPgStr] = useState<string>(() => localStorage.getItem('draft_valorPgStr') || '0,00');
+  const [fuelType, setFuelType] = useState<string>(() => financeStorage.getDraftValue('draft_fuelType', 'ETANOL'));
+  const [km, setKm] = useState<string>(() => financeStorage.getDraftValue('draft_km', ''));
+  const [litros, setLitros] = useState<string>(() => financeStorage.getDraftValue('draft_litros', '0,00'));
+  const [precoLitro, setPrecoLitro] = useState<string>(() => financeStorage.getDraftValue('draft_precoLitro', '0,00'));
+  const [veiculo, setVeiculo] = useState<string>(() => financeStorage.getDraftValue('draft_veiculo', 'CARRO'));
+  const [descricaoVeiculo, setDescricaoVeiculo] = useState<string>(() => financeStorage.getDraftValue('draft_descricaoVeiculo', ''));
+  const [valorPgStr, setValorPgStr] = useState<string>(() => financeStorage.getDraftValue('draft_valorPgStr', '0,00'));
   const [completouTanque, setCompletouTanque] = useState<boolean>(() => {
-    const val = localStorage.getItem('draft_completouTanque');
-    return val !== null ? val === 'true' : true;
+    const val = financeStorage.getDraftValue('draft_completouTanque');
+    return val ? val === 'true' : true;
   });
-  const [nomePosto, setNomePosto] = useState<string>(() => localStorage.getItem('draft_nomePosto') || '');
-  const [localizacaoPosto, setLocalizacaoPosto] = useState<string>(() => localStorage.getItem('draft_localizacaoPosto') || '');
-  const [motorista, setMotorista] = useState<string>(() => localStorage.getItem('draft_motorista') || '');
-  const [manualKmPercorrido, setManualKmPercorrido] = useState<string>(() => localStorage.getItem('draft_manualKmPercorrido') || '');
-  const [manualMediaKmL, setManualMediaKmL] = useState<string>(() => localStorage.getItem('draft_manualMediaKmL') || '');
-  const [obs, setObs] = useState<string>(() => localStorage.getItem('draft_obs') || '');
+  const [nomePosto, setNomePosto] = useState<string>(() => financeStorage.getDraftValue('draft_nomePosto', ''));
+  const [localizacaoPosto, setLocalizacaoPosto] = useState<string>(() => financeStorage.getDraftValue('draft_localizacaoPosto', ''));
+  const [motorista, setMotorista] = useState<string>(() => financeStorage.getDraftValue('draft_motorista', ''));
+  const [manualKmPercorrido, setManualKmPercorrido] = useState<string>(() => financeStorage.getDraftValue('draft_manualKmPercorrido', ''));
+  const [manualMediaKmL, setManualMediaKmL] = useState<string>(() => financeStorage.getDraftValue('draft_manualMediaKmL', ''));
+  const [obs, setObs] = useState<string>(() => financeStorage.getDraftValue('draft_obs', ''));
 
   // Motoristas Memo Hook for combo population (registeredVehicles + transactions history + fallback)
   const availableDrivers = useMemo(() => {
@@ -852,18 +853,15 @@ export default function TransactionsTab({
       });
     }
 
-    // 3. From localStorage registered vehicles
+    // 3. From registered vehicles storage
     try {
-      const savedVehiclesStr = localStorage.getItem('wealthflow_registered_vehicles');
-      if (savedVehiclesStr) {
-        const savedVehs = JSON.parse(savedVehiclesStr);
-        if (Array.isArray(savedVehs)) {
-          savedVehs.forEach(v => {
-            if (v && v.motorista && String(v.motorista).trim()) {
-              driversSet.add(String(v.motorista).trim().toUpperCase());
-            }
-          });
-        }
+      const savedVehs = financeStorage.getRegisteredVehicles();
+      if (Array.isArray(savedVehs)) {
+        savedVehs.forEach((v: any) => {
+          if (v && v.motorista && String(v.motorista).trim()) {
+            driversSet.add(String(v.motorista).trim().toUpperCase());
+          }
+        });
       }
     } catch (e) {
       // ignore
@@ -1098,28 +1096,28 @@ export default function TransactionsTab({
   // Sync form states with localStorage draft whenever showAddForm is set to true and we're not editing
   useEffect(() => {
     if (showAddForm && !editingTx) {
-      setTxType(localStorage.getItem('draft_txType') || 'DESPESA');
-      setCategory(localStorage.getItem('draft_category') || 'ABASTECIMENTO');
-      setNewTypeName(localStorage.getItem('draft_newTypeName') || '');
-      setAmountStr(localStorage.getItem('draft_amountStr') || '0,00');
-      setNewCategoryName(localStorage.getItem('draft_newCategoryName') || '');
-      setDate(localStorage.getItem('draft_date') || new Date().toISOString().split('T')[0]);
-      setDesc(localStorage.getItem('draft_desc') || '');
-      setStatus(localStorage.getItem('draft_status') || 'PAGO');
-      setFuelType(localStorage.getItem('draft_fuelType') || 'ETANOL');
-      setKm(localStorage.getItem('draft_km') || '');
-      setLitros(localStorage.getItem('draft_litros') || '0,00');
-      setPrecoLitro(localStorage.getItem('draft_precoLitro') || '0,00');
-      setVeiculo(localStorage.getItem('draft_veiculo') || 'CARRO');
-      setDescricaoVeiculo(localStorage.getItem('draft_descricaoVeiculo') || '');
-      setValorPgStr(localStorage.getItem('draft_valorPgStr') || '0,00');
-      setCompletouTanque(localStorage.getItem('draft_completouTanque') !== 'false');
-      setNomePosto(localStorage.getItem('draft_nomePosto') || '');
-      setLocalizacaoPosto(localStorage.getItem('draft_localizacaoPosto') || '');
-      setMotorista(localStorage.getItem('draft_motorista') || '');
-      setObs(localStorage.getItem('draft_obs') || '');
-      setFormBankId(Number(localStorage.getItem('draft_formBankId') || '0'));
-      setFormCartaoId(localStorage.getItem('draft_formCartaoId') || '');
+      setTxType(financeStorage.getDraftValue('draft_txType', 'DESPESA'));
+      setCategory(financeStorage.getDraftValue('draft_category', 'ABASTECIMENTO'));
+      setNewTypeName(financeStorage.getDraftValue('draft_newTypeName', ''));
+      setAmountStr(financeStorage.getDraftValue('draft_amountStr', '0,00'));
+      setNewCategoryName(financeStorage.getDraftValue('draft_newCategoryName', ''));
+      setDate(financeStorage.getDraftValue('draft_date') || new Date().toISOString().split('T')[0]);
+      setDesc(financeStorage.getDraftValue('draft_desc', ''));
+      setStatus(financeStorage.getDraftValue('draft_status', 'PAGO'));
+      setFuelType(financeStorage.getDraftValue('draft_fuelType', 'ETANOL'));
+      setKm(financeStorage.getDraftValue('draft_km', ''));
+      setLitros(financeStorage.getDraftValue('draft_litros', '0,00'));
+      setPrecoLitro(financeStorage.getDraftValue('draft_precoLitro', '0,00'));
+      setVeiculo(financeStorage.getDraftValue('draft_veiculo', 'CARRO'));
+      setDescricaoVeiculo(financeStorage.getDraftValue('draft_descricaoVeiculo', ''));
+      setValorPgStr(financeStorage.getDraftValue('draft_valorPgStr', '0,00'));
+      setCompletouTanque(financeStorage.getDraftValue('draft_completouTanque') !== 'false');
+      setNomePosto(financeStorage.getDraftValue('draft_nomePosto', ''));
+      setLocalizacaoPosto(financeStorage.getDraftValue('draft_localizacaoPosto', ''));
+      setMotorista(financeStorage.getDraftValue('draft_motorista', ''));
+      setObs(financeStorage.getDraftValue('draft_obs', ''));
+      setFormBankId(Number(financeStorage.getDraftValue('draft_formBankId', '0')));
+      setFormCartaoId(financeStorage.getDraftValue('draft_formCartaoId', ''));
     }
   }, [showAddForm, editingTx]);
 
@@ -1192,32 +1190,34 @@ export default function TransactionsTab({
   // Auto-save draft variables in real-time
   useEffect(() => {
     if (showAddForm && !editingTx) {
-      localStorage.setItem('draft_txType', txType);
-      localStorage.setItem('draft_newTypeName', newTypeName);
-      localStorage.setItem('draft_amountStr', amountStr);
-      localStorage.setItem('draft_category', category);
-      localStorage.setItem('draft_newCategoryName', newCategoryName);
-      localStorage.setItem('draft_date', date);
-      localStorage.setItem('draft_desc', desc);
-      localStorage.setItem('draft_status', status);
-      localStorage.setItem('draft_fuelType', fuelType);
-      localStorage.setItem('draft_km', km);
-      localStorage.setItem('draft_litros', litros);
-      localStorage.setItem('draft_precoLitro', precoLitro);
-      localStorage.setItem('draft_veiculo', veiculo);
-      localStorage.setItem('draft_descricaoVeiculo', descricaoVeiculo);
-      localStorage.setItem('draft_valorPgStr', valorPgStr);
-      localStorage.setItem('draft_completouTanque', String(completouTanque));
-      localStorage.setItem('draft_nomePosto', nomePosto);
-      localStorage.setItem('draft_localizacaoPosto', localizacaoPosto);
-      localStorage.setItem('draft_motorista', motorista);
-      localStorage.setItem('draft_formaPagamento', formaPagamento);
-      localStorage.setItem('draft_comprovanteUrl', comprovanteUrl);
-      localStorage.setItem('draft_manualKmPercorrido', manualKmPercorrido);
-      localStorage.setItem('draft_manualMediaKmL', manualMediaKmL);
-      localStorage.setItem('draft_obs', obs);
-      localStorage.setItem('draft_formBankId', String(formBankId));
-      localStorage.setItem('draft_formCartaoId', formCartaoId);
+      financeStorage.saveDraft({
+        txType,
+        newTypeName,
+        amountStr,
+        category,
+        newCategoryName,
+        date,
+        desc,
+        status,
+        fuelType,
+        km,
+        litros,
+        precoLitro,
+        veiculo,
+        descricaoVeiculo,
+        valorPgStr,
+        completouTanque,
+        nomePosto,
+        localizacaoPosto,
+        motorista,
+        formaPagamento,
+        comprovanteUrl,
+        manualKmPercorrido,
+        manualMediaKmL,
+        obs,
+        formBankId,
+        formCartaoId
+      });
     }
   }, [
     showAddForm,
@@ -1251,46 +1251,36 @@ export default function TransactionsTab({
   ]);
 
   const clearDraftFromStorage = () => {
-    const keys = [
-      'draft_txType', 'draft_newTypeName', 'draft_amountStr', 'draft_category',
-      'draft_newCategoryName', 'draft_date', 'draft_desc', 'draft_status',
-      'draft_fuelType', 'draft_km', 'draft_litros', 'draft_precoLitro',
-      'draft_veiculo', 'draft_descricaoVeiculo', 'draft_valorPgStr',
-      'draft_completouTanque', 'draft_nomePosto', 'draft_localizacaoPosto',
-      'draft_motorista', 'draft_formaPagamento', 'draft_comprovanteUrl',
-      'draft_manualKmPercorrido', 'draft_manualMediaKmL',
-      'draft_obs', 'draft_formBankId', 'draft_formCartaoId'
-    ];
-    keys.forEach(k => localStorage.removeItem(k));
+    financeStorage.clearDraft();
   };
 
   const loadDraft = () => {
-    setTxType(localStorage.getItem('draft_txType') || 'DESPESA');
-    setNewTypeName(localStorage.getItem('draft_newTypeName') || '');
-    setAmountStr(localStorage.getItem('draft_amountStr') || '0,00');
-    setCategory(localStorage.getItem('draft_category') || 'ABASTECIMENTO');
-    setNewCategoryName(localStorage.getItem('draft_newCategoryName') || '');
-    setDate(formatDateForInput(localStorage.getItem('draft_date') || new Date()));
-    setDesc(localStorage.getItem('draft_desc') || '');
-    setStatus(localStorage.getItem('draft_status') || 'PAGO');
-    setFuelType(localStorage.getItem('draft_fuelType') || 'ETANOL');
-    setKm(localStorage.getItem('draft_km') || '');
-    setLitros(localStorage.getItem('draft_litros') || '0,00');
-    setPrecoLitro(localStorage.getItem('draft_precoLitro') || '0,00');
-    setVeiculo(localStorage.getItem('draft_veiculo') || 'CARRO');
-    setDescricaoVeiculo(localStorage.getItem('draft_descricaoVeiculo') || '');
-    setValorPgStr(localStorage.getItem('draft_valorPgStr') || '0,00');
-    setCompletouTanque(localStorage.getItem('draft_completouTanque') !== 'false');
-    setNomePosto(localStorage.getItem('draft_nomePosto') || '');
-    setLocalizacaoPosto(localStorage.getItem('draft_localizacaoPosto') || '');
-    setMotorista(localStorage.getItem('draft_motorista') || '');
-    setFormaPagamento(localStorage.getItem('draft_formaPagamento') || '');
-    setComprovanteUrl(localStorage.getItem('draft_comprovanteUrl') || '');
-    setManualKmPercorrido(localStorage.getItem('draft_manualKmPercorrido') || '');
-    setManualMediaKmL(localStorage.getItem('draft_manualMediaKmL') || '');
-    setObs(localStorage.getItem('draft_obs') || '');
-    setFormBankId(Number(localStorage.getItem('draft_formBankId') || '0'));
-    setFormCartaoId(localStorage.getItem('draft_formCartaoId') || '');
+    setTxType(financeStorage.getDraftValue('draft_txType', 'DESPESA'));
+    setNewTypeName(financeStorage.getDraftValue('draft_newTypeName', ''));
+    setAmountStr(financeStorage.getDraftValue('draft_amountStr', '0,00'));
+    setCategory(financeStorage.getDraftValue('draft_category', 'ABASTECIMENTO'));
+    setNewCategoryName(financeStorage.getDraftValue('draft_newCategoryName', ''));
+    setDate(formatDateForInput(financeStorage.getDraftValue('draft_date') || new Date()));
+    setDesc(financeStorage.getDraftValue('draft_desc', ''));
+    setStatus(financeStorage.getDraftValue('draft_status', 'PAGO'));
+    setFuelType(financeStorage.getDraftValue('draft_fuelType', 'ETANOL'));
+    setKm(financeStorage.getDraftValue('draft_km', ''));
+    setLitros(financeStorage.getDraftValue('draft_litros', '0,00'));
+    setPrecoLitro(financeStorage.getDraftValue('draft_precoLitro', '0,00'));
+    setVeiculo(financeStorage.getDraftValue('draft_veiculo', 'CARRO'));
+    setDescricaoVeiculo(financeStorage.getDraftValue('draft_descricaoVeiculo', ''));
+    setValorPgStr(financeStorage.getDraftValue('draft_valorPgStr', '0,00'));
+    setCompletouTanque(financeStorage.getDraftValue('draft_completouTanque') !== 'false');
+    setNomePosto(financeStorage.getDraftValue('draft_nomePosto', ''));
+    setLocalizacaoPosto(financeStorage.getDraftValue('draft_localizacaoPosto', ''));
+    setMotorista(financeStorage.getDraftValue('draft_motorista', ''));
+    setFormaPagamento(financeStorage.getDraftValue('draft_formaPagamento', ''));
+    setComprovanteUrl(financeStorage.getDraftValue('draft_comprovanteUrl', ''));
+    setManualKmPercorrido(financeStorage.getDraftValue('draft_manualKmPercorrido', ''));
+    setManualMediaKmL(financeStorage.getDraftValue('draft_manualMediaKmL', ''));
+    setObs(financeStorage.getDraftValue('draft_obs', ''));
+    setFormBankId(Number(financeStorage.getDraftValue('draft_formBankId', '0')));
+    setFormCartaoId(financeStorage.getDraftValue('draft_formCartaoId', ''));
   };
 
   const handleOpenAddForm = () => {

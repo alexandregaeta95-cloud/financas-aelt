@@ -1,9 +1,36 @@
 import { safeJsonParse } from './safeParse';
+import {
+  Transaction,
+  RiskZone,
+  Infraction,
+  MedicalAppointment,
+  MedicalPrescription,
+  Compromisso,
+  RegisteredVehicle,
+  CarServicePerformed,
+  CarServiceScheduled,
+  BankAccount,
+  CreditCard,
+  GroceryItem,
+  WorkshopItem
+} from '../types';
+
 export { safeJsonParse, safeJsonParse as safeParse };
 
-export const DEFAULT_SPREADSHEET_ID = '1JL1LlHmBtXj_dvWXvaedlDTWrSfptXzbhYlMJH1RNO4';
-export const DEFAULT_SPREADSHEET_URL = 'https://docs.google.com/spreadsheets/d/1JL1LlHmBtXj_dvWXvaedlDTWrSfptXzbhYlMJH1RNO4/edit';
-export const DEFAULT_APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzsC73N1O1vU2oN4lD0HneqWLM964XXkqHNDbeC8MH0uy5HUFIEaCZVQ7lX5sSma4LZGg/exec';
+const DEV_FALLBACK_SPREADSHEET_ID = '1JL1LlHmBtXj_dvWXvaedlDTWrSfptXzbhYlMJH1RNO4';
+const DEV_FALLBACK_APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzsC73N1O1vU2oN4lD0HneqWLM964XXkqHNDbeC8MH0uy5HUFIEaCZVQ7lX5sSma4LZGg/exec';
+
+export const DEFAULT_SPREADSHEET_ID =
+  import.meta.env.VITE_DEFAULT_SPREADSHEET_ID ||
+  (import.meta.env.DEV ? DEV_FALLBACK_SPREADSHEET_ID : '');
+
+export const DEFAULT_SPREADSHEET_URL = DEFAULT_SPREADSHEET_ID
+  ? `https://docs.google.com/spreadsheets/d/${DEFAULT_SPREADSHEET_ID}/edit`
+  : '';
+
+export const DEFAULT_APPS_SCRIPT_URL =
+  import.meta.env.VITE_DEFAULT_APPS_SCRIPT_URL ||
+  (import.meta.env.DEV ? DEV_FALLBACK_APPS_SCRIPT_URL : '');
 
 export interface User {
   uid: string;
@@ -12,14 +39,240 @@ export interface User {
   photoURL?: string | null;
 }
 
-export const toSafeString = (val: any): string => {
+export interface AppsScriptResponse<T = unknown> {
+  status?: 'success' | 'error';
+  httpCode?: number;
+  error?: string;
+  data?: T;
+  message?: string;
+  stats?: {
+    executionTimeMs?: number;
+    timestamp?: string;
+  };
+  report?: unknown;
+  [key: string]: unknown;
+}
+
+export interface MappedRiskZone {
+  id: number | string;
+  descricao: string;
+  nivelDeRisco: string;
+  latitudi: number | string;
+  longitude: number | string;
+  raioM: number;
+  ativo: string;
+  mensagemDeAlerta: string;
+  dataRegistro: string;
+  obs: string;
+}
+
+export interface MappedWorkshopItem {
+  id: string;
+  data: string;
+  descricao: string;
+  km: number | string;
+  valorAPG: number;
+  valorPago: number;
+  oficinaNome: string;
+  comprovanteUrl: string;
+  observacoes: string;
+  veiculoId: string;
+
+  // Column Header Aliases for 14_Oficina
+  ID: string;
+  Data: string;
+  Descrição: string;
+  KM: number | string;
+  Valor_A_PG: number;
+  Valor_Pago: number;
+  Oficina_Nome: string;
+  Comprovante_Url: string;
+  Observações: string;
+  VeiculoID: string;
+}
+
+export interface MappedVehicle {
+  id: string;
+  descricao: string;
+  motorista: string;
+  placa: string;
+  renavan: string;
+  chassi: string;
+  marca: string;
+  modelo: string;
+  ano: string | number;
+  anoFabricacao: string | number;
+
+  // Column Header Aliases for 9_Veiculos
+  ID: string;
+  Descrição: string;
+  Motorista: string;
+  Placa: string;
+  Renavan: string;
+  Chassi: string;
+  Marca: string;
+  Modelo: string;
+  Ano: string | number;
+  Ano_Fabricação: string | number;
+}
+
+export interface MappedCompromisso {
+  id: string;
+  titulo: string;
+  data: string;
+  hora: string;
+  descricao: string;
+  cor: string;
+  piscando: boolean;
+  lembreteAtivo: boolean;
+  diasAntecedencia: number;
+  concluido: boolean;
+
+  // Column Header Aliases for 19_Agenda_E_Compromissos
+  ID: string;
+  Titulo: string;
+  Data: string;
+  Hora: string;
+  Descrição: string;
+  Cor_De_Identificação: string;
+  'Efeito_Alerta_(Piscando)': string;
+  Lembrete_Ativo: string;
+  Dias_De_Antecedência: number;
+}
+
+export interface MappedAppointment {
+  id: string;
+  especialidade: string;
+  medico: string;
+  data: string;
+  hora: string;
+  local: string;
+  lembreteAtivo: boolean;
+  status: string;
+  observacoes: string;
+
+  // Column Header Aliases for 6_Consultas_Médicas
+  ID: string;
+  Especialidade: string;
+  Médico: string;
+  Medico: string;
+  Data: string;
+  Horas: string;
+  Hora: string;
+  Local: string;
+  Lembrete_Ativo: string;
+  Status: string;
+  Observação: string;
+  Observações: string;
+  Observacao: string;
+  Observacoes: string;
+}
+
+export interface MappedTransaction extends Omit<Partial<Transaction>, 'id' | 'bancoId' | 'km' | 'litros' | 'precoLitro' | 'kmPercorrido' | 'mediaKmL'> {
+  id: string;
+  data: string;
+  descricao: string;
+  valor: number;
+  valorPg: number;
+  bancoId: string | number;
+  cartaoId: string | number;
+  formaPagamento: string;
+  tipo: string;
+  categoria: string;
+  status: string;
+  km: number | string;
+  litros: number | string;
+  precoLitro: number | string;
+  completouTanque: boolean;
+  kmPercorrido: number | string;
+  mediaKmL: number | string;
+  veiculo: string;
+  descricaoVeiculo: string;
+  motorista: string;
+  nomePosto: string;
+  localizacaoPosto: string;
+  comprovanteUrl: string;
+  obs: string;
+
+  // Explicit 24 Column Aliases for Aba 1_Lancamentos & Aba 4_Abastecimentos
+  ID: string;
+  Data: string;
+  Descrição: string;
+  Valor: number;
+  Valor_PG: number;
+  Valor_Pago: number;
+  Banco_Id: string | number;
+  Cartão_Id: string | number;
+  Cartao_Id: string | number;
+  Forma_Pagamento: string;
+  Tipo: string;
+  Categoria: string;
+  Status: string;
+  KM: number | string;
+  Litros: number | string;
+  Preço_Litro: number | string;
+  Preco_Litro: number | string;
+  Completou_O_Tanque: string;
+  KM_Percorrido: number | string;
+  'Média_(Km/L)': number | string;
+  'Media_(Km/L)': number | string;
+  Veiculo: string;
+  Descrição_Do_Veículo: string;
+  Descrição_Do_Viculo: string;
+  Descricao_Do_Veiculo: string;
+  Motorista: string;
+  Nome_Posto: string;
+  Localização_Do_Posto: string;
+  Localizacao_Do_Posto: string;
+  Comprovante_Url: string;
+  OBS: string;
+}
+
+export interface GoogleSyncPayload {
+  action: string;
+  spreadsheetId: string;
+  forceOverwrite: boolean;
+  deletedIds: (string | number)[];
+  transactions: MappedTransaction[];
+  abastecimentos: MappedTransaction[];
+  '4_Abastecimentos': MappedTransaction[];
+  infractions: Infraction[];
+  riskZones: MappedRiskZone[];
+  appointments: MappedAppointment[];
+  consultas: MappedAppointment[];
+  consultasMedicas: MappedAppointment[];
+  '6_Consultas_Médicas': MappedAppointment[];
+  prescriptions: MedicalPrescription[];
+  compromissos: MappedCompromisso[];
+  registeredVehicles: MappedVehicle[];
+  veiculos: MappedVehicle[];
+  '9_Veiculos': MappedVehicle[];
+  performedServices: MappedWorkshopItem[];
+  workshop: MappedWorkshopItem[];
+  oficina: MappedWorkshopItem[];
+  '14_Oficina': MappedWorkshopItem[];
+  scheduledServices: CarServiceScheduled[];
+  scheduledMaintenance: CarServiceScheduled[];
+  agenda: MappedCompromisso[];
+  '19_Agenda_E_Compromissos': MappedCompromisso[];
+  bankAccounts: BankAccount[];
+  creditCards: CreditCard[];
+  analysis: unknown[];
+  profile: unknown[];
+  groceryItems: GroceryItem[];
+  categoryBudgets: Record<string, number>;
+  customCategories: string[];
+}
+
+export const toSafeString = (val: unknown): string => {
   if (val === null || val === undefined) return '';
   if (typeof val === 'string') return val;
   if (typeof val === 'object') {
-    if (typeof val.url === 'string') return val.url;
-    if (typeof val.token === 'string') return val.token;
-    if (typeof val.spreadsheetId === 'string') return val.spreadsheetId;
-    if (typeof val.id === 'string') return val.id;
+    const obj = val as Record<string, unknown>;
+    if (typeof obj.url === 'string') return obj.url;
+    if (typeof obj.token === 'string') return obj.token;
+    if (typeof obj.spreadsheetId === 'string') return obj.spreadsheetId;
+    if (typeof obj.id === 'string') return obj.id;
     try {
       return JSON.stringify(val);
     } catch {
@@ -29,7 +282,7 @@ export const toSafeString = (val: any): string => {
   return String(val);
 };
 
-export const sanitizeAppsScriptUrl = (inputUrl?: any): string => {
+export const sanitizeAppsScriptUrl = (inputUrl?: unknown): string => {
   const str = toSafeString(inputUrl).trim();
   const storedScriptUrl = typeof localStorage !== 'undefined' ? localStorage.getItem('wealthflow_apps_script_url') : null;
   
@@ -75,30 +328,31 @@ export const sanitizeAppsScriptUrl = (inputUrl?: any): string => {
   return clean.startsWith('http') ? clean : DEFAULT_APPS_SCRIPT_URL;
 };
 
-export const callAppsScript = async (
-  scriptUrl: any,
-  payloadOrAction: any,
+export const callAppsScript = async <T = unknown>(
+  scriptUrl: unknown,
+  payloadOrAction: unknown,
   method: 'GET' | 'POST' = 'POST'
-): Promise<any> => {
+): Promise<AppsScriptResponse<T>> => {
   const cleanUrl = sanitizeAppsScriptUrl(scriptUrl);
   const savedSheetId = typeof localStorage !== 'undefined' ? toSafeString(localStorage.getItem('wealthflow_sheet_id')) : '';
-  const paramSheetId = typeof payloadOrAction === 'object' && payloadOrAction?.spreadsheetId ? toSafeString(payloadOrAction.spreadsheetId) : '';
+  const payloadObj = (typeof payloadOrAction === 'object' && payloadOrAction !== null) ? (payloadOrAction as Record<string, unknown>) : null;
+  const paramSheetId = payloadObj && payloadObj.spreadsheetId ? toSafeString(payloadObj.spreadsheetId) : '';
   const candidateId = paramSheetId || savedSheetId;
   const cleanSheetId = (candidateId && candidateId !== 'active_sheet' && !candidateId.startsWith('http')) ? candidateId : DEFAULT_SPREADSHEET_ID;
 
-  if (method === 'POST' && typeof payloadOrAction === 'object' && payloadOrAction !== null) {
-    if (!payloadOrAction.spreadsheetId || payloadOrAction.spreadsheetId === 'active_sheet') {
-      payloadOrAction.spreadsheetId = cleanSheetId;
+  if (method === 'POST' && payloadObj) {
+    if (!payloadObj.spreadsheetId || payloadObj.spreadsheetId === 'active_sheet') {
+      payloadObj.spreadsheetId = cleanSheetId;
     }
   }
 
   // 1. Try server-side proxy endpoint first (bypasses browser CORS and handles 302 redirects)
   try {
-    let proxyBody: any = payloadOrAction;
+    let proxyBody: unknown = payloadOrAction;
     let targetUrl = cleanUrl;
 
     if (method === 'GET') {
-      const actionParam = typeof payloadOrAction === 'string' ? payloadOrAction : (payloadOrAction?.action || 'fetchAllData');
+      const actionParam = typeof payloadOrAction === 'string' ? payloadOrAction : (payloadObj?.action ? String(payloadObj.action) : 'fetchAllData');
       let query = `action=${encodeURIComponent(actionParam)}`;
       if (cleanSheetId) query += `&spreadsheetId=${encodeURIComponent(cleanSheetId)}`;
       targetUrl = `${cleanUrl}${cleanUrl.includes('?') ? '&' : '?'}${query}`;
@@ -122,14 +376,15 @@ export const callAppsScript = async (
       const proxyResult = await proxyRes.json();
       if (proxyResult.ok) {
         const rawData = proxyResult.data;
-        let parsed: any = null;
+        let parsed: unknown = null;
         if (typeof rawData === 'string') {
           parsed = safeJsonParse(rawData, null);
         } else {
           parsed = rawData;
         }
-        if (parsed) {
-          return parsed.data || parsed;
+        if (parsed && typeof parsed === 'object') {
+          const parsedObj = parsed as Record<string, unknown>;
+          return (parsedObj.data || parsed) as AppsScriptResponse<T>;
         }
       } else {
         console.warn(`[Apps Script Proxy HTTP ${proxyResult.status}] Error:`, proxyResult.statusText || proxyResult.data);
@@ -154,7 +409,7 @@ export const callAppsScript = async (
     };
 
     if (method === 'GET') {
-      const actionParam = typeof payloadOrAction === 'string' ? payloadOrAction : (payloadOrAction?.action || 'fetchAllData');
+      const actionParam = typeof payloadOrAction === 'string' ? payloadOrAction : (payloadObj?.action ? String(payloadObj.action) : 'fetchAllData');
       let query = `action=${encodeURIComponent(actionParam)}`;
       if (cleanSheetId) query += `&spreadsheetId=${encodeURIComponent(cleanSheetId)}`;
       fetchUrl = `${cleanUrl}${cleanUrl.includes('?') ? '&' : '?'}${query}`;
@@ -167,7 +422,10 @@ export const callAppsScript = async (
     if (directRes.ok) {
       const text = await directRes.text();
       const parsed = safeJsonParse(text, null);
-      if (parsed) return parsed.data || parsed;
+      if (parsed && typeof parsed === 'object') {
+        const parsedObj = parsed as Record<string, unknown>;
+        return (parsedObj.data || parsed) as AppsScriptResponse<T>;
+      }
     } else {
       return {
         status: 'error',
@@ -175,83 +433,86 @@ export const callAppsScript = async (
         error: `Falha na comunicação com o Google Apps Script (HTTP ${directRes.status} ${directRes.statusText})`
       };
     }
-  } catch (directErr: any) {
+  } catch (directErr: unknown) {
+    const err = directErr as Error;
     console.error("Erro na comunicação com o Google Apps Script:", directErr);
     return {
       status: 'error',
-      error: `Falha na comunicação com o Google Apps Script: ${directErr?.message || 'Failed to fetch'}`
+      error: `Falha na comunicação com o Google Apps Script: ${err?.message || 'Failed to fetch'}`
     };
   }
 
   return { status: 'error', error: 'Falha na comunicação com o Google Apps Script.' };
 };
 
-export const syncDataToSpreadsheet = async (
-  accessToken: any,
-  spreadsheetId: any,
-  transactions: any[] = [],
-  infractions: any[] = [],
-  riskZones: any[] = [],
-  appointments: any[] = [],
-  prescriptions: any[] = [],
-  compromissos: any[] = [],
-  registeredVehicles: any[] = [],
-  performedServices: any[] = [],
-  scheduledServices: any[] = [],
-  bankAccounts: any[] = [],
-  creditCards: any[] = [],
-  categoryBudgets: any = {},
-  customCategories: any = [],
-  groceryItems: any[] = [],
+export const buildSyncPayload = (
+  spreadsheetId: string | null | undefined,
+  transactions: Transaction[] = [],
+  infractions: Infraction[] = [],
+  riskZones: RiskZone[] = [],
+  appointments: MedicalAppointment[] = [],
+  prescriptions: MedicalPrescription[] = [],
+  compromissos: Compromisso[] = [],
+  registeredVehicles: RegisteredVehicle[] = [],
+  performedServices: CarServicePerformed[] = [],
+  scheduledServices: CarServiceScheduled[] = [],
+  bankAccounts: BankAccount[] = [],
+  creditCards: CreditCard[] = [],
+  categoryBudgets: Record<string, number> = {},
+  customCategories: string[] = [],
+  groceryItems: GroceryItem[] = [],
   forceOverwrite: boolean = false,
-  sheetTxCount?: number,
-  scheduledMaintenance: any[] = [],
-  agenda: any[] = [],
-  workshop: any[] = [],
-  analysis: any[] = [],
-  profile: any[] = [],
-  deletedIds: (string | number)[] = [],
-  origem: string = 'syncDataToSpreadsheet'
-): Promise<string> => {
+  _sheetTxCount?: number,
+  scheduledMaintenance: CarServiceScheduled[] = [],
+  agenda: Compromisso[] = [],
+  workshop: WorkshopItem[] | CarServicePerformed[] = [],
+  analysis: unknown[] = [],
+  profile: unknown[] = [],
+  deletedIds: (string | number)[] = []
+): GoogleSyncPayload => {
   const cleanSheetId = toSafeString(spreadsheetId) || DEFAULT_SPREADSHEET_ID;
 
-  const mappedRiskZones = (Array.isArray(riskZones) ? riskZones : []).map((item: any) => ({
-    id: item.id !== undefined && item.id !== null ? item.id : (item.ID || Date.now()),
-    descricao: item.descricao || item.nomeLocal || item.nome || item.Descrição || 'ZONA DE RISCO',
-    nivelDeRisco: item.nivelDeRisco || item.nivelRisco || 'BAIXO',
-    latitudi: item.latitudi || item.latitude || item.Latitudi || '',
-    longitude: item.longitude || item.Longitude || '',
-    raioM: item.raioM !== undefined ? Number(item.raioM) : Number(item.raioMetros || item['Raio_(M)'] || 100),
-    ativo: (item.ativo === true || String(item.ativo).toUpperCase() === 'SIM' || String(item.ativo) === 'TRUE') ? 'SIM' : 'NÃO',
-    mensagemDeAlerta: item.mensagemDeAlerta || item.mensagem || item.Mensagem_De_Alerta || '',
-    dataRegistro: item.dataRegistro || item.Data_Registro || new Date().toLocaleDateString('pt-BR'),
-    obs: item.obs || item.OBS || item.som || ''
-  }));
+  const mappedRiskZones: MappedRiskZone[] = (Array.isArray(riskZones) ? riskZones : []).map((item: RiskZone) => {
+    const itemObj = item as unknown as Record<string, unknown>;
+    return {
+      id: item.id !== undefined && item.id !== null ? item.id : (itemObj.ID ? (itemObj.ID as string | number) : Date.now()),
+      descricao: item.descricao || item.nomeLocal || (itemObj.nome as string) || (itemObj.Descrição as string) || 'ZONA DE RISCO',
+      nivelDeRisco: item.nivelDeRisco || item.nivelRisco || 'BAIXO',
+      latitudi: item.latitudi || item.latitude || (itemObj.Latitudi as string) || '',
+      longitude: item.longitude || (itemObj.Longitude as string) || '',
+      raioM: item.raioM !== undefined ? Number(item.raioM) : Number(item.raioMetros || itemObj['Raio_(M)'] || 100),
+      ativo: (item.ativo === true || String(item.ativo).toUpperCase() === 'SIM' || String(item.ativo) === 'TRUE') ? 'SIM' : 'NÃO',
+      mensagemDeAlerta: item.mensagemDeAlerta || item.mensagem || (itemObj.Mensagem_De_Alerta as string) || '',
+      dataRegistro: item.dataRegistro || (itemObj.Data_Registro as string) || new Date().toLocaleDateString('pt-BR'),
+      obs: item.obs || (itemObj.OBS as string) || item.som || ''
+    };
+  });
 
   const rawWorkshopSource = (Array.isArray(workshop) && workshop.length > 0)
     ? workshop
     : (Array.isArray(performedServices) ? performedServices : []);
 
-  const mappedWorkshop = rawWorkshopSource.map((item: any) => {
-    let rawDate = item.data || item.Data || '';
+  const mappedWorkshop: MappedWorkshopItem[] = rawWorkshopSource.map((item: WorkshopItem | CarServicePerformed) => {
+    const itemObj = item as unknown as Record<string, unknown>;
+    let rawDate = item.data || (itemObj.Data as string) || '';
     if (rawDate && rawDate.includes('-')) {
       const parts = rawDate.split('T')[0].split('-');
       if (parts.length === 3) rawDate = `${parts[2]}/${parts[1]}/${parts[0]}`;
     }
     if (!rawDate) rawDate = new Date().toLocaleDateString('pt-BR');
 
-    const rawValAPG = item.valorAPG ?? item['Valor_A_PG'] ?? item.valorAPagar ?? 0;
-    const rawValPago = item.valorPago ?? item['Valor_Pago'] ?? item.valor ?? 0;
+    const rawValAPG = itemObj.valorAPG ?? itemObj['Valor_A_PG'] ?? itemObj.valorAPagar ?? 0;
+    const rawValPago = itemObj.valorPago ?? itemObj['Valor_Pago'] ?? itemObj.valor ?? 0;
 
     const valAPGNum = typeof rawValAPG === 'string' ? (parseFloat(rawValAPG.replace(/\./g, '').replace(',', '.')) || 0) : Number(rawValAPG || 0);
     const valPagoNum = typeof rawValPago === 'string' ? (parseFloat(rawValPago.replace(/\./g, '').replace(',', '.')) || 0) : Number(rawValPago || 0);
     const idStr = item.id !== undefined && item.id !== null && String(item.id).trim() !== '' ? String(item.id) : String(Date.now());
-    const descStr = item.descricao || item['Descrição'] || item['Descrição do Serviço'] || '';
-    const kmVal = item.km !== undefined && item.km !== null ? item.km : (item['KM'] || '');
-    const oficinaStr = item.oficinaNome || item.oficina || item['Oficina_Nome'] || item['Oficina/Estabelecimento'] || '';
-    const compStr = item.comprovanteUrl || item.comprovante || item['Comprovante_Url'] || '';
-    const obsStr = item.observacoes || item.obs || item['Observações'] || '';
-    const vehIdStr = item.veiculoId || item.veiculo || item.veiculoDescricao || item['VeiculoID'] || item['Veículo'] || '';
+    const descStr = item.descricao || (itemObj['Descrição'] as string) || (itemObj['Descrição do Serviço'] as string) || '';
+    const kmVal = item.km !== undefined && item.km !== null ? item.km : ((itemObj['KM'] as string | number) || '');
+    const oficinaStr = (item as WorkshopItem).oficinaNome || (item as CarServicePerformed).oficina || (itemObj['Oficina_Nome'] as string) || (itemObj['Oficina/Estabelecimento'] as string) || '';
+    const compStr = item.comprovanteUrl || (itemObj.comprovante as string) || (itemObj['Comprovante_Url'] as string) || '';
+    const obsStr = item.observacoes || (item as CarServicePerformed).obs || (itemObj['Observações'] as string) || '';
+    const vehIdStr = item.veiculoId || (item as CarServicePerformed).veiculoDescricao || (itemObj.veiculo as string) || (itemObj['VeiculoID'] as string) || (itemObj['Veículo'] as string) || '';
 
     return {
       id: idStr,
@@ -279,17 +540,21 @@ export const syncDataToSpreadsheet = async (
     };
   });
 
-  const mappedVehicles = (Array.isArray(registeredVehicles) ? registeredVehicles : []).map((item: any) => {
+  const mappedVehicles: MappedVehicle[] = (Array.isArray(registeredVehicles) ? registeredVehicles : []).map((item: RegisteredVehicle) => {
+    const itemObj = item as unknown as Record<string, unknown>;
     const idStr = item.id !== undefined && item.id !== null && String(item.id).trim() !== '' ? String(item.id) : String(Date.now());
-    const descStr = item.descricao || item['Descrição'] || item.nome || item.modelo || '';
-    const motStr = item.motorista || item['Motorista'] || '';
-    const placaStr = item.placa || item['Placa'] || '';
-    const renavanStr = item.renavan || item.renavam || item['Renavan'] || item['Renavam'] || '';
-    const chassiStr = item.chassi || item['Chassi'] || '';
-    const marcaStr = item.marca || item['Marca'] || '';
-    const modeloStr = item.modelo || item['Modelo'] || '';
-    const anoVal = item.ano !== undefined && item.ano !== null ? item.ano : (item['Ano'] || '');
-    const anoFabVal = item.anoFabricacao !== undefined && item.anoFabricacao !== null ? item.anoFabricacao : (item['Ano_Fabricação'] || item['Ano_Fabricacao'] || '');
+    const descStr = item.descricao || (itemObj['Descrição'] as string) || item.nome || item.modelo || '';
+    const motStr = item.motorista || (itemObj['Motorista'] as string) || '';
+    const placaStr = item.placa || (itemObj['Placa'] as string) || '';
+    const renavanStr = item.renavan || (itemObj['Renavan'] as string) || (itemObj['Renavam'] as string) || '';
+    const chassiStr = item.chassi || (itemObj['Chassi'] as string) || '';
+    const marcaStr = item.marca || (itemObj['Marca'] as string) || '';
+    const modeloStr = item.modelo || (itemObj['Modelo'] as string) || '';
+    const anoVal = item.ano !== undefined && item.ano !== null ? item.ano : ((itemObj['Ano'] as string | number) || '');
+    const anoFabVal = item.anoFabricacao !== undefined && item.anoFabricacao !== null ? item.anoFabricacao : ((itemObj['Ano_Fabricação'] as string | number) || '');
+    const mesFinalVal = item.mesFinalPlaca !== undefined && item.mesFinalPlaca !== null ? item.mesFinalPlaca : ((itemObj['Mês_Final_Placa'] as string | number) || '');
+    const kmAtualVal = item.kmAtual !== undefined && item.kmAtual !== null ? item.kmAtual : ((itemObj['KM_Atual'] as string | number) || '');
+    const combStr = item.combustivel || (itemObj['Combustível'] as string) || '';
 
     return {
       id: idStr,
@@ -302,6 +567,9 @@ export const syncDataToSpreadsheet = async (
       modelo: modeloStr,
       ano: anoVal,
       anoFabricacao: anoFabVal,
+      mesFinalPlaca: mesFinalVal,
+      kmAtual: kmAtualVal,
+      combustivel: combStr,
 
       // Column Header Aliases for 9_Veiculos
       ID: idStr,
@@ -318,66 +586,68 @@ export const syncDataToSpreadsheet = async (
   });
 
   const rawCompList = Array.isArray(compromissos) && compromissos.length > 0 ? compromissos : (Array.isArray(agenda) ? agenda : []);
-  const mappedCompromissos = rawCompList.map((item: any) => {
-    let rawDate = item.data || item.Data || '';
+  const mappedCompromissos: MappedCompromisso[] = rawCompList.map((item: Compromisso) => {
+    const itemObj = item as unknown as Record<string, unknown>;
+    let rawDate = item.data || (itemObj.Data as string) || '';
     if (rawDate && rawDate.includes('-')) {
       const parts = rawDate.split('T')[0].split('-');
-      if (parts.length === 3 && parts[0].length === 4) {
-        rawDate = `${parts[2]}/${parts[1]}/${parts[0]}`;
-      }
+      if (parts.length === 3) rawDate = `${parts[2]}/${parts[1]}/${parts[0]}`;
     }
-    const idStr = item.id !== undefined && item.id !== null && String(item.id).trim() !== '' ? String(item.id) : (item.ID ? String(item.ID) : String(Date.now()));
-    const tituloStr = item.titulo || item.Titulo || item.title || '';
-    const horaStr = item.hora || item.Hora || item.horario || item.Horario || '';
-    const descStr = item.descricao || item['Descrição'] || item.Descricao || item.description || '';
-    const corStr = item.cor || item.Cor || item.Cor_De_Identificação || item['Cor_De_Identificação'] || '#22c55e';
-    const piscandoVal = (item.piscando === true || String(item.piscando).toUpperCase() === 'SIM' || String(item['Efeito_Alerta_(Piscando)']).toUpperCase() === 'SIM') ? 'SIM' : 'NÃO';
-    const lembreteVal = (item.lembreteAtivo === true || String(item.lembreteAtivo).toUpperCase() === 'SIM' || String(item['Lembrete_Ativo']).toUpperCase() === 'SIM') ? 'SIM' : 'NÃO';
-    const diasVal = item.diasAntecedencia !== undefined && item.diasAntecedencia !== null ? Number(item.diasAntecedencia) : (Number(item['Dias_De_Antecedência']) || 2);
+    if (!rawDate) rawDate = new Date().toLocaleDateString('pt-BR');
+
+    const idStr = item.id !== undefined && item.id !== null && String(item.id).trim() !== '' ? String(item.id) : String(Date.now());
+    const titStr = item.titulo || (itemObj['Titulo'] as string) || (itemObj['Título'] as string) || '';
+    const horaStr = item.hora || (itemObj['Hora'] as string) || '';
+    const descStr = item.descricao || (itemObj['Descrição'] as string) || '';
+    const corStr = item.cor || (itemObj['Cor_De_Identificação'] as string) || '#3b82f6';
+    const piscVal = item.piscando === true || String(item.piscando).toUpperCase() === 'SIM' || String(itemObj['Efeito_Alerta_(Piscando)']).toUpperCase() === 'SIM' ? 'SIM' : 'NÃO';
+    const lembVal = item.lembreteAtivo === true || String(item.lembreteAtivo).toUpperCase() === 'SIM' || String(itemObj['Lembrete_Ativo']).toUpperCase() === 'SIM' ? 'SIM' : 'NÃO';
+    const diasVal = item.diasAntecedencia !== undefined && item.diasAntecedencia !== null ? Number(item.diasAntecedencia) : (Number(itemObj['Dias_De_Antecedência']) || 1);
+    const concVal = item.concluido === true || String(item.concluido).toUpperCase() === 'SIM' || String(itemObj['Concluído']).toUpperCase() === 'SIM';
 
     return {
       id: idStr,
-      titulo: tituloStr,
+      titulo: titStr,
       data: rawDate,
       hora: horaStr,
       descricao: descStr,
       cor: corStr,
-      piscando: item.piscando ?? (piscandoVal === 'SIM'),
-      lembreteAtivo: item.lembreteAtivo ?? (lembreteVal === 'SIM'),
+      piscando: item.piscando ?? (piscVal === 'SIM'),
+      lembreteAtivo: item.lembreteAtivo ?? (lembVal === 'SIM'),
       diasAntecedencia: diasVal,
-      concluido: item.concluido ?? false,
+      concluido: concVal,
 
-      // Column Header Aliases for Aba 19_Agenda_E_Compromissos
-      // A: ID | B: Titulo | C: Data | D: Hora | E: Descrição | F: Cor_De_Identificação | G: Efeito_Alerta_(Piscando) | H: Lembrete_Ativo | I: Dias_De_Antecedência
+      // Column Header Aliases for 19_Agenda_E_Compromissos
       ID: idStr,
-      Titulo: tituloStr,
+      Titulo: titStr,
       Data: rawDate,
       Hora: horaStr,
       Descrição: descStr,
       Cor_De_Identificação: corStr,
-      "Efeito_Alerta_(Piscando)": piscandoVal,
-      Lembrete_Ativo: lembreteVal,
+      'Efeito_Alerta_(Piscando)': piscVal,
+      Lembrete_Ativo: lembVal,
       Dias_De_Antecedência: diasVal
     };
   });
 
   const rawApptsSource = Array.isArray(appointments) && appointments.length > 0 ? appointments : [];
-  const mappedAppointments = rawApptsSource.map((item: any) => {
-    let rawDate = item.data || item.Data || '';
+  const mappedAppointments: MappedAppointment[] = rawApptsSource.map((item: MedicalAppointment) => {
+    const itemObj = item as unknown as Record<string, unknown>;
+    let rawDate = item.data || (itemObj.Data as string) || '';
     if (rawDate && rawDate.includes('-')) {
       const parts = rawDate.split('T')[0].split('-');
-      if (parts.length === 3 && parts[0].length === 4) {
-        rawDate = `${parts[2]}/${parts[1]}/${parts[0]}`;
-      }
+      if (parts.length === 3) rawDate = `${parts[2]}/${parts[1]}/${parts[0]}`;
     }
-    const idStr = item.id !== undefined && item.id !== null && String(item.id).trim() !== '' ? String(item.id) : (item.ID ? String(item.ID) : String(Date.now()));
-    const espStr = item.especialidade || item.Especialidade || '';
-    const medStr = item.medico || item.Medico || item.Médico || '';
-    const horaStr = item.hora || item.Hora || item.horas || item.Horas || item.horario || item.Horario || '';
-    const localStr = item.local || item.Local || '';
-    const lembreteVal = (item.lembreteAtivo === true || String(item.lembreteAtivo).toUpperCase() === 'SIM' || String(item['Lembrete_Ativo']).toUpperCase() === 'SIM') ? 'SIM' : 'NÃO';
-    const statusStr = item.status || item.Status || 'Agendada';
-    const obsStr = item.observacoes || item.observacao || item['Observação'] || item['Observações'] || item.obs || item.OBS || '';
+    if (!rawDate) rawDate = new Date().toLocaleDateString('pt-BR');
+
+    const idStr = item.id !== undefined && item.id !== null && String(item.id).trim() !== '' ? String(item.id) : String(Date.now());
+    const espStr = item.especialidade || (itemObj['Especialidade'] as string) || '';
+    const medStr = item.medico || (itemObj['Médico'] as string) || (itemObj['Medico'] as string) || '';
+    const horaStr = item.hora || (itemObj['Horas'] as string) || (itemObj['Hora'] as string) || '';
+    const locStr = item.local || (itemObj['Local'] as string) || '';
+    const lembVal = item.lembreteAtivo === true || String(item.lembreteAtivo).toUpperCase() === 'SIM' || String(itemObj['Lembrete_Ativo']).toUpperCase() === 'SIM' ? 'SIM' : 'NÃO';
+    const statusStr = item.status || (itemObj['Status'] as string) || 'AGENDADO';
+    const obsStr = item.obs || (itemObj['Observação'] as string) || (itemObj['Observações'] as string) || '';
 
     return {
       id: idStr,
@@ -385,32 +655,32 @@ export const syncDataToSpreadsheet = async (
       medico: medStr,
       data: rawDate,
       hora: horaStr,
-      local: localStr,
-      lembreteAtivo: item.lembreteAtivo ?? (lembreteVal === 'SIM'),
+      local: locStr,
+      lembreteAtivo: item.lembreteAtivo ?? (lembVal === 'SIM'),
       status: statusStr,
       observacoes: obsStr,
 
-      // Column Header Aliases for Aba 6_Consultas_Médicas
-      // A: ID | B: Especialidade | C: Médico | D: Data | E: Horas | F: Local | G: Lembrete_Ativo | H: Status | I: Observação
+      // Column Header Aliases for 6_Consultas_Médicas
       ID: idStr,
       Especialidade: espStr,
-      "Médico": medStr,
+      Médico: medStr,
       Medico: medStr,
       Data: rawDate,
       Horas: horaStr,
       Hora: horaStr,
-      Local: localStr,
-      "Lembrete_Ativo": lembreteVal,
+      Local: locStr,
+      Lembrete_Ativo: lembVal,
       Status: statusStr,
-      "Observação": obsStr,
-      "Observações": obsStr,
+      Observação: obsStr,
+      Observações: obsStr,
       Observacao: obsStr,
       Observacoes: obsStr
     };
   });
 
-  const mappedTransactions = (Array.isArray(transactions) ? transactions : []).map((t: any, idx: number) => {
-    let rawDate = t.data || t.Data || '';
+  const mappedTransactions: MappedTransaction[] = (Array.isArray(transactions) ? transactions : []).map((t: Transaction, idx: number) => {
+    const tObj = t as unknown as Record<string, unknown>;
+    let rawDate = t.data || (tObj.Data as string) || '';
     if (rawDate && rawDate.includes('-')) {
       const parts = rawDate.split('T')[0].split('-');
       if (parts.length === 3) rawDate = `${parts[2]}/${parts[1]}/${parts[0]}`;
@@ -419,33 +689,33 @@ export const syncDataToSpreadsheet = async (
 
     const idStr = (t.id !== undefined && t.id !== null && String(t.id).trim() !== '') 
       ? String(t.id) 
-      : ((t.ID !== undefined && t.ID !== null && String(t.ID).trim() !== '') 
-        ? String(t.ID) 
+      : ((tObj.ID !== undefined && tObj.ID !== null && String(tObj.ID).trim() !== '') 
+        ? String(tObj.ID) 
         : String(Date.now() + Math.floor(Math.random() * 10000000) + idx));
-    const descStr = t.descricao || t.Descrição || '';
+    const descStr = t.descricao || (tObj.Descrição as string) || '';
     const valorNum = typeof t.valor === 'number' ? t.valor : (parseFloat(String(t.valor || 0).replace(',', '.')) || 0);
-    const valorPgNum = typeof t.valorPg === 'number' ? t.valorPg : (typeof t.valorPago === 'number' ? t.valorPago : (typeof t.Valor_PG === 'number' ? t.Valor_PG : (t.status === 'PAGO' ? valorNum : 0)));
-    const bancoIdVal = t.bancoId || t.Banco_Id || '';
-    const cartaoIdVal = t.cartaoid || t.cartaoId || t.Cartão_Id || '';
-    const formaPagVal = t.formaPagamento || t.Forma_Pagamento || '';
-    const tipoVal = t.tipo || t.Tipo || 'DESPESA';
-    const catVal = t.categoria || t.Categoria || 'OUTROS';
-    const statusVal = t.status || t.Status || 'PAGO';
+    const valorPgNum = typeof t.valorPg === 'number' ? t.valorPg : (typeof tObj.valorPago === 'number' ? tObj.valorPago : (typeof tObj.Valor_PG === 'number' ? tObj.Valor_PG : (t.status === 'PAGO' ? valorNum : 0)));
+    const bancoIdVal = t.bancoId || (tObj.Banco_Id as string | number) || '';
+    const cartaoIdVal = t.cartaoid || t.cartaoId || (tObj.Cartão_Id as string | number) || '';
+    const formaPagVal = t.formaPagamento || (tObj.Forma_Pagamento as string) || '';
+    const tipoVal = t.tipo || (tObj.Tipo as string) || 'DESPESA';
+    const catVal = t.categoria || (tObj.Categoria as string) || 'OUTROS';
+    const statusVal = t.status || (tObj.Status as string) || 'PAGO';
 
-    const kmVal = t.km !== undefined && t.km !== null ? t.km : (t.KM !== undefined ? t.KM : '');
-    const litrosVal = t.litros !== undefined && t.litros !== null ? t.litros : (t.Litros !== undefined ? t.Litros : '');
-    const precoLitroVal = t.precoLitro !== undefined && t.precoLitro !== null ? t.precoLitro : (t.Preço_Litro !== undefined ? t.Preço_Litro : '');
-    const compTanqueVal = t.completouTanque === true || String(t.completouTanque).toUpperCase() === 'SIM' || String(t.Completou_O_Tanque).toUpperCase() === 'SIM' ? 'SIM' : 'NÃO';
-    const kmPercVal = t.kmPercorrido !== undefined && t.kmPercorrido !== null ? t.kmPercorrido : (t.KM_Percorrido !== undefined ? t.KM_Percorrido : '');
-    const mediaVal = t.mediaKmL !== undefined && t.mediaKmL !== null ? t.mediaKmL : (t['Média_(Km/L)'] !== undefined ? t['Média_(Km/L)'] : '');
+    const kmVal = t.km !== undefined && t.km !== null ? t.km : ((tObj.KM as string | number) !== undefined ? (tObj.KM as string | number) : '');
+    const litrosVal = t.litros !== undefined && t.litros !== null ? t.litros : ((tObj.Litros as string | number) !== undefined ? (tObj.Litros as string | number) : '');
+    const precoLitroVal = t.precoLitro !== undefined && t.precoLitro !== null ? t.precoLitro : ((tObj.Preço_Litro as string | number) !== undefined ? (tObj.Preço_Litro as string | number) : '');
+    const compTanqueVal = t.completouTanque === true || String(t.completouTanque).toUpperCase() === 'SIM' || String(tObj.Completou_O_Tanque).toUpperCase() === 'SIM' ? 'SIM' : 'NÃO';
+    const kmPercVal = t.kmPercorrido !== undefined && t.kmPercorrido !== null ? t.kmPercorrido : ((tObj.KM_Percorrido as string | number) !== undefined ? (tObj.KM_Percorrido as string | number) : '');
+    const mediaVal = t.mediaKmL !== undefined && t.mediaKmL !== null ? t.mediaKmL : ((tObj['Média_(Km/L)'] as string | number) !== undefined ? (tObj['Média_(Km/L)'] as string | number) : '');
 
-    const veiculoVal = t.veiculo || t.Veiculo || '';
-    const descVeiculoVal = t.descricaoVeiculo || t.Descrição_Do_Veículo || t['Descrição_Do_Viculo'] || '';
-    const motoristaVal = t.motorista || t.Motorista || '';
-    const nomePostoVal = t.nomePosto || t.Nome_Posto || '';
-    const localPostoVal = t.localizacaoPosto || t.Localização_Do_Posto || '';
-    const compUrlVal = t.comprovanteUrl || t.Comprovante_Url || '';
-    const obsVal = t.obs || t.OBS || t.observacoes || '';
+    const veiculoVal = t.veiculo || (tObj.Veiculo as string) || '';
+    const descVeiculoVal = t.descricaoVeiculo || (tObj.Descrição_Do_Veículo as string) || (tObj['Descrição_Do_Viculo'] as string) || '';
+    const motoristaVal = t.motorista || (tObj.Motorista as string) || '';
+    const nomePostoVal = t.nomePosto || (tObj.Nome_Posto as string) || '';
+    const localPostoVal = t.localizacaoPosto || (tObj.Localização_Do_Posto as string) || '';
+    const compUrlVal = t.comprovanteUrl || (tObj.Comprovante_Url as string) || '';
+    const obsVal = t.obs || (tObj.OBS as string) || '';
 
     return {
       ...t,
@@ -475,10 +745,6 @@ export const syncDataToSpreadsheet = async (
       obs: obsVal,
 
       // Explicit 24 Column Aliases for Aba 4_Abastecimentos
-      // A: ID | B: Data | C: Descrição | D: Valor | E: Valor_Pago | F: Banco_Id | G: Cartão_Id | H: Forma_Pagamento
-      // I: Tipo | J: Categoria | K: Status | L: KM | M: Litros | N: Preço_Litro | O: Completou_O_Tanque | P: KM_Percorrido
-      // Q: Média_(Km/L) | R: Veiculo | S: Descrição_Do_Viculo | T: Motorista | U: Nome_Posto | V: Localização_Do_Posto
-      // W: Comprovante_Url | X: OBS
       ID: idStr,
       Data: rawDate,
       Descrição: descStr,
@@ -513,12 +779,9 @@ export const syncDataToSpreadsheet = async (
     };
   });
 
-  const mappedFuelings = mappedTransactions.filter((t: any) => String(t.categoria || t.Categoria || '').toUpperCase() === 'ABASTECIMENTO');
+  const mappedFuelings = mappedTransactions.filter((t: MappedTransaction) => String(t.categoria || t.Categoria || '').toUpperCase() === 'ABASTECIMENTO');
 
-  const localCount = mappedTransactions.length;
-  console.log(`[SYNC AUDIT - GOOGLE AUTH] Registros mapeados locais: ${localCount} | Deleted IDs: ${deletedIds.length} | forceOverwrite: ${forceOverwrite}`);
-
-  const payload = {
+  return {
     action: 'syncData',
     spreadsheetId: cleanSheetId,
     forceOverwrite: forceOverwrite,
@@ -553,20 +816,78 @@ export const syncDataToSpreadsheet = async (
     categoryBudgets: categoryBudgets || {},
     customCategories: Array.isArray(customCategories) ? customCategories : []
   };
+};
+
+export const syncDataToSpreadsheet = async (
+  accessToken: string | null | undefined,
+  spreadsheetId: string | null | undefined,
+  transactions: Transaction[] = [],
+  infractions: Infraction[] = [],
+  riskZones: RiskZone[] = [],
+  appointments: MedicalAppointment[] = [],
+  prescriptions: MedicalPrescription[] = [],
+  compromissos: Compromisso[] = [],
+  registeredVehicles: RegisteredVehicle[] = [],
+  performedServices: CarServicePerformed[] = [],
+  scheduledServices: CarServiceScheduled[] = [],
+  bankAccounts: BankAccount[] = [],
+  creditCards: CreditCard[] = [],
+  categoryBudgets: Record<string, number> = {},
+  customCategories: string[] = [],
+  groceryItems: GroceryItem[] = [],
+  forceOverwrite: boolean = false,
+  sheetTxCount?: number,
+  scheduledMaintenance: CarServiceScheduled[] = [],
+  agenda: Compromisso[] = [],
+  workshop: WorkshopItem[] | CarServicePerformed[] = [],
+  analysis: unknown[] = [],
+  profile: unknown[] = [],
+  deletedIds: (string | number)[] = [],
+  origem: string = 'syncDataToSpreadsheet'
+): Promise<string> => {
+  const cleanSheetId = toSafeString(spreadsheetId) || DEFAULT_SPREADSHEET_ID;
+
+  const payload = buildSyncPayload(
+    spreadsheetId,
+    transactions,
+    infractions,
+    riskZones,
+    appointments,
+    prescriptions,
+    compromissos,
+    registeredVehicles,
+    performedServices,
+    scheduledServices,
+    bankAccounts,
+    creditCards,
+    categoryBudgets,
+    customCategories,
+    groceryItems,
+    forceOverwrite,
+    sheetTxCount,
+    scheduledMaintenance,
+    agenda,
+    workshop,
+    analysis,
+    profile,
+    deletedIds
+  );
 
   const stackStr = new Error().stack || '';
   const nowStr = new Date().toLocaleString('pt-BR');
   const count = Array.isArray(transactions) ? transactions.length : 0;
-  const txIds = mappedTransactions.map((t: any) => t.id);
+  const txIds = (payload.transactions || []).map((t: MappedTransaction) => t.id);
 
   console.log('=========================');
   console.log(`ORIGEM: ${origem}`);
   console.log(`Quantidade de registros: ${count}`);
-  console.log(`IDs dos registros (${count}):`, txIds);
   console.log(`IDs excluídos explicitamente (${deletedIds.length}):`, deletedIds);
   console.log(`Horário: ${nowStr}`);
-  console.log(`Call Stack completo:\n${stackStr}`);
-  console.log('JSON do Payload enviado ao Apps Script:\n', JSON.stringify(payload, null, 2));
+  if (import.meta.env.DEV) {
+    console.log(`IDs dos registros (${count}):`, txIds);
+    console.log(`Call Stack completo:\n${stackStr}`);
+    console.log('JSON do Payload enviado ao Apps Script:\n', JSON.stringify(payload, null, 2));
+  }
   console.log('====================');
 
   console.log('[SYNC LOG - GOOGLE AUTH] Disparando requisição POST para Apps Script...');
@@ -579,27 +900,27 @@ export const syncDataToSpreadsheet = async (
   return `https://docs.google.com/spreadsheets/d/${cleanSheetId}/edit`;
 };
 
-export const findOrCreateSpreadsheet = async (accessToken?: string): Promise<string> => {
+export const findOrCreateSpreadsheet = async (_accessToken?: string): Promise<string> => {
   return DEFAULT_SPREADSHEET_ID;
 };
 
 export const fetchTransactionsFromSpreadsheet = async (
-  accessToken: any,
-  spreadsheetId: any
-): Promise<any[]> => {
+  accessToken: unknown,
+  spreadsheetId: unknown
+): Promise<Transaction[]> => {
   const data = await fetchAllDataFromSpreadsheet(accessToken, spreadsheetId);
-  return data?.transactions || data?.abastecimentos || [];
+  return (data?.transactions || data?.abastecimentos || []) as Transaction[];
 };
 
 export const initAuth = (
-  onAuthSuccess?: (user: any, token: string) => void,
+  onAuthSuccess?: (user: User, token: string) => void,
   onAuthFailure?: () => void
 ) => {
   const savedUser = typeof localStorage !== 'undefined' ? localStorage.getItem('wealthflow_user') : null;
   const savedToken = typeof localStorage !== 'undefined' ? localStorage.getItem('wealthflow_token') : null;
   if (savedUser && savedToken && onAuthSuccess) {
     try {
-      onAuthSuccess(JSON.parse(savedUser), savedToken);
+      onAuthSuccess(JSON.parse(savedUser) as User, savedToken);
     } catch {
       if (onAuthFailure) onAuthFailure();
     }
@@ -608,7 +929,7 @@ export const initAuth = (
   }
 };
 
-export const googleSignIn = async (providedTokenOrUrl?: string) => {
+export const googleSignIn = async (providedTokenOrUrl?: string): Promise<{ user: User; token: string }> => {
   const mockUser: User = {
     uid: 'user_' + Date.now(),
     displayName: 'Usuário Ativo',
@@ -622,62 +943,63 @@ export const googleSignIn = async (providedTokenOrUrl?: string) => {
   return { user: mockUser, token };
 };
 
-export const logout = async () => {
+export const logout = async (): Promise<void> => {
   if (typeof localStorage !== 'undefined') {
     localStorage.removeItem('wealthflow_user');
     localStorage.removeItem('wealthflow_token');
   }
 };
 
-export const uploadBackupToDrive = async (accessToken: string, jsonData: string): Promise<any> => {
-  return await callAppsScript(DEFAULT_APPS_SCRIPT_URL, {
+export const uploadBackupToDrive = async (_accessToken: string, jsonData: unknown): Promise<string> => {
+  const res = await callAppsScript<{ status?: string; message?: string }>(DEFAULT_APPS_SCRIPT_URL, {
     action: 'uploadBackup',
-    data: jsonData
+    data: typeof jsonData === 'string' ? jsonData : JSON.stringify(jsonData)
   }, 'POST');
+  return res.message || res.status || 'backup_wealthflow.json';
 };
 
-export const listBackupsFromDrive = async (token: string): Promise<any[]> => {
+export const listBackupsFromDrive = async (_token: string): Promise<unknown[]> => {
   return [];
 };
 
-export const downloadBackupFromDrive = async (token: string, fileId: string): Promise<any> => {
+export const downloadBackupFromDrive = async (_token: string, _fileId: string): Promise<Record<string, unknown>> => {
   return {};
 };
 
-export const normalizeTransactionObject = (item: any): any => {
-  if (!item || typeof item !== 'object') return item;
+export const normalizeTransactionObject = (item: Record<string, unknown> | null | undefined): Transaction | null => {
+  if (!item || typeof item !== 'object') return null;
   return {
-    id: item.id || item.Id || item.ID,
-    data: item.data || item.Data || item.DATA || '',
-    descricao: item.descricao || item.Descrição || item.Descricao || item.DESCRIÇÃO || '',
+    id: (item.id || item.Id || item.ID) as number,
+    data: (item.data || item.Data || item.DATA || '') as string,
+    descricao: (item.descricao || item.Descrição || item.Descricao || item.DESCRIÇÃO || '') as string,
     valor: Number(item.valor || item.Valor || item['Valor (R$)'] || 0),
     valorPg: item.valorPg !== undefined ? Number(item.valorPg) : (item.Valor_PG !== undefined ? Number(item.Valor_PG) : undefined),
-    bancoId: item.bancoId || item.Banco_Id || '',
-    cartaoId: item.cartaoId || item.Cartão_Id || item.Cartao_Id || '',
-    formaPagamento: item.formaPagamento || item.Forma_Pagamento || '',
-    tipo: item.tipo || item.Tipo || 'DESPESA',
-    categoria: item.categoria || item.Categoria || 'OUTROS',
-    status: item.status || item.Status || 'CONCLUÍDO',
+    bancoId: (item.bancoId || item.Banco_Id || '') as number,
+    cartaoId: (item.cartaoId || item.Cartão_Id || item.Cartao_Id || '') as string | number,
+    formaPagamento: (item.formaPagamento || item.Forma_Pagamento || '') as string,
+    tipo: (item.tipo || item.Tipo || 'DESPESA') as string,
+    categoria: (item.categoria || item.Categoria || 'OUTROS') as string,
+    status: (item.status || item.Status || 'CONCLUÍDO') as string,
     km: item.km !== undefined ? Number(item.km) : (item.KM !== undefined ? Number(item.KM) : undefined),
     litros: item.litros !== undefined ? Number(item.litros) : (item.Litros !== undefined ? Number(item.Litros) : undefined),
     precoLitro: item.precoLitro !== undefined ? Number(item.precoLitro) : (item.Preço_Litro !== undefined ? Number(item.Preço_Litro) : undefined),
-    completouTanque: item.completouTanque !== undefined ? item.completouTanque : item.Completou_O_Tanque,
+    completouTanque: (item.completouTanque !== undefined ? item.completouTanque : item.Completou_O_Tanque) as boolean,
     kmPercorrido: item.kmPercorrido !== undefined ? Number(item.kmPercorrido) : (item.KM_Percorrido !== undefined ? Number(item.KM_Percorrido) : undefined),
     mediaKmL: item.mediaKmL !== undefined ? Number(item.mediaKmL) : (item['Média_(Km/L)'] !== undefined ? Number(item['Média_(Km/L)']) : undefined),
-    veiculo: item.veiculo || item.Veiculo || '',
-    descricaoVeiculo: item.descricaoVeiculo || item.Descrição_Do_Veículo || '',
-    motorista: item.motorista || item.Motorista || '',
-    posto: item.posto || item.Posto_Combustivel || '',
-    cidadeUf: item.cidadeUf || item.Cidade_UF || '',
-    obs: item.obs || item.Observacao || item.Observação || ''
+    veiculo: (item.veiculo || item.Veiculo || '') as string,
+    descricaoVeiculo: (item.descricaoVeiculo || item.Descrição_Do_Veículo || '') as string,
+    motorista: (item.motorista || item.Motorista || '') as string,
+    nomePosto: (item.posto || item.Posto_Combustivel || item.nomePosto || item.Nome_Posto || '') as string,
+    localizacaoPosto: (item.cidadeUf || item.Cidade_UF || item.localizacaoPosto || item.Localização_Do_Posto || '') as string,
+    obs: (item.obs || item.Observacao || item.Observação || '') as string
   };
 };
 
 export const fetchAllDataFromSpreadsheet = async (
-  accessToken: any,
-  spreadsheetId: any
-): Promise<any> => {
+  accessToken: unknown,
+  spreadsheetId: unknown
+): Promise<Record<string, unknown>> => {
   const cleanSheetId = toSafeString(spreadsheetId) || DEFAULT_SPREADSHEET_ID;
-  const res = await callAppsScript(DEFAULT_APPS_SCRIPT_URL, { action: 'fetchAllData', spreadsheetId: cleanSheetId }, 'GET');
-  return res?.data || res || {};
+  const res = await callAppsScript<Record<string, unknown>>(DEFAULT_APPS_SCRIPT_URL, { action: 'fetchAllData', spreadsheetId: cleanSheetId }, 'GET');
+  return (res?.data || res || {}) as Record<string, unknown>;
 };

@@ -16,6 +16,7 @@ import { DashboardPix } from './DashboardPix';
 import { DashboardVehicles } from './DashboardVehicles';
 import { DashboardAlerts } from './DashboardAlerts';
 import { DashboardInsights } from './DashboardInsights';
+import { financeStorage } from '../../services/financeStorage';
 
 // Helper to parse dates in DD/MM/YYYY or YYYY-MM-DD
 function parseDate(dateStr: string): Date | null {
@@ -115,21 +116,10 @@ export default function Dashboard({
 }: DashboardProps) {
   // Global View / Privacy Settings
   const [showBalance, setShowBalance] = useState<boolean>(true);
-  const [hideValuesMode, setHideValuesMode] = useState<boolean>(() => {
-    try {
-      const saved = localStorage.getItem('wealthflow_hide_values_mode');
-      return saved === 'true';
-    } catch {
-      return false;
-    }
-  });
+  const [hideValuesMode, setHideValuesMode] = useState<boolean>(() => financeStorage.getHideValuesMode());
 
   React.useEffect(() => {
-    try {
-      localStorage.setItem('wealthflow_hide_values_mode', String(hideValuesMode));
-    } catch (e) {
-      console.error(e);
-    }
+    financeStorage.saveHideValuesMode(hideValuesMode);
   }, [hideValuesMode]);
 
   const [dashboardTab, setDashboardTab] = useState<'geral' | 'orcamento'>('geral');
@@ -287,22 +277,11 @@ export default function Dashboard({
   }, []);
 
   // Savings Goals State Management
-  const [savingsGoals, setSavingsGoals] = useState<SavingsGoal[]>(() => {
-    try {
-      const stored = localStorage.getItem('wealthflow_savings_goals');
-      return stored ? JSON.parse(stored) : [];
-    } catch {
-      return [];
-    }
-  });
+  const [savingsGoals, setSavingsGoals] = useState<SavingsGoal[]>(() => financeStorage.getSavingsGoals());
 
   const saveSavingsGoals = useCallback((goals: SavingsGoal[]) => {
     setSavingsGoals(goals);
-    try {
-      localStorage.setItem('wealthflow_savings_goals', JSON.stringify(goals));
-    } catch (e) {
-      console.error(e);
-    }
+    financeStorage.saveSavingsGoals(goals);
   }, []);
 
   const [isOpenGoalModal, setIsOpenGoalModal] = useState<boolean>(false);

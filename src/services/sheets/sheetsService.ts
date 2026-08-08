@@ -46,7 +46,9 @@ export class SheetsService {
     console.log(`Quantidade de registros: ${txCount}`);
     console.log(`IDs excluídos explicitamente (${deletedIds.length}):`, deletedIds);
     console.log(`Horário: ${nowStr}`);
-    console.log(`Call Stack completo:\n${stackStr}`);
+    if (import.meta.env.DEV) {
+      console.log(`Call Stack completo:\n${stackStr}`);
+    }
     console.log('====================');
 
     return await syncDataToSpreadsheet(

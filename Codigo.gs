@@ -2,6 +2,111 @@
  * ==============================================================================
  * GOOGLE APPS SCRIPT BACKEND ENGINE - WEALTHFLOW / FINANÇAS GAETA (v4.0 - INCREMENTAL UPSERT)
  * ==============================================================================
+ *
+ * @typedef {Object} TransactionPayload
+ * @property {string} id
+ * @property {string} data
+ * @property {string} descricao
+ * @property {number} valor
+ * @property {number} [valorPago]
+ * @property {number} [valorPg]
+ * @property {number} [Valor_PG]
+ * @property {string} [bancoId]
+ * @property {string} [cartaoId]
+ * @property {string} [formaPagamento]
+ * @property {'RECEITA'|'DESPESA'|'TRANSFERENCIA'|'INVESTIMENTO'} tipo
+ * @property {string} categoria
+ * @property {'PENDENTE'|'CONCLUÍDO'|'CANCELADO'} [status]
+ * @property {number} [km]
+ * @property {number} [litros]
+ * @property {number} [precoLitro]
+ * @property {boolean|string} [completouTanque]
+ * @property {number} [kmPercorrido]
+ * @property {number} [mediaKmL]
+ * @property {string} [veiculoId]
+ * @property {string} [descricaoVeiculo]
+ * @property {string} [motorista]
+ * @property {string} [nomePosto]
+ * @property {string} [localizacaoPosto]
+ * @property {string} [comprovanteUrl]
+ * @property {string} [obs]
+ *
+ * @typedef {Object} VehiclePayload
+ * @property {string} id
+ * @property {string} descricao
+ * @property {string} [motorista]
+ * @property {string} [placa]
+ * @property {string} [renavan]
+ * @property {string} [chassi]
+ * @property {string} [marca]
+ * @property {string} [modelo]
+ * @property {number} [ano]
+ * @property {number} [anoFabricacao]
+ * @property {number} [mesFinalPlaca]
+ * @property {number} [kmAtual]
+ * @property {string} [combustivel]
+ *
+ * @typedef {Object} CompromissoPayload
+ * @property {string} id
+ * @property {string} titulo
+ * @property {string} data
+ * @property {string} [hora]
+ * @property {string} [descricao]
+ * @property {string} [corIdentificacao]
+ * @property {boolean|string} [piscando]
+ * @property {boolean|string} [lembreteAtivo]
+ * @property {number} [diasAntecedencia]
+ * @property {boolean|string} [concluido]
+ * @property {string} [categoria]
+ *
+ * @typedef {Object} AppointmentPayload
+ * @property {string} id
+ * @property {string} especialidade
+ * @property {string} medico
+ * @property {string} data
+ * @property {string} [hora]
+ * @property {string} [local]
+ * @property {boolean|string} [lembreteAtivo]
+ * @property {string} [status]
+ * @property {string} [obs]
+ *
+ * @typedef {Object} RiskZonePayload
+ * @property {string} id
+ * @property {string} [tipoRegistro]
+ * @property {string} nomeTitulo
+ * @property {string} nivelDeRisco
+ * @property {number|string} latitude
+ * @property {number|string} longitude
+ * @property {number} [raioMetros]
+ * @property {boolean|string} [ativo]
+ * @property {string} [mensagemDeAlerta]
+ * @property {string} [dataRegistro]
+ * @property {string} [observacao]
+ *
+ * @typedef {Object} WorkshopPayload
+ * @property {string} id
+ * @property {string} data
+ * @property {string} descricao
+ * @property {number} [km]
+ * @property {number} [valorAPG]
+ * @property {number} [valorPago]
+ * @property {string} [oficinaNome]
+ * @property {string} [comprovanteUrl]
+ * @property {string} [observacoes]
+ * @property {string} [veiculoId]
+ *
+ * @typedef {Object} GoogleSyncPayload
+ * @property {string} [action]
+ * @property {string} [spreadsheetId]
+ * @property {boolean} [forceOverwrite]
+ * @property {string[]} [deletedIds]
+ * @property {TransactionPayload[]} [transactions]
+ * @property {TransactionPayload[]} [abastecimentos]
+ * @property {VehiclePayload[]} [registeredVehicles]
+ * @property {CompromissoPayload[]} [compromissos]
+ * @property {AppointmentPayload[]} [appointments]
+ * @property {RiskZonePayload[]} [riskZones]
+ * @property {WorkshopPayload[]} [performedServices]
  */
 
 var txHeaders = [

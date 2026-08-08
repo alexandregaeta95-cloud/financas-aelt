@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Transaction, RiskZone, Infraction, MedicalAppointment, MedicalPrescription, BankAccount, CreditCard, RegisteredVehicle, Compromisso, CarServicePerformed, CarServiceScheduled, SecurityConfig, GroceryItem } from './types';
+import { Transaction, RiskZone, Infraction, MedicalAppointment, MedicalPrescription, BankAccount, CreditCard, RegisteredVehicle, Compromisso, CarServicePerformed, CarServiceScheduled, SecurityConfig, GroceryItem, PendingChange } from './types';
 import { initialTransactions, bankAccounts, creditCards } from './data/transactions';
 import { initialRiskZones } from './data/riskZones';
 import { initialInfractions, nonAppealedInfractions } from './data/infractions';
@@ -32,6 +32,16 @@ import ErrorBoundary from './components/ErrorBoundary';
 import LockScreen from './components/LockScreen';
 import { checkIpvaAlerts } from './lib/ipvaUtils';
 import GoogleDriveModal from './components/GoogleDriveModal';
+
+// Domain Custom Hooks
+import { useTransactionsState, useBanksAndCardsState } from './modules/financeiro/hooks';
+import { useVehiclesState } from './modules/veiculos/hooks';
+import { useAgendaState } from './modules/agenda/hooks';
+import { useRiskAndInfractionsState } from './modules/risco/hooks';
+import { useGroceryState } from './modules/mercado/hooks';
+import { useProfileSettingsState } from './modules/profile/hooks';
+import { useGoogleSyncState } from './hooks/useGoogleSyncState';
+import { cleanDuplicateTransactions } from './modules/financeiro/utils/transactionUtils';
 
 // Database Sync API
 import { 
@@ -84,78 +94,6 @@ import { authService } from './services/auth';
 
 import { normalizeTransactionObject, DEFAULT_SPREADSHEET_ID, DEFAULT_SPREADSHEET_URL, DEFAULT_APPS_SCRIPT_URL } from './lib/googleAuth';
 
-// Helper to deduplicate transactions securely (checks IDs and normalizes properties)
-function cleanDuplicateTransactions(txs: any[]): Transaction[] {
-  if (!Array.isArray(txs)) return [];
-  const seenIds = new Set<string>();
-  const uniqueTxs: Transaction[] = [];
-
-  txs.forEach(rawItem => {
-    if (!rawItem || typeof rawItem !== 'object') return;
-    
-    // Normalize properties (e.g. 'Valor (R$)', 'Valor', 'valor', 'Descrição', etc.)
-    const t = normalizeTransactionObject(rawItem) || rawItem;
-    if (!t || typeof t !== 'object') return;
-
-    let idKey = t.id !== undefined && t.id !== null ? String(t.id).trim() : '';
-    if (!idKey) {
-      idKey = 'TX_' + Date.now() + '_' + Math.floor(Math.random() * 1000000);
-      t.id = idKey;
-    }
-
-    if (seenIds.has(idKey)) {
-      // Re-assign a new unique ID so duplicated pasted rows with copied IDs get new IDs
-      idKey = 'TX_' + Date.now() + '_' + Math.floor(Math.random() * 1000000);
-      t.id = idKey;
-    }
-    seenIds.add(idKey);
-
-    // Sanitize string and numeric fields to ensure non-null types
-    t.data = String(t.data || t.Data || new Date().toLocaleDateString('pt-BR'));
-    t.descricao = String(t.descricao || t.Descrição || 'LANÇAMENTO');
-    t.categoria = String(t.categoria || t.Categoria || 'OUTROS').toUpperCase();
-    t.tipo = String(t.tipo || t.Tipo || 'DESPESA').toUpperCase();
-    t.status = String(t.status || t.Status || 'PAGO').toUpperCase();
-    t.valor = typeof t.valor === 'number' && !isNaN(t.valor) ? t.valor : (parseFloat(String(t.valor || t.Valor || 0).replace(',', '.')) || 0);
-
-    const isAbast = t.categoria === 'ABASTECIMENTO';
-    if (t.veiculo || t.Veiculo) t.veiculo = String(t.veiculo || t.Veiculo || '').toUpperCase();
-    if (t.descricaoVeiculo || t['Descrição_Do_Veículo'] || t['Descrição_do_Veículo']) t.descricaoVeiculo = String(t.descricaoVeiculo || t['Descrição_Do_Veículo'] || t['Descrição_do_Veículo'] || '').toUpperCase();
-    if (t.nomePosto || t.Nome_Posto) t.nomePosto = String(t.nomePosto || t.Nome_Posto || '').toUpperCase();
-    if (t.localizacaoPosto || t['Localização_Do_Posto'] || t['Localizacao_do_Posto']) t.localizacaoPosto = String(t.localizacaoPosto || t['Localização_Do_Posto'] || t['Localizacao_do_Posto'] || '').toUpperCase();
-    if (t.motorista || t.Motorista) t.motorista = String(t.motorista || t.Motorista || '').toUpperCase();
-
-    // Attach explicit 24 column keys
-    t.Data = t.data;
-    t['Descrição'] = t.descricao;
-    t.Valor = t.valor;
-    t.Valor_PG = t.valorPg !== undefined ? t.valorPg : (t.Valor_PG !== undefined ? t.Valor_PG : t.valor);
-    t.Banco_Id = t.bancoId !== undefined ? t.bancoId : (t.Banco_Id !== undefined ? t.Banco_Id : '');
-    t['Cartão_Id'] = t.cartaoid !== undefined ? t.cartaoid : (t.cartaoId !== undefined ? t.cartaoId : (t['Cartão_Id'] !== undefined ? t['Cartão_Id'] : ''));
-    t.Forma_Pagamento = t.formaPagamento || t.Forma_Pagamento || '';
-    t.Tipo = t.tipo;
-    t.Categoria = t.categoria;
-    t.Status = t.status;
-    t.KM = isAbast ? (t.km !== undefined ? t.km : (t.KM !== undefined ? t.KM : '')) : '';
-    t.Litros = isAbast ? (t.litros !== undefined ? t.litros : (t.Litros !== undefined ? t.Litros : '')) : '';
-    t['Preço_Litro'] = isAbast ? (t.precoLitro !== undefined ? t.precoLitro : (t['Preço_Litro'] !== undefined ? t['Preço_Litro'] : '')) : '';
-    t.Completou_O_Tanque = isAbast ? ((t.completouTanque === true || t.completouTanque === 'Sim' || t.Completou_O_Tanque === 'Sim' || t.Completou_O_Tanque === true) ? 'Sim' : 'Não') : '';
-    t.KM_Percorrido = isAbast ? (t.kmPercorrido !== undefined ? t.kmPercorrido : (t.KM_Percorrido !== undefined ? t.KM_Percorrido : '')) : '';
-    t['Média_(Km/L)'] = isAbast ? (t.mediaKmL !== undefined ? t.mediaKmL : (t['Média_(Km/L)'] !== undefined ? t['Média_(Km/L)'] : (t['Media_(Km/L)'] !== undefined ? t['Media_(Km/L)'] : ''))) : '';
-    t.Veiculo = isAbast ? (t.veiculo || 'CARRO') : '';
-    t['Descrição_Do_Veículo'] = t.descricaoVeiculo || '';
-    t.Motorista = t.motorista || '';
-    t.Nome_Posto = t.nomePosto || '';
-    t['Localização_Do_Posto'] = t.localizacaoPosto || '';
-    t.Comprovante_Url = t.comprovanteUrl || t.Comprovante_Url || '';
-    t.OBS = t.obs || t.OBS || '';
-
-    uniqueTxs.push(t as Transaction);
-  });
-
-  return uniqueTxs;
-}
-
 export default function App() {
   const [currentTab, setCurrentTab] = useState<string>(() => {
     if (typeof window !== "undefined") {
@@ -204,244 +142,13 @@ export default function App() {
     origem?: string;
   } | null>(null);
 
-  // Live state synchronized lists (backed by Local Storage as an immediate fallback)
-  const [transactions, setTransactions] = useState<Transaction[]>(() => {
-    try {
-      const saved = localStorage.getItem('wealthflow_transactions');
-      if (saved) {
-        const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed)) {
-          return cleanDuplicateTransactions(parsed);
-        }
-      }
-    } catch (e) {
-      console.error("Failed to parse transactions state:", e);
-    }
-    return cleanDuplicateTransactions(initialTransactions);
-  });
-  const [riskZones, setRiskZones] = useState<RiskZone[]>(() => {
-    try {
-      const saved = localStorage.getItem('wealthflow_riskzones');
-      if (saved) {
-        const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed)) return parsed;
-      }
-    } catch (e) {
-      console.error("Failed to parse risk zones state:", e);
-    }
-    return initialRiskZones;
-  });
-  const [infractions, setInfractions] = useState<Infraction[]>(() => {
-    try {
-      const saved = localStorage.getItem('wealthflow_infractions');
-      if (saved) {
-        const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed)) return parsed;
-      }
-    } catch (e) {
-      console.error("Failed to parse infractions state:", e);
-    }
-    return initialInfractions;
-  });
-  const [nonAppealed, setNonAppealed] = useState<any[]>(() => {
-    try {
-      const saved = localStorage.getItem('wealthflow_nonappealed');
-      if (saved) {
-        const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed)) return parsed;
-      }
-    } catch (e) {
-      console.error("Failed to parse non-appealed infractions state:", e);
-    }
-    return nonAppealedInfractions;
-  });
-  const [appointments, setAppointments] = useState<MedicalAppointment[]>(() => {
-    try {
-      const saved = localStorage.getItem('wealthflow_appointments');
-      if (saved) {
-        const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed)) return parsed;
-      }
-    } catch (e) {
-      console.error("Failed to parse appointments state:", e);
-    }
-    return [];
-  });
-  const [prescriptions, setPrescriptions] = useState<MedicalPrescription[]>(() => {
-    try {
-      const saved = localStorage.getItem('wealthflow_prescriptions');
-      if (saved) {
-        const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed)) return parsed;
-      }
-    } catch (e) {
-      console.error("Failed to parse prescriptions state:", e);
-    }
-    return [];
-  });
-
-  const [registeredVehicles, setRegisteredVehicles] = useState<RegisteredVehicle[]>(() => {
-    try {
-      const saved = localStorage.getItem('wealthflow_registered_vehicles');
-      if (saved) {
-        const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed)) {
-          const filtered = parsed.filter(Boolean).map((v: any) => ({
-            ...v,
-            descricao: (v.descricao || v.modelo || v.nome || '').toString().toUpperCase(),
-            placa: (v.placa || '').toString().toUpperCase(),
-            motorista: (v.motorista || '').toString().toUpperCase(),
-            marca: (v.marca || '').toString().toUpperCase(),
-            modelo: (v.modelo || '').toString().toUpperCase()
-          })).filter(v => {
-            const desc = (v.descricao || v.modelo || v.nome || v.placa || '').toString().toUpperCase();
-            return desc !== 'FOX PRATA';
-          });
-          if (filtered.length !== parsed.length) {
-            localStorage.setItem('wealthflow_registered_vehicles', JSON.stringify(filtered));
-          }
-          return filtered;
-        }
-      }
-    } catch (e) {
-      console.error("Failed to parse registered vehicles state:", e);
-    }
-    return [
-      { id: '1', descricao: 'FOX ROCK RIO 1.6', motorista: 'ALEXANDRE', placa: 'FVS4I24' }
-    ];
-  });
-
-  const [compromissos, setCompromissos] = useState<Compromisso[]>(() => {
-    try {
-      const saved = localStorage.getItem('wealthflow_compromissos');
-      if (saved) {
-        const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed)) return parsed.filter(c => c && typeof c === 'object');
-      }
-    } catch (e) {
-      console.error("Failed to parse compromissos state:", e);
-    }
-    return [];
-  });
-
-  const [performedServices, setPerformedServices] = useState<CarServicePerformed[]>(() => {
-    try {
-      const saved = localStorage.getItem('wealthflow_car_services_performed');
-      if (saved) {
-        const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed)) {
-          const filtered = parsed.filter(s => {
-            if (!s || typeof s !== 'object') return false;
-            try {
-              const veh = String(s.veiculoDescricao || (s as any)['Veículo'] || '').toUpperCase();
-              return veh !== 'FOX PRATA';
-            } catch {
-              return false;
-            }
-          });
-          if (filtered.length !== parsed.length) {
-            localStorage.setItem('wealthflow_car_services_performed', JSON.stringify(filtered));
-          }
-          return filtered;
-        }
-      }
-    } catch (e) {
-      console.error("Failed to parse performed services state:", e);
-    }
-    return [
-      {
-        id: 'p1',
-        veiculoDescricao: 'FOX ROCK RIO 1.6',
-        descricao: 'Troca de Óleo e Filtro',
-        data: '2026-04-11',
-        km: 82350,
-        valor: 250,
-        oficina: 'Auto Center Gaeta',
-        observacoes: 'Óleo Shell Helix 10w40 semissintético e filtro de óleo Bosch.',
-        updatedAt: Date.now()
-      },
-      {
-        id: 'p2',
-        veiculoDescricao: 'FOX ROCK RIO 1.6',
-        descricao: 'Alinhamento e Balanceamento',
-        data: '2026-05-05',
-        km: 83100,
-        valor: 120,
-        oficina: 'Pneus Express',
-        observacoes: 'Feito rodízio de pneus traseiros para dianteiros.',
-        updatedAt: Date.now()
-      }
-    ];
-  });
-
-  const [scheduledServices, setScheduledServices] = useState<CarServiceScheduled[]>(() => {
-    try {
-      const saved = localStorage.getItem('wealthflow_car_services_scheduled');
-      if (saved) {
-        const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed)) {
-          const filtered = parsed.filter(s => {
-            if (!s || typeof s !== 'object') return false;
-            try {
-              const veh = String(s.veiculoDescricao || (s as any)['Veículo'] || '').toUpperCase();
-              return veh !== 'FOX PRATA';
-            } catch {
-              return false;
-            }
-          });
-          if (filtered.length !== parsed.length) {
-            localStorage.setItem('wealthflow_car_services_scheduled', JSON.stringify(filtered));
-          }
-          return filtered;
-        }
-      }
-    } catch (e) {
-      console.error("Failed to parse scheduled services state:", e);
-    }
-    return [
-      {
-        id: 's1',
-        veiculoDescricao: 'FOX ROCK RIO 1.6',
-        descricao: 'Revisão Geral e Troca de Pastilhas',
-        tipoAgendamento: 'DATA_E_KM',
-        dataAlvo: '2026-08-15',
-        kmAlvo: 90000,
-        recorrente: false,
-        status: 'PENDENTE',
-        updatedAt: Date.now()
-      },
-      {
-        id: 's2',
-        veiculoDescricao: 'FOX ROCK RIO 1.6',
-        descricao: 'Troca de Óleo e Filtro',
-        tipoAgendamento: 'DATA_E_KM',
-        dataAlvo: '2026-10-11',
-        kmAlvo: 92350,
-        recorrente: true,
-        frequenciaMeses: 6,
-        frequenciaKm: 10000,
-        status: 'PENDENTE',
-        updatedAt: Date.now()
-      }
-    ];
-  });
-
-  const [groceryItems, setGroceryItems] = useState<GroceryItem[]>(() => {
-    try {
-      const saved = localStorage.getItem('wealthflow_grocery_items');
-      if (saved) {
-        const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed)) return parsed;
-      }
-    } catch (e) {
-      console.error("Failed to parse grocery items state:", e);
-    }
-    return [
-      { id: 'g1', nome: 'Arroz 5kg', categoria: 'Mercearia', quantidade: 1, valorEstimado: 28.90, comprado: false, updatedAt: Date.now() },
-      { id: 'g2', nome: 'Banana Prata kg', categoria: 'Hortifrúti', quantidade: 2, valorEstimado: 6.90, comprado: true, updatedAt: Date.now() },
-      { id: 'g3', nome: 'Detergente Líquido', categoria: 'Limpeza', quantidade: 3, valorEstimado: 2.80, comprado: false, updatedAt: Date.now() },
-    ];
-  });
+  // Live state synchronized lists (backed by domain custom hooks)
+  const { transactions, setTransactions } = useTransactionsState();
+  const { riskZones, setRiskZones, infractions, setInfractions, nonAppealed, setNonAppealed } = useRiskAndInfractionsState();
+  const { compromissos, setCompromissos, appointments, setAppointments, prescriptions, setPrescriptions } = useAgendaState();
+  const { registeredVehicles, setRegisteredVehicles, performedServices, setPerformedServices, scheduledServices, setScheduledServices } = useVehiclesState();
+  const { groceryItems, setGroceryItems } = useGroceryState();
+  const { bankAccountsState, setBankAccountsState, creditCardsState, setCreditCardsState } = useBanksAndCardsState();
 
   const handleAddGroceryItem = async (itemData: Omit<GroceryItem, 'id'>) => {
     const newItem: GroceryItem = {
@@ -500,483 +207,41 @@ export default function App() {
       await triggerSync(activeToken, true, undefined, undefined, undefined, undefined, undefined, true, undefined, undefined, undefined, undefined, undefined, undefined, remaining);
     }
   };
-
-  // Stateful Profile Avatar URL
-  const [avatarUrl, setAvatarUrl] = useState<string>(() => {
-    const saved = localStorage.getItem('wealthflow_avatarurl');
-    return saved || 'https://lh3.googleusercontent.com/aida-public/AB6AXuDclcawui2tKuHgw4p_DWvKBp0R7XYoJIo41kp-qWXzNhTbDso-7IAoirqhYyc-HEWXFiHIGP6YdyvyG4u4xgKT0ecq0uBLAJEXGIxgaymfedUvUw5PmlAfsh600Je_GbTdL8UgPj2BZ18ovSoiV_-08bm1CxxuR-RaAO569na_pVi2ObUv5FfHdqk1JhAf68RSSZF5WqsPDCCmYfWunTzLuQcRHOJn29EvtKwGGBucDh8ZAdyadLyd';
-  });
-
-  // Stateful Custom transaction categories
-  const [customCategories, setCustomCategories] = useState<string[]>(() => {
-    try {
-      const saved = localStorage.getItem('wealthflow_custom_categories');
-      return saved ? JSON.parse(saved) : [];
-    } catch {
-      return [];
-    }
-  });
-
-  // Stateful custom category budgets (annual spending targets)
-  const [categoryBudgets, setCategoryBudgets] = useState<{ [category: string]: number }>(() => {
-    try {
-      const saved = localStorage.getItem('wealthflow_category_budgets');
-      return saved ? JSON.parse(saved) : {};
-    } catch {
-      return {};
-    }
-  });
-
-  useEffect(() => {
-    try {
-      localStorage.setItem('wealthflow_category_budgets', JSON.stringify(categoryBudgets));
-    } catch (e) {
-      console.warn("Failed to save category budgets to localStorage:", e);
-    }
-  }, [categoryBudgets]);
-
-  // Customizable IPVA alert advance warning (in days)
-  const [ipvaLeadDays, setIpvaLeadDays] = useState<number>(() => {
-    try {
-      const saved = localStorage.getItem('wealthflow_ipva_lead_days');
-      return saved ? parseInt(saved, 10) : 30;
-    } catch {
-      return 30;
-    }
-  });
-
-  useEffect(() => {
-    try {
-      localStorage.setItem('wealthflow_ipva_lead_days', String(ipvaLeadDays));
-    } catch (e) {
-      console.warn("Failed to save ipva lead days to localStorage:", e);
-    }
-  }, [ipvaLeadDays]);
-
-  // Cleanup FOX PRATA from localStorage
-  useEffect(() => {
-    try {
-      const mileageStr = localStorage.getItem('wealthflow_vehicle_mileage');
-      if (mileageStr) {
-        const mileage = JSON.parse(mileageStr);
-        if (mileage && mileage['FOX PRATA'] !== undefined) {
-          delete mileage['FOX PRATA'];
-          localStorage.setItem('wealthflow_vehicle_mileage', JSON.stringify(mileage));
-        }
-      }
-    } catch (e) {
-      console.warn("Cleanup of FOX PRATA mileage failed:", e);
-    }
-  }, []);
-
-  // Customizable IPVA fleet closing day (of month)
-  const [ipvaClosingDay, setIpvaClosingDay] = useState<number>(() => {
-    try {
-      const saved = localStorage.getItem('wealthflow_ipva_closing_day');
-      return saved ? parseInt(saved, 10) : 15;
-    } catch {
-      return 15;
-    }
-  });
-
-  useEffect(() => {
-    try {
-      localStorage.setItem('wealthflow_ipva_closing_day', String(ipvaClosingDay));
-    } catch (e) {
-      console.warn("Failed to save ipva closing day to localStorage:", e);
-    }
-  }, [ipvaClosingDay]);
-
-  // Customizable IPVA notification color preference (red, orange, yellow)
-  const [ipvaNotificationColor, setIpvaNotificationColor] = useState<string>(() => {
-    try {
-      const saved = localStorage.getItem('wealthflow_ipva_notification_color');
-      return saved || 'orange';
-    } catch {
-      return 'orange';
-    }
-  });
-
-  useEffect(() => {
-    try {
-      localStorage.setItem('wealthflow_ipva_notification_color', ipvaNotificationColor);
-    } catch (e) {
-      console.warn("Failed to save ipva notification color to localStorage:", e);
-    }
-  }, [ipvaNotificationColor]);
-
-  // Daily check-in notification state
-  const [dailyCheckInTime, setDailyCheckInTime] = useState<string>(() => {
-    try {
-      return localStorage.getItem('wealthflow_daily_checkin_time') || '';
-    } catch {
-      return '';
-    }
-  });
-
-  useEffect(() => {
-    try {
-      localStorage.setItem('wealthflow_daily_checkin_time', dailyCheckInTime);
-    } catch (e) {
-      console.warn("Failed to save checkin time to localStorage:", e);
-    }
-  }, [dailyCheckInTime]);
-
-  // Customizable medical appointments lead days (notification period)
-  const [medicalAppointmentLeadDays, setMedicalAppointmentLeadDays] = useState<number>(() => {
-    try {
-      const saved = localStorage.getItem('wealthflow_medical_appointment_lead_days');
-      return saved ? parseInt(saved, 10) : 2;
-    } catch {
-      return 2;
-    }
-  });
-
-  useEffect(() => {
-    try {
-      localStorage.setItem('wealthflow_medical_appointment_lead_days', String(medicalAppointmentLeadDays));
-    } catch (e) {
-      console.warn("Failed to save medical appointment lead days to localStorage:", e);
-    }
-  }, [medicalAppointmentLeadDays]);
-
-  // User alert permissions states (IPVA, Orçamento, Compromissos)
-  const [notifyIpva, setNotifyIpva] = useState<boolean>(() => {
-    try {
-      const saved = localStorage.getItem('wealthflow_notify_ipva');
-      return saved === null ? true : saved === 'true';
-    } catch {
-      return true;
-    }
-  });
-
-  // Default vehicle for Dashboard
-  const [defaultVehicleId, setDefaultVehicleId] = useState<string>(() => {
-    try {
-      const saved = localStorage.getItem('wealthflow_default_vehicle_id');
-      return saved || '';
-    } catch {
-      return '';
-    }
-  });
-
-  // Licensing reminder monthly settings
-  const [licensingReminderDay, setLicensingReminderDay] = useState<number>(() => {
-    try {
-      const saved = localStorage.getItem('wealthflow_licensing_reminder_day');
-      return saved ? parseInt(saved, 10) : 10;
-    } catch {
-      return 10;
-    }
-  });
-
-  const [notifyLicensing, setNotifyLicensing] = useState<boolean>(() => {
-    try {
-      const saved = localStorage.getItem('wealthflow_notify_licensing');
-      return saved === null ? true : saved === 'true';
-    } catch {
-      return true;
-    }
-  });
-
-  // Sync default vehicle settings to localStorage
-  useEffect(() => {
-    try {
-      localStorage.setItem('wealthflow_default_vehicle_id', defaultVehicleId);
-    } catch (e) {
-      console.warn("Failed to save defaultVehicleId:", e);
-    }
-  }, [defaultVehicleId]);
-
-  useEffect(() => {
-    try {
-      localStorage.setItem('wealthflow_licensing_reminder_day', String(licensingReminderDay));
-    } catch (e) {
-      console.warn("Failed to save licensingReminderDay:", e);
-    }
-  }, [licensingReminderDay]);
-
-  useEffect(() => {
-    try {
-      localStorage.setItem('wealthflow_notify_licensing', String(notifyLicensing));
-    } catch (e) {
-      console.warn("Failed to save notifyLicensing:", e);
-    }
-  }, [notifyLicensing]);
-
-  const [notifyBudget, setNotifyBudget] = useState<boolean>(() => {
-    try {
-      const saved = localStorage.getItem('wealthflow_notify_budget');
-      return saved === null ? true : saved === 'true';
-    } catch {
-      return true;
-    }
-  });
-
-  const [notifyAppointments, setNotifyAppointments] = useState<boolean>(() => {
-    try {
-      const saved = localStorage.getItem('wealthflow_notify_appointments');
-      return saved === null ? true : saved === 'true';
-    } catch {
-      return true;
-    }
-  });
-
-  const [notifyCarServices, setNotifyCarServices] = useState<boolean>(() => {
-    try {
-      const saved = localStorage.getItem('wealthflow_notify_car_services');
-      return saved === null ? true : saved === 'true';
-    } catch {
-      return true;
-    }
-  });
-
-  const [notifyMedical, setNotifyMedical] = useState<boolean>(() => {
-    try {
-      const saved = localStorage.getItem('wealthflow_notify_medical');
-      return saved === null ? true : saved === 'true';
-    } catch {
-      return true;
-    }
-  });
-
-  const [notifyRiskZones, setNotifyRiskZones] = useState<boolean>(() => {
-    try {
-      const saved = localStorage.getItem('wealthflow_notify_risk_zones');
-      return saved === null ? true : saved === 'true';
-    } catch {
-      return true;
-    }
-  });
-
-  useEffect(() => {
-    try {
-      localStorage.setItem('wealthflow_notify_ipva', String(notifyIpva));
-    } catch (e) {
-      console.warn("Failed to save notifyIpva to localStorage:", e);
-    }
-  }, [notifyIpva]);
-
-  useEffect(() => {
-    try {
-      localStorage.setItem('wealthflow_notify_budget', String(notifyBudget));
-    } catch (e) {
-      console.warn("Failed to save notifyBudget to localStorage:", e);
-    }
-  }, [notifyBudget]);
-
-  useEffect(() => {
-    try {
-      localStorage.setItem('wealthflow_notify_appointments', String(notifyAppointments));
-    } catch (e) {
-      console.warn("Failed to save notifyAppointments to localStorage:", e);
-    }
-  }, [notifyAppointments]);
-
-  useEffect(() => {
-    try {
-      localStorage.setItem('wealthflow_notify_car_services', String(notifyCarServices));
-    } catch (e) {
-      console.warn("Failed to save notifyCarServices to localStorage:", e);
-    }
-  }, [notifyCarServices]);
-
-  useEffect(() => {
-    try {
-      localStorage.setItem('wealthflow_notify_medical', String(notifyMedical));
-    } catch (e) {
-      console.warn("Failed to save notifyMedical to localStorage:", e);
-    }
-  }, [notifyMedical]);
-
-  useEffect(() => {
-    try {
-      localStorage.setItem('wealthflow_notify_risk_zones', String(notifyRiskZones));
-    } catch (e) {
-      console.warn("Failed to save notifyRiskZones to localStorage:", e);
-    }
-  }, [notifyRiskZones]);
-
-  // Check check-in time every 30 seconds
-  useEffect(() => {
-    const checkDailyCheckIn = () => {
-      if (!dailyCheckInTime) return;
-      const now = new Date();
-      const currentHM = now.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
-      
-      if (currentHM === dailyCheckInTime) {
-        const todayStr = now.toDateString(); // e.g. "Wed Jul 15 2026"
-        const lastNotified = localStorage.getItem('wealthflow_last_checkin_notified_date');
-        
-        if (lastNotified !== todayStr) {
-          localStorage.setItem('wealthflow_last_checkin_notified_date', todayStr);
-          
-          // Try to request/trigger system notification
-          if ("Notification" in window && Notification.permission === "granted") {
-            try {
-              const notification = new Notification("WealthFlow • Check-in Diário", {
-                body: "Hora do check-in diário! Deseja registrar os gastos de hoje?",
-                icon: "/favicon.ico",
-                tag: "daily-checkin"
-              });
-              notification.onclick = () => {
-                window.focus();
-                setCurrentTab('transactions');
-                setShowAddTxForm(true);
-              };
-            } catch (err) {
-              console.warn("Failed to dispatch system notification, falling back:", err);
-            }
-          }
-          
-          // Trigger double-layered user attention:
-          // 1. Play dual-chime audio tone
-          try {
-            const audioCtx = new (window.AudioContext || (window as any).webkitAudioContext)();
-            const osc = audioCtx.createOscillator();
-            const gain = audioCtx.createGain();
-            osc.connect(gain);
-            gain.connect(audioCtx.destination);
-            osc.type = 'sine';
-            osc.frequency.setValueAtTime(587.33, audioCtx.currentTime); // D5
-            gain.gain.setValueAtTime(0.06, audioCtx.currentTime);
-            gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.35);
-            osc.start(audioCtx.currentTime);
-            osc.stop(audioCtx.currentTime + 0.35);
-          } catch (e) {}
-
-          // 2. In-App Interactive Confirmation Dialog
-          showConfirm(
-            "⏰ CHECK-IN DIÁRIO",
-            "Chegou o seu horário de check-in diário! Deseja abrir a página de transações para registrar seus gastos e receitas de hoje?",
-            () => {
-              setCurrentTab('transactions');
-              setShowAddTxForm(true);
-            }
-          );
-        }
-      }
-    };
-
-    checkDailyCheckIn();
-    const interval = setInterval(checkDailyCheckIn, 30000);
-    return () => clearInterval(interval);
-  }, [dailyCheckInTime]);
-
-  // Monthly Licensing Reminder logic
-  useEffect(() => {
-    if (!notifyLicensing) return;
-    
-    const checkLicensingReminder = () => {
-      const now = new Date();
-      const currentDay = now.getDate();
-      
-      if (currentDay === licensingReminderDay) {
-        const currentMonthYearStr = `${now.getMonth()}_${now.getFullYear()}`;
-        const lastNotified = localStorage.getItem('wealthflow_last_licensing_notified_month');
-        
-        if (lastNotified !== currentMonthYearStr) {
-          localStorage.setItem('wealthflow_last_licensing_notified_month', currentMonthYearStr);
-          
-          const msgTitle = "🚗 Lembrete de Licenciamento Anual";
-          const msgBody = `Hoje é dia ${licensingReminderDay}! Lembre-se de verificar o status de licenciamento anual da sua frota de veículos.`;
-
-          if ("Notification" in window && Notification.permission === "granted") {
-            try {
-              new Notification(msgTitle, {
-                body: msgBody,
-                icon: "/favicon.ico",
-                tag: "licensing-reminder"
-              });
-            } catch (err) {
-              console.warn("Failed to dispatch licensing notification:", err);
-            }
-          }
-
-          try {
-            const audioCtx = new (window.AudioContext || (window as any).webkitAudioContext)();
-            const osc = audioCtx.createOscillator();
-            const gain = audioCtx.createGain();
-            osc.connect(gain);
-            gain.connect(audioCtx.destination);
-            osc.type = 'sine';
-            osc.frequency.setValueAtTime(440, audioCtx.currentTime); // A4
-            gain.gain.setValueAtTime(0.05, audioCtx.currentTime);
-            gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.4);
-            osc.start(audioCtx.currentTime);
-            osc.stop(audioCtx.currentTime + 0.4);
-          } catch {}
-
-          showConfirm(
-            msgTitle,
-            `${msgBody} Deseja ir para a aba de Perfil para gerenciar as configurações dos veículos agora?`,
-            () => {
-              setCurrentTab('profile');
-            }
-          );
-        }
-      }
-    };
-
-    checkLicensingReminder();
-    const interval = setInterval(checkLicensingReminder, 10 * 60 * 1000); // Check every 10 mins
-    return () => clearInterval(interval);
-  }, [notifyLicensing, licensingReminderDay]);
-
-  // Stateful Security Lock Config
-  const [securityConfig, setSecurityConfig] = useState<SecurityConfig>(() => {
-    try {
-      const saved = localStorage.getItem('wealthflow_security_config');
-      return saved ? JSON.parse(saved) : {
-        enabled: false,
-        mode: 'PIN',
-        password: 'admin',
-        pin: '1234',
-        biometricType: 'FACE_ID'
-      };
-    } catch {
-      return {
-        enabled: false,
-        mode: 'PIN',
-        password: 'admin',
-        pin: '1234',
-        biometricType: 'FACE_ID'
-      };
-    }
-  });
-
-  const [isAppLocked, setIsAppLocked] = useState<boolean>(() => {
-    try {
-      const saved = localStorage.getItem('wealthflow_security_config');
-      if (saved) {
-        const parsed = JSON.parse(saved);
-        return !!parsed.enabled;
-      }
-    } catch {}
-    return false;
-  });
-
-  // Google Sheets state lifted from TransactionsTab to App level for global background syncing
-  const [googleUser, setGoogleUser] = useState<any>(null);
-  const [googleToken, setGoogleToken] = useState<string | null>(() => {
-    return localStorage.getItem('wealthflow_apps_script_url') || 
-           localStorage.getItem('wealthflow_spreadsheet_url') || 
-           localStorage.getItem('wealthflow_google_access_token') || 
-           DEFAULT_APPS_SCRIPT_URL;
-  });
-  const [isSyncing, setIsSyncing] = useState<boolean>(false);
-  const [isImporting, setIsImporting] = useState<boolean>(false);
-  const [spreadsheetUrl, setSpreadsheetUrl] = useState<string>(() => {
-    return localStorage.getItem('wealthflow_spreadsheet_url') || DEFAULT_SPREADSHEET_URL;
-  });
-  const [syncError, setSyncError] = useState<string | null>(null);
-  const [lastSyncedTime, setLastSyncedTime] = useState<string>(() => {
-    return localStorage.getItem('wealthflow_last_synced_time') || '';
-  });
-  const [autoSync, setAutoSync] = useState<boolean>(() => {
-    return localStorage.getItem('wealthflow_auto_sync') === 'true';
-  });
-  const [isGoogleDriveModalOpen, setIsGoogleDriveModalOpen] = useState<boolean>(false);
+  const {
+    avatarUrl, setAvatarUrl,
+    customCategories, setCustomCategories,
+    categoryBudgets, setCategoryBudgets,
+    ipvaLeadDays, setIpvaLeadDays,
+    ipvaClosingDay, setIpvaClosingDay,
+    ipvaNotificationColor, setIpvaNotificationColor,
+    dailyCheckInTime, setDailyCheckInTime,
+    medicalAppointmentLeadDays, setMedicalAppointmentLeadDays,
+    notifyIpva, setNotifyIpva,
+    defaultVehicleId, setDefaultVehicleId,
+    licensingReminderDay, setLicensingReminderDay,
+    notifyLicensing, setNotifyLicensing,
+    notifyBudget, setNotifyBudget,
+    notifyAppointments, setNotifyAppointments,
+    notifyCarServices, setNotifyCarServices,
+    notifyMedical, setNotifyMedical,
+    notifyRiskZones, setNotifyRiskZones,
+    securityConfig, setSecurityConfig,
+    isAppLocked, setIsAppLocked,
+  } = useProfileSettingsState();
+  const {
+    googleUser, setGoogleUser,
+    googleToken, setGoogleToken,
+    isSyncing, setIsSyncing,
+    isImporting, setIsImporting,
+    spreadsheetUrl, setSpreadsheetUrl,
+    syncError, setSyncError,
+    lastSyncedTime, setLastSyncedTime,
+    autoSync, setAutoSync,
+    isGoogleDriveModalOpen, setIsGoogleDriveModalOpen,
+    pendingChanges, setPendingChanges,
+    isOnline, setIsOnline,
+    showSyncQueueModal, setShowSyncQueueModal,
+  } = useGoogleSyncState();
 
   const isDbLoadedRef = useRef<boolean>(false);
   useEffect(() => {
@@ -1218,7 +483,7 @@ export default function App() {
               localStorage.setItem('wealthflow_car_services_scheduled', JSON.stringify(sheetData.scheduledServices));
             }
             if (sheetData && sheetData.categoryBudgets && typeof sheetData.categoryBudgets === 'object' && Object.keys(sheetData.categoryBudgets).length > 0) {
-              setCategoryBudgets(sheetData.categoryBudgets);
+              setCategoryBudgets(sheetData.categoryBudgets as Record<string, number>);
               localStorage.setItem('wealthflow_category_budgets', JSON.stringify(sheetData.categoryBudgets));
             }
             if (sheetData && Array.isArray(sheetData.groceryItems) && sheetData.groceryItems.length > 0) {
@@ -1414,49 +679,7 @@ export default function App() {
     }
   }, [groceryItems]);
 
-  // Bank accounts & credit cards state for interactive transaction simulation
-  const [bankAccountsState, setBankAccountsState] = useState<BankAccount[]>(() => {
-    try {
-      const saved = localStorage.getItem('wealthflow_bank_accounts');
-      if (saved) {
-        const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed)) return parsed;
-      }
-    } catch (e) {
-      console.error("Failed to parse bank accounts state:", e);
-    }
-    return bankAccounts;
-  });
-
-  const [creditCardsState, setCreditCardsState] = useState<CreditCard[]>(() => {
-    try {
-      const saved = localStorage.getItem('wealthflow_credit_cards');
-      if (saved) {
-        const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed)) return parsed;
-      }
-    } catch (e) {
-      console.error("Failed to parse credit cards state:", e);
-    }
-    return creditCards;
-  });
-
-  // Persist bank accounts and credit cards to localStorage when they change
-  useEffect(() => {
-    try {
-      localStorage.setItem('wealthflow_bank_accounts', JSON.stringify(bankAccountsState));
-    } catch (e) {
-      console.warn("Failed to save bank accounts to localStorage:", e);
-    }
-  }, [bankAccountsState]);
-
-  useEffect(() => {
-    try {
-      localStorage.setItem('wealthflow_credit_cards', JSON.stringify(creditCardsState));
-    } catch (e) {
-      console.warn("Failed to save credit cards to localStorage:", e);
-    }
-  }, [creditCardsState]);
+  // Bank accounts & credit cards state managed by useBanksAndCardsState
 
   const hasExpiringTransactions = React.useMemo(() => {
     return transactions.some(t => {
@@ -1608,33 +831,7 @@ export default function App() {
   const [isSelectingTransferDest, setIsSelectingTransferDest] = useState<boolean>(false);
   const [selectedTransferDestId, setSelectedTransferDestId] = useState<number | null>(null);
 
-  // Sync Queue (Fila de Mudanças Pendentes) states and helpers
-  interface PendingChange {
-    id: string;
-    type: string;
-    title: string;
-    timestamp: number;
-    status: 'PENDING' | 'SYNCING' | 'SYNCED' | 'FAILED';
-    error?: string;
-  }
-
-  const [pendingChanges, setPendingChanges] = useState<PendingChange[]>(() => {
-    try {
-      const saved = localStorage.getItem('wealthflow_pending_changes');
-      return saved ? JSON.parse(saved) : [];
-    } catch (e) {
-      return [];
-    }
-  });
-
-  const [isOnline, setIsOnline] = useState(navigator.onLine);
-  const [showSyncQueueModal, setShowSyncQueueModal] = useState(false);
-
-  useEffect(() => {
-    try {
-      localStorage.setItem('wealthflow_pending_changes', JSON.stringify(pendingChanges));
-    } catch (e) {}
-  }, [pendingChanges]);
+  // Sync Queue states and helpers managed by useGoogleSyncState
 
   // Run an operation and track its sync status in the queue
   const runTrackedSync = async <T,>(
@@ -2668,8 +1865,9 @@ export default function App() {
         ? sheetData.transactions 
         : (Array.isArray(sheetData?.abastecimentos) ? sheetData.abastecimentos : []);
 
-      console.log('=== [ETAPA 1] Registros retornados por buscarTodosDados() ===');
-      console.log(JSON.stringify(rawSheetTxs, null, 2));
+      if (import.meta.env.DEV) {
+        console.log('=== [ETAPA 1] Registros retornados por buscarTodosDados() ===', rawSheetTxs);
+      }
 
       const validSheetTxs = rawSheetTxs.map((st: any, idx: number) => {
         const norm = normalizeTransactionObject(st);
@@ -2680,8 +1878,9 @@ export default function App() {
         return norm;
       });
 
-      console.log('=== [ETAPA 2] Registros após normalizeTransactionObject() ===');
-      console.log(JSON.stringify(validSheetTxs, null, 2));
+      if (import.meta.env.DEV) {
+        console.log('=== [ETAPA 2] Registros após normalizeTransactionObject() ===', validSheetTxs);
+      }
 
       console.log(`[SYNC LOG - LOCAL BEFORE MERGE] Total de lançamentos locais na memória do app: ${currentTxs?.length || 0}`);
       console.log('[SYNC LOG - LOCAL BEFORE MERGE] IDs locais:', (currentTxs || []).map(t => t.id));
@@ -2887,8 +2086,9 @@ export default function App() {
         return;
       }
 
-      console.log('=== [ETAPA 3] Conteúdo completo do txMap / cleanMergedTxs imediatamente antes de chamar sincronizarTudo() ===');
-      console.log(JSON.stringify(cleanMergedTxs, null, 2));
+      if (import.meta.env.DEV) {
+        console.log('=== [ETAPA 3] Conteúdo completo do txMap / cleanMergedTxs imediatamente antes de chamar sincronizarTudo() ===', cleanMergedTxs);
+      }
 
       const stackTrace = new Error().stack || '';
       const formattedNow = new Date().toLocaleString('pt-BR');
@@ -2898,7 +2098,9 @@ export default function App() {
       console.log(`ORIGEM: ${origem}`);
       console.log(`Quantidade de registros: ${totalCount}`);
       console.log(`Horário: ${formattedNow}`);
-      console.log(`Call Stack completo:\n${stackTrace}`);
+      if (import.meta.env.DEV) {
+        console.log(`Call Stack completo:\n${stackTrace}`);
+      }
       console.log('====================');
 
       // 3. Somente se houver alteração feita PELO APLICATIVO chamar sincronizarTudo()
@@ -3227,7 +2429,7 @@ export default function App() {
         localStorage.setItem('wealthflow_car_services_scheduled', JSON.stringify(sheetData.scheduledServices));
       }
       if (sheetData && sheetData.categoryBudgets && typeof sheetData.categoryBudgets === 'object' && Object.keys(sheetData.categoryBudgets).length > 0) {
-        setCategoryBudgets(sheetData.categoryBudgets);
+        setCategoryBudgets(sheetData.categoryBudgets as Record<string, number>);
         localStorage.setItem('wealthflow_category_budgets', JSON.stringify(sheetData.categoryBudgets));
       }
 
